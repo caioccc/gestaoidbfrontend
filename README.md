@@ -1,40 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# Eclésia IDB — Frontend
 
-## Getting Started
+Interface web do **Eclésia IDB**, sistema de gestão financeira das Igrejas de Deus no Brasil.
+Desenvolvida com Next.js (Pages Router), React, Mantine UI e TypeScript.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Next.js 16** (Pages Router, Turbopack) + **React 19**
+- **Mantine** (v7/*~9.5.2*) — componentes e sistema de tema (claro/escuro)
+- **@mantine/datatable** — tabelas de lançamentos
+- **recharts** — gráficos do dashboard e da DRE
+- **axios** — cliente HTTP para a API (base em `src/api`)
+- **dayjs** — datas e períodos
+- **react-imask** — máscaras (CPF, telefone, etc.)
+- **leaflet** — mapas (localização das congregações)
+- **xlsx** — importação de planilhas
+- **js-cookie** — persistência do token JWT
+- **i18n próprio** — pt-BR / en / es (`src/i18n`)
+
+## Estrutura
+
+```
+src/
+├── api/          # clientes de API: accounts, finance, adminFinance
+├── components/   # UI reutilizável + painéis (treasurer/admin/approve)
+│   └── admin/sections/  # 10 seções reutilizadas no painel admin por igreja
+├── contexts/     # AuthContext, ThemeContext, etc.
+├── hooks/        # hooks customizados (tabelas, paginação)
+├── i18n/         # traduções pt/en/es + formatters
+├── pages/        # rotas (Pages Router)
+│   ├── admin/churches/            # painel nacional (admin)
+│   └── admin/churches/[churchId]/ # app completo por igreja
+├── types/        # tipos TypeScript (domínio + API)
+└── utils/        # utilitários
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Como rodar (desenvolvimento)
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+Pré-requisitos: Node.js 20+ e o backend Django rodando (veja o README da raiz).
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+```bash
+npm install
+npm run dev
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+A aplicação roda em `http://localhost:3000` por padrão.
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+| Comando            | Descrição                                  |
+|--------------------|---------------------------------------------|
+| `npm run dev`      | Servidor de desenvolvimento                |
+| `npm run build`    | Build de produção (`next build`)           |
+| `npm run start`    | Serve o build de produção (`next start`)   |
+| `npx tsc --noEmit` | Verificação de tipos (TypeScript)          |
 
-To learn more about Next.js, take a look at the following resources:
+## Variáveis de ambiente
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+| Variável                | Uso                                                        |
+|-------------------------|------------------------------------------------------------|
+| `NEXT_PUBLIC_BASE_URL`  | URL base da API Django (ex.: `http://localhost:8000/api`). **Embutida no JavaScript em tempo de build** — defina antes de `next build`. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Crie um arquivo `.env.local`:
 
-## Deploy on Vercel
+```
+NEXT_PUBLIC_BASE_URL=http://localhost:8000/api
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Rotas principais
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+### Tesoureiro (aplicação por congregação)
+Rotas planas no layout autenticado — dashboard, importação, entradas/saídas, dízimos, fechamentos, relatórios, DRE, extrato, calendário e perfil.
+
+### Administração nacional
+- `/admin/churches` — grade de cards de **todas** as congregações (pendentes, ativas, rejeitadas), com aprovação/rejeição.
+- `/admin/churches/[churchId]/[section]` — acesso **completo** (CRUD + importação) do app da igreja, recriado via rotas aninhadas; cada seção usa a mesma API administrativa por igreja.
+
+## Login / Permissões
+
+- **Tesoureiro**: usuário com `church` vinculada; acesso às finanças da própria igreja.
+- **Administrador**: conta `is_staff` sem igreja (`church=None`); acesso nacional a todas as igrejas.
+
+## Docker
+
+Siga o `Dockerfile` da raiz do frontend (saída `standalone`) ou a documentação na raiz do
+repositório para rodar a stack completa com `docker compose`.
+
+## Internacionalização
+
+As traduções ficam em `src/i18n/translations.ts` (blocos `pt`, `en`, `es`). Para adicionar texto,
+insira a chave nos três idiomas e use o helper de tradução do `src/i18n`.
