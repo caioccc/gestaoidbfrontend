@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Stack,
   Text,
@@ -48,6 +48,8 @@ export default function ColumnMatchStep({
   const [loading, setLoading] = useState(true);
   const mounted = useRef(false);
   const lastComplete = useRef<boolean | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     let active = true;
@@ -86,17 +88,21 @@ export default function ColumnMatchStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, file]);
 
-  useEffect(() => {
-    if (!inspection || !mounted.current) return;
+  const isComplete = useMemo(() => {
+    if (!inspection) return null;
     const incomplete = inspection.expected
       .filter((col) => col.required)
       .some((col) => !value[col.key]);
-    const complete = !incomplete;
-    if (lastComplete.current !== complete) {
-      lastComplete.current = complete;
-      onComplete(complete);
+    return !incomplete;
+  }, [inspection, value]);
+
+  useEffect(() => {
+    if (isComplete === null || !mounted.current) return;
+    if (lastComplete.current !== isComplete) {
+      lastComplete.current = isComplete;
+      onCompleteRef.current(isComplete);
     }
-  }, [inspection, value, onComplete]);
+  }, [isComplete]);
 
   const setField = useCallback(
     (key: string, real: string | null) => {

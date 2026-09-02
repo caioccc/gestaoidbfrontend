@@ -202,12 +202,19 @@ export const financeApi = {
     year: number,
     month: number,
     action: 'approve' | 'reject',
-    note?: string
+    note?: string,
+    photo?: string | null,
+    signature?: string | null
   ): Promise<MonthlyValidation> =>
     apiClient
       .post(
         '/api/finance/validation/',
-        { action, note: note ?? '' },
+        {
+          action,
+          note: note ?? '',
+          ...(photo ? { photo } : {}),
+          ...(signature ? { signature } : {}),
+        },
         { params: { year, month } }
       )
       .then((r) => r.data),

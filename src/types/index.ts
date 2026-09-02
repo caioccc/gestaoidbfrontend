@@ -1,4 +1,4 @@
-// Tipos compartilhados do frontend - Eclésia IDB
+// Tipos compartilhados do frontend - Financeiro IDB
 // Refletem as respostas do backend Django/DRF
 
 export interface Church {
@@ -344,6 +344,9 @@ export interface MonthlyValidation {
   treasury_rejected_at: string | null;
   rejected_by_leadership: number | null;
   leadership_rejected_at: string | null;
+  treasury_photo_url: string | null;
+  treasury_signature_url: string | null;
+  signature_hash: string | null;
   updated_at: string | null;
 }
 

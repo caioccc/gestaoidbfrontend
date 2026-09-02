@@ -61,7 +61,7 @@ export default function LandingPage() {
   return (
     <>
       <Head>
-        <title>Eclésia IDB - Gestão Financeira</title>
+        <title>Financeiro IDB - Gestão Financeira</title>
       </Head>
       <Box bg={isDark ? 'dark.8' : 'gray.0'} mih="100vh">
         {/* Header */}
@@ -73,7 +73,7 @@ export default function LandingPage() {
                   <IconBuildingChurch size={18} />
                 </ThemeIcon>
                 <Text fw={800} size="lg">
-                  Eclésia{' '}
+                  Financeiro{' '}
                   <Text component="span" c="blue" fw={800}>
                     IDB
                   </Text>
@@ -170,7 +170,7 @@ export default function LandingPage() {
             <DividerFooter />
             <Flex justify="space-between" align="center" wrap="wrap" gap="sm">
               <Text size="sm" c="dimmed">
-                © {new Date().getFullYear()} Eclésia IDB
+                © {new Date().getFullYear()} Financeiro IDB
               </Text>
               <Text size="sm" c="dimmed" ta="center">
                 {t.landing.footer}

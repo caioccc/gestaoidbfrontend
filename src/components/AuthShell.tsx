@@ -58,7 +58,7 @@ export default function AuthShell({
               <IconBuildingChurch size={18} />
             </ThemeIcon>
             <Text fw={800} size="lg">
-              Eclésia{' '}
+              Financeiro{' '}
               <Text component="span" c="blue" fw={800}>
                 IDB
               </Text>

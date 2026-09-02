@@ -306,7 +306,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <IconLayoutDashboard size={16} />
               </ThemeIcon>
               <Text fw={800} size="lg">
-                Eclésia{' '}
+                Financeiro{' '}
                 <Text component="span" c="blue" fw={800}>
                   IDB
                 </Text>

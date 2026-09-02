@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Stack,
   Text,
@@ -21,10 +21,12 @@ import {
   IconRepeat,
   IconCoins,
   IconListCheck,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { MonthlyValidationResponse } from '../types';
 import { formatBRL, toNumber } from '../utils/format';
+import SignatureViewerModal from './SignatureViewerModal';
 
 interface ValidationPanelProps {
   data: MonthlyValidationResponse | null;
@@ -73,14 +75,13 @@ export default function ValidationPanel({
   const leadershipApproved = !!validation?.leadership_approved_at;
   const leadershipRejected = !!validation?.leadership_rejected_at;
 
-  // Cada perfil aprova de forma independente. Só é preciso que a
-  // competência esteja fechada para aprovar.
-  const canApprove = closing.is_closed
-    ? isTreasury
-      ? !treasuryApproved
-      : !leadershipApproved
-    : false;
-  const canReject = isTreasury ? !treasuryApproved : !leadershipApproved;
+  // Tesouraria e Liderança assinam o MESMO slot da Tesouraria ("marcado
+  // apenas para a tesouraria"); a Liderança pode assinar pela Tesouraria.
+  // A competência precisa estar fechada para aprovar.
+  const canApprove = closing.is_closed && !treasuryApproved;
+  const canReject = !treasuryApproved;
+
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   return (
     <Stack gap="lg">
@@ -246,17 +247,11 @@ export default function ValidationPanel({
                   ? t.validationPage.rejected
                   : t.validationPage.pending}
             </Badge>
-            <Badge
-              color={leadershipApproved ? 'green' : leadershipRejected ? 'red' : 'gray'}
-              variant="light"
-            >
-              {t.validationPage.leadershipApproved}:{' '}
-              {leadershipApproved
-                ? t.validationPage.approved
-                : leadershipRejected
-                  ? t.validationPage.rejected
-                  : t.validationPage.pending}
-            </Badge>
+            {leadershipApproved && (
+              <Badge color="teal" variant="light">
+                {t.validationPage.leadershipApproved}: {t.validationPage.approved}
+              </Badge>
+            )}
           </Group>
         </Group>
 
@@ -267,24 +262,23 @@ export default function ValidationPanel({
         )}
 
         <Group gap="md" mb="md">
-          {validation?.treasury_approved_at && (
-            <Text size="xs" c="green">
-              {t.validationPage.treasuryApproved} ✓ {validation.treasury_approved_at.slice(0, 16)}
-            </Text>
+          {(treasuryApproved || treasuryRejected) && (
+            <Button
+              variant="light"
+              color={treasuryApproved ? 'green' : 'red'}
+              size="xs"
+              leftSection={<IconExternalLink size={14} />}
+              onClick={() => setViewerOpen(true)}
+              data-testid="validation-signature-link"
+            >
+              {t.validationPage.treasuryApproved}{' '}
+              {treasuryApproved ? '✓' : '✗'}{' '}
+              {(validation?.treasury_approved_at || validation?.treasury_rejected_at || '').slice(0, 16)}
+            </Button>
           )}
-          {validation?.treasury_rejected_at && (
-            <Text size="xs" c="red">
-              {t.validationPage.treasuryApproved} ✗ {validation.treasury_rejected_at.slice(0, 16)}
-            </Text>
-          )}
-          {validation?.leadership_approved_at && (
-            <Text size="xs" c="green">
-              {t.validationPage.leadershipApproved} ✓ {validation.leadership_approved_at.slice(0, 16)}
-            </Text>
-          )}
-          {validation?.leadership_rejected_at && (
-            <Text size="xs" c="red">
-              {t.validationPage.leadershipApproved} ✗ {validation.leadership_rejected_at.slice(0, 16)}
+          {!treasuryApproved && !treasuryRejected && (
+            <Text size="xs" c="dimmed">
+              {t.validationPage.pending}
             </Text>
           )}
         </Group>
@@ -323,6 +317,20 @@ export default function ValidationPanel({
           </Group>
         </Stack>
       </Paper>
+
+      <SignatureViewerModal
+        opened={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        photoUrl={validation?.treasury_photo_url ?? null}
+        signatureUrl={validation?.treasury_signature_url ?? null}
+        signatureHash={validation?.signature_hash ?? null}
+        roleLabel={t.validationPage.treasuryApproved}
+        signedAt={
+          (validation?.treasury_approved_at ||
+            validation?.treasury_rejected_at || '')?.slice(0, 19)
+        }
+        approved={treasuryApproved}
+      />
     </Stack>
   );
 }

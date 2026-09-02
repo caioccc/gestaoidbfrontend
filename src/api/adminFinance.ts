@@ -77,7 +77,9 @@ export interface AdminFinanceApi {
     year: number,
     month: number,
     action: 'approve' | 'reject',
-    note?: string
+    note?: string,
+    photo?: string | null,
+    signature?: string | null
   ) => Promise<MonthlyValidation>;
   exportEntries: (year: number, month: number) => Promise<Blob>;
   exportExits: (year: number, month: number) => Promise<Blob>;
@@ -222,11 +224,16 @@ export function createAdminFinance(churchId: number): AdminFinanceApi {
         .get(`${base}/validation/`, { params: { year, month } })
         .then((r) => r.data),
 
-    submitValidation: (year, month, action, note) =>
+    submitValidation: (year, month, action, note, photo, signature) =>
       apiClient
         .post(
           `${base}/validation/`,
-          { action, note: note ?? '' },
+          {
+            action,
+            note: note ?? '',
+            ...(photo ? { photo } : {}),
+            ...(signature ? { signature } : {}),
+          },
           { params: { year, month } }
         )
         .then((r) => r.data),
