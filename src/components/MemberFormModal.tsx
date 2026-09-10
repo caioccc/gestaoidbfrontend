@@ -542,33 +542,46 @@ export default function MemberFormModal({
                         />
                       </SimpleGrid>
                       <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                        <DateInput
+                          label={t.membersPage.birthDate}
+                          data-testid="member-birth-date"
+                          locale={locale}
+                          valueFormat="DD/MM/YYYY"
+                          clearable
+                          maxDate={new Date()}
+                          value={form.values.birth_date}
+                          onChange={(value) =>
+                            form.setFieldValue('birth_date', toDateValue(value))
+                          }
+                          error={form.errors.birth_date}
+                        />
                         <TextInput
                           label={t.membersPage.bornInCity}
                           data-testid="member-born-city"
                           {...form.getInputProps('born_in_city')}
                         />
+                      </SimpleGrid>
+                      <SimpleGrid cols={{ base: 1, sm: 2 }}>
                         <TextInput
                           label={t.membersPage.bornInState}
                           maxLength={2}
                           data-testid="member-born-state"
                           {...form.getInputProps('born_in_state')}
                         />
-                      </SimpleGrid>
-                      <SimpleGrid cols={{ base: 1, sm: 2 }}>
                         <TextInput
                           label={t.membersPage.profession}
                           data-testid="member-profession"
                           {...form.getInputProps('profession')}
                         />
-                        <Select
-                          label={t.membersPage.educationLevel}
-                          placeholder={t.membersPage.educationLevel}
-                          clearable
-                          data={educationOptions}
-                          data-testid="member-education"
-                          {...form.getInputProps('education_level')}
-                        />
                       </SimpleGrid>
+                      <Select
+                        label={t.membersPage.educationLevel}
+                        placeholder={t.membersPage.educationLevel}
+                        clearable
+                        data={educationOptions}
+                        data-testid="member-education"
+                        {...form.getInputProps('education_level')}
+                      />
                     </Stack>
                   </Grid.Col>
                 </Grid>

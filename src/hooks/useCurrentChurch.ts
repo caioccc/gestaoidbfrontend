@@ -8,6 +8,11 @@ export interface CurrentChurch {
   id: number;
   name: string;
   church_type: ChurchType;
+  street?: string | null;
+  number?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
 }
 
 interface UseCurrentChurchReturn {
@@ -19,11 +24,25 @@ function toCurrentChurch(c: {
   id: number;
   name: string;
   church_type?: string | null;
+  street?: string | null;
+  number?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
 }): CurrentChurch {
   const normalized = ['INDEPENDENT', 'CONGREGATION'].includes(c.church_type ?? '')
     ? (c.church_type as ChurchType)
     : 'INDEPENDENT';
-  return { id: c.id, name: c.name, church_type: normalized };
+  return {
+    id: c.id,
+    name: c.name,
+    church_type: normalized,
+    street: c.street ?? null,
+    number: c.number ?? null,
+    neighborhood: c.neighborhood ?? null,
+    city: c.city ?? null,
+    state: c.state ?? null,
+  };
 }
 
 export function useCurrentChurch(): UseCurrentChurchReturn {

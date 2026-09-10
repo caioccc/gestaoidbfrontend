@@ -92,3 +92,45 @@ export function toSentenceCase(value: string) {
 export function isValidEmail(value: string) {
   return /^\S+@\S+\.\S+$/.test(String(value ?? '').trim());
 }
+
+export function onlyDigits(value: string): string {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
+export function maskCpf(value: string): string {
+  const d = onlyDigits(value).slice(0, 11);
+  return d
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+export function maskPhone(value: string): string {
+  const d = onlyDigits(value).slice(0, 11);
+  if (d.length <= 10) {
+    return d.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return d
+    .replace(/(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+export function maskCep(value: string): string {
+  const d = onlyDigits(value).slice(0, 8);
+  return d.replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+export function isValidCpf(value: string): boolean {
+  const d = onlyDigits(value);
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  for (let length = 9; length <= 10; length += 1) {
+    let total = 0;
+    for (let i = 0; i < length; i += 1) {
+      total += Number(d[i]) * (length + 1 - i);
+    }
+    const check = (total * 10) % 11;
+    const expected = check === 10 ? 0 : check;
+    if (expected !== Number(d[length])) return false;
+  }
+  return true;
+}

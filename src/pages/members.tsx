@@ -17,6 +17,9 @@ import {
   Tabs,
   Checkbox,
   Select,
+  Menu,
+  ActionIcon,
+  Pagination,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -34,9 +37,9 @@ import {
   IconSearch,
   IconDownload,
   IconFileDescription,
-  IconPaperclip,
   IconFileTypePdf,
   IconShare2,
+  IconDotsVertical,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
@@ -72,6 +75,8 @@ function MembersTab({
 }) {
   const { t, locale } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [areas, setAreas] = useState<MinistryArea[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -87,11 +92,18 @@ function MembersTab({
   const [renewDate, setRenewDate] = useState<Date | null>(null);
   const [renewing, setRenewing] = useState(false);
   const [fSearch, setFSearch] = useState('');
+  const [dbSearch, setDbSearch] = useState('');
   const [fStatus, setFStatus] = useState<string | null>(null);
   const [fArea, setFArea] = useState<string | null>(null);
   const [fEducation, setFEducation] = useState<string | null>(null);
   const [fMarital, setFMarital] = useState<string | null>(null);
   const [fEntry, setFEntry] = useState<string | null>(null);
+  const PAGE_SIZE = 25;
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDbSearch(fSearch), 300);
+    return () => clearTimeout(handle);
+  }, [fSearch]);
 
   const statusFilterOptions = [
     { value: 'ACTIVE', label: t.membersPage.active },
@@ -126,31 +138,16 @@ function MembersTab({
     { value: 'OUTRO', label: t.membersPage.entryOther },
   ];
 
-  const filtered = members.filter((m) => {
-    const term = fSearch.trim().toLowerCase();
-    if (
-      term &&
-      !(
-        (m.name || '').toLowerCase().includes(term) ||
-        (m.phone || '').toLowerCase().includes(term) ||
-        (m.email || '').toLowerCase().includes(term) ||
-        (m.card_number || '').toLowerCase().includes(term)
-      )
-    ) {
-      return false;
-    }
-    if (fStatus && m.status !== fStatus) return false;
-    if (
-      fArea &&
-      !m.ministry_areas_display?.some((a) => String(a.id) === fArea)
-    ) {
-      return false;
-    }
-    if (fEducation && m.education_level !== fEducation) return false;
-    if (fMarital && m.marital_status !== fMarital) return false;
-    if (fEntry && m.church_entry !== fEntry) return false;
-    return true;
-  });
+  const filterParams = (): Record<string, string> => {
+    const params: Record<string, string> = {};
+    if (dbSearch.trim()) params.search = dbSearch.trim();
+    if (fStatus) params.status = fStatus;
+    if (fArea) params.area = fArea;
+    if (fEducation) params.education = fEducation;
+    if (fMarital) params.marital_status = fMarital;
+    if (fEntry) params.church_entry = fEntry;
+    return params;
+  };
 
   const hasFilters =
     fSearch.trim() !== '' ||
@@ -167,67 +164,73 @@ function MembersTab({
     setFEducation(null);
     setFMarital(null);
     setFEntry(null);
+    setPage(1);
   };
 
-  const exportRolCsv = () => {
-    const esc = (v: unknown) =>
-      `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
-    const headers = [
-      t.membersPage.name,
-      'Matrícula',
-      t.membersPage.phone,
-      t.membersPage.email,
-      t.membersPage.bornInCity,
-      t.membersPage.profession,
-      t.membersPage.educationLevel,
-      t.membersPage.maritalStatus,
-      t.membersPage.churchEntry,
-      t.membersPage.ministryAreas,
-      t.membersPage.status,
-      t.membersPage.addressStreet,
-      t.membersPage.addressNumber,
-      t.membersPage.addressComplement,
-      t.membersPage.addressNeighborhood,
-      t.membersPage.addressCity,
-      t.membersPage.addressState,
-      t.membersPage.addressCep,
-    ];
-    const lines = [
-      headers.map(esc).join(';'),
-      ...filtered.map((m) =>
-        [
-          m.name,
-          m.card_number || '',
-          m.phone,
-          m.email,
-          m.born_in_city,
-          m.profession,
-          m.education_level_display,
-          m.marital_status_display,
-          m.church_entry_display,
-          m.ministry_areas_display.map((a) => a.name).join('; '),
-          m.status_display,
-          m.street,
-          m.number,
-          m.complement,
-          m.neighborhood,
-          m.city,
-          m.state,
-          m.cep,
-        ]
-          .map(esc)
-          .join(';')
-      ),
-    ];
-    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'rol_membros.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportRolCsv = async () => {
+    try {
+      const full = await accountsApi.members(filterParams());
+      const esc = (v: unknown) =>
+        `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
+      const headers = [
+        t.membersPage.name,
+        'Matrícula',
+        t.membersPage.phone,
+        t.membersPage.email,
+        t.membersPage.bornInCity,
+        t.membersPage.profession,
+        t.membersPage.educationLevel,
+        t.membersPage.maritalStatus,
+        t.membersPage.churchEntry,
+        t.membersPage.ministryAreas,
+        t.membersPage.status,
+        t.membersPage.addressStreet,
+        t.membersPage.addressNumber,
+        t.membersPage.addressComplement,
+        t.membersPage.addressNeighborhood,
+        t.membersPage.addressCity,
+        t.membersPage.addressState,
+        t.membersPage.addressCep,
+      ];
+      const lines = [
+        headers.map(esc).join(';'),
+        ...full.map((m) =>
+          [
+            m.name,
+            m.card_number || '',
+            m.phone,
+            m.email,
+            m.born_in_city,
+            m.profession,
+            m.education_level_display,
+            m.marital_status_display,
+            m.church_entry_display,
+            m.ministry_areas_display.map((a) => a.name).join('; '),
+            m.status_display,
+            m.street,
+            m.number,
+            m.complement,
+            m.neighborhood,
+            m.city,
+            m.state,
+            m.cep,
+          ]
+            .map(esc)
+            .join(';')
+        ),
+      ];
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], {
+        type: 'text/csv;charset=utf-8;',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'rol_membros.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      notifications.show({ color: 'red', message: t.overview });
+    }
   };
 
   const downloadDeclaration = async (m: Member) => {
@@ -286,17 +289,29 @@ function MembersTab({
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([accountsApi.members(), accountsApi.ministryAreas()])
-      .then(([membersData, areasData]) => {
-        setMembers(membersData);
+    const params = {
+      page,
+      page_size: PAGE_SIZE,
+      ...filterParams(),
+    };
+    Promise.all([accountsApi.membersPage(params), accountsApi.ministryAreas()])
+      .then(([{ results, count }, areasData]) => {
+        setMembers(results);
+        setTotal(count);
         setAreas(areasData);
+        setSelected(new Set());
+        if (results.length === 0 && count > 0 && page > 1) {
+          setPage(page - 1);
+        }
       })
       .catch(() => {
         setMembers([]);
+        setTotal(0);
         setAreas([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, dbSearch, fStatus, fArea, fEducation, fMarital, fEntry]);
 
   useEffect(() => {
     load();
@@ -352,10 +367,10 @@ function MembersTab({
   };
 
   const allSelected =
-    filtered.length > 0 && filtered.every((m) => selected.has(m.id));
+    members.length > 0 && members.every((m) => selected.has(m.id));
 
   const toggleAll = () =>
-    setSelected(allSelected ? new Set() : new Set(filtered.map((m) => m.id)));
+    setSelected(allSelected ? new Set() : new Set(members.map((m) => m.id)));
 
   const toggle = (id: number) =>
     setSelected((prev) => {
@@ -378,7 +393,7 @@ function MembersTab({
     }
   };
 
-  const rows = filtered.map((m) => (
+  const rows = members.map((m) => (
     <Table.Tr key={m.id} data-testid={`member-row-${m.id}`}>
       <Table.Td>
         <Checkbox
@@ -410,9 +425,21 @@ function MembersTab({
           </Stack>
         </Group>
       </Table.Td>
-      <Table.Td>{m.phone || '—'}</Table.Td>
-      <Table.Td>{m.email || '—'}</Table.Td>
-      <Table.Td>{m.church_entry_display || '—'}</Table.Td>
+      <Table.Td>
+        <Text truncate maw={150}>
+          {m.phone || '—'}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Text truncate maw={190}>
+          {m.email || '—'}
+        </Text>
+      </Table.Td>
+      <Table.Td>
+        <Text truncate maw={140}>
+          {m.church_entry_display || '—'}
+        </Text>
+      </Table.Td>
       <Table.Td hiddenFrom="sm" />
       <Table.Td>
         <Badge color={m.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
@@ -420,64 +447,53 @@ function MembersTab({
         </Badge>
       </Table.Td>
       <Table.Td>
-        <Group gap={4} justify="flex-end">
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconId size={14} />}
-            onClick={() => setCardMember(m)}
-            data-testid={`member-card-${m.id}`}
-          >
-            {t.membersPage.viewCard}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconShare2 size={14} />}
-            disabled={m.status !== 'ACTIVE'}
-            onClick={() => setShareMember(m)}
-            data-testid={`member-share-${m.id}`}
-          >
-            {t.membersPage.shareCard}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconFileDescription size={14} />}
-            onClick={() => downloadDeclaration(m)}
-            data-testid={`member-declaration-${m.id}`}
-          >
-            {t.membersPage.declaration}
-          </Button>
-          {/* <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconPaperclip size={14} />}
-            onClick={() => setDocsMember(m)}
-            data-testid={`member-docs-${m.id}`}
-          >
-            {t.documents.list}
-          </Button> */}
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconPencil size={14} />}
-            onClick={() => openEdit(m)}
-            data-testid={`member-edit-${m.id}`}
-          >
-            {t.common.edit}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            onClick={() => setToDelete(m)}
-            data-testid={`member-delete-${m.id}`}
-          >
-            {t.common.delete}
-          </Button>
-        </Group>
+        <Menu shadow="md" width={200} position="bottom-end">
+          <Menu.Target>
+            <ActionIcon variant="subtle" data-testid={`member-menu-${m.id}`}>
+              <IconDotsVertical size={16} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              leftSection={<IconId size={14} />}
+              onClick={() => setCardMember(m)}
+              data-testid={`member-card-${m.id}`}
+            >
+              {t.membersPage.viewCard}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconShare2 size={14} />}
+              disabled={m.status !== 'ACTIVE'}
+              onClick={() => setShareMember(m)}
+              data-testid={`member-share-${m.id}`}
+            >
+              {t.membersPage.shareCard}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconFileDescription size={14} />}
+              onClick={() => downloadDeclaration(m)}
+              data-testid={`member-declaration-${m.id}`}
+            >
+              {t.membersPage.declaration}
+            </Menu.Item>
+            <Menu.Divider />
+            <Menu.Item
+              leftSection={<IconPencil size={14} />}
+              onClick={() => openEdit(m)}
+              data-testid={`member-edit-${m.id}`}
+            >
+              {t.common.edit}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconTrash size={14} />}
+              color="red"
+              onClick={() => setToDelete(m)}
+              data-testid={`member-delete-${m.id}`}
+            >
+              {t.common.delete}
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
       </Table.Td>
     </Table.Tr>
   ));
@@ -535,7 +551,7 @@ function MembersTab({
             variant="default"
             leftSection={<IconDownload size={16} />}
             onClick={exportRolCsv}
-            disabled={filtered.length === 0}
+            disabled={total === 0}
             data-testid="members-export-csv"
           >
             {t.memberReports.exportCsv}
@@ -544,7 +560,7 @@ function MembersTab({
             variant="default"
             leftSection={<IconFileTypePdf size={16} />}
             onClick={downloadReport}
-            disabled={filtered.length === 0}
+            disabled={total === 0}
             data-testid="members-report-pdf"
           >
             {t.memberReports.reportPdf}
@@ -572,7 +588,10 @@ function MembersTab({
             placeholder={t.membersPage.searchPlaceholder}
             leftSection={<IconSearch size={16} />}
             value={fSearch}
-            onChange={(e) => setFSearch(e.currentTarget.value)}
+            onChange={(e) => {
+              setFSearch(e.currentTarget.value);
+              setPage(1);
+            }}
             style={{ flex: 1, minWidth: 200 }}
             data-testid="members-filter-search"
           />
@@ -581,7 +600,10 @@ function MembersTab({
             clearable
             data={statusFilterOptions}
             value={fStatus}
-            onChange={setFStatus}
+            onChange={(v) => {
+              setFStatus(v);
+              setPage(1);
+            }}
             w={130}
             data-testid="members-filter-status"
           />
@@ -590,7 +612,10 @@ function MembersTab({
             clearable
             data={areaFilterOptions}
             value={fArea}
-            onChange={setFArea}
+            onChange={(v) => {
+              setFArea(v);
+              setPage(1);
+            }}
             w={150}
             searchable
             data-testid="members-filter-area"
@@ -600,7 +625,10 @@ function MembersTab({
             clearable
             data={educationFilterOptions}
             value={fEducation}
-            onChange={setFEducation}
+            onChange={(v) => {
+              setFEducation(v);
+              setPage(1);
+            }}
             w={170}
             searchable
             data-testid="members-filter-education"
@@ -610,7 +638,10 @@ function MembersTab({
             clearable
             data={maritalFilterOptions}
             value={fMarital}
-            onChange={setFMarital}
+            onChange={(v) => {
+              setFMarital(v);
+              setPage(1);
+            }}
             w={150}
             data-testid="members-filter-marital"
           />
@@ -619,7 +650,10 @@ function MembersTab({
             clearable
             data={entryFilterOptions}
             value={fEntry}
-            onChange={setFEntry}
+            onChange={(v) => {
+              setFEntry(v);
+              setPage(1);
+            }}
             w={160}
             data-testid="members-filter-entry"
           />
@@ -635,8 +669,8 @@ function MembersTab({
           <Text size="xs" c="dimmed">
             {t.membersPage.resultCount.replace(
               '{filtered}',
-              String(filtered.length)
-            ).replace('{total}', String(members.length))}
+              String(members.length)
+            ).replace('{total}', String(total))}
           </Text>
         </Group>
       </Card>
@@ -645,40 +679,56 @@ function MembersTab({
           <Center h={200}>
             <Loader />
           </Center>
-        ) : members.length === 0 ? (
+        ) : total === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="gray" variant="light">
               <IconUsersGroup size={24} />
             </ThemeIcon>
             <Text c="dimmed">{t.membersPage.empty}</Text>
           </Stack>
-        ) : filtered.length === 0 ? (
+        ) : members.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <Text c="dimmed">{t.membersPage.noResults}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th w={36}>
-                  <Checkbox
-                    checked={allSelected}
-                    indeterminate={selected.size > 0 && !allSelected}
-                    onChange={toggleAll}
-                    aria-label={t.membersPage.selectAll}
-                    data-testid="members-select-all"
-                  />
-                </Table.Th>
-                <Table.Th>{t.membersPage.name}</Table.Th>
-                <Table.Th>{t.membersPage.phone}</Table.Th>
-                <Table.Th>{t.membersPage.email}</Table.Th>
-                <Table.Th>{t.membersPage.churchEntry}</Table.Th>
-                <Table.Th>{t.membersPage.status}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w={36}>
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={selected.size > 0 && !allSelected}
+                      onChange={toggleAll}
+                      aria-label={t.membersPage.selectAll}
+                      data-testid="members-select-all"
+                    />
+                  </Table.Th>
+                  <Table.Th>{t.membersPage.name}</Table.Th>
+                  <Table.Th>{t.membersPage.phone}</Table.Th>
+                  <Table.Th>{t.membersPage.email}</Table.Th>
+                  <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                  <Table.Th>{t.membersPage.status}</Table.Th>
+                  <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{rows}</Table.Tbody>
+            </Table>
+            {total > PAGE_SIZE && (
+              <Group justify="center" py="sm">
+                <Pagination
+                  value={page}
+                  onChange={(p) => {
+                    setPage(p);
+                    setSelected(new Set());
+                  }}
+                  total={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+                  size="sm"
+                  data-testid="members-pagination"
+                />
+              </Group>
+            )}
+          </>
         )}
       </Card>
 

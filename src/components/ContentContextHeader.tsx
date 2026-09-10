@@ -92,7 +92,7 @@ export default function ContentContextHeader() {
 
   const rootCrumb = scope
     ? {
-        label: adminScope ? t.adminChurches.title : t.nav.churches,
+        label: adminScope ? t.adminChurches.title : t.nav.congregations,
         href: adminScope ? '/admin/churches' : '/churches',
       }
     : section !== 'dashboard'

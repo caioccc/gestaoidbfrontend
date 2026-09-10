@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Center,
+  Checkbox,
   Group,
   Loader,
   Modal,
@@ -42,6 +43,8 @@ export default function SubmissionsTab() {
   const [filter, setFilter] = useState<Filter>('ALL');
   const [viewing, setViewing] = useState<MemberSubmission | null>(null);
   const [reviewing, setReviewing] = useState<MemberSubmission | null>(null);
+  const [bulkIds, setBulkIds] = useState<number[] | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -55,7 +58,10 @@ export default function SubmissionsTab() {
     setLoading(true);
     accountsApi
       .memberSubmissions(filter === 'ALL' ? undefined : filter)
-      .then(setItems)
+      .then((data) => {
+        setItems(data);
+        setSelected(new Set());
+      })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [filter]);
@@ -67,7 +73,7 @@ export default function SubmissionsTab() {
   useEffect(() => {
     accountsApi
       .churchMemberFormLink()
-      .then((res) => setFormLink(buildFormUrl(res.url)))
+      .then((res) => setFormLink(buildFormUrl(res.hash)))
       .catch(() => undefined);
   }, []);
 
@@ -75,7 +81,7 @@ export default function SubmissionsTab() {
     setRegeneratingFormLink(true);
     try {
       const res = await accountsApi.churchMemberFormLinkRegenerate();
-      setFormLink(buildFormUrl(res.url));
+      setFormLink(buildFormUrl(res.hash));
       setConfirmFormLinkRegen(false);
     } catch {
       notifications.show({ color: 'red', message: t.overview });
@@ -85,20 +91,45 @@ export default function SubmissionsTab() {
   };
 
   const openReview = (item: MemberSubmission, action: 'approve' | 'reject') => {
+    setBulkIds(null);
     setReviewing(item);
     setReviewAction(action);
     setNotes('');
   };
 
+  const openBulkReview = (action: 'approve' | 'reject') => {
+    setReviewing(null);
+    setBulkIds(Array.from(selected));
+    setReviewAction(action);
+    setNotes('');
+  };
+
+  const toggleSelected = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const pendingIds = items
+    .filter((i) => i.status === 'PENDING')
+    .map((i) => i.id);
+  const allSelected = pendingIds.length > 0 && pendingIds.every((id) => selected.has(id));
+
   const confirmReview = async () => {
-    if (!reviewing) return;
+    const ids = bulkIds ?? (reviewing ? [reviewing.id] : []);
+    if (!ids.length) return;
     setBusy(true);
     try {
-      await accountsApi.reviewMemberSubmission(
-        reviewing.id,
-        reviewAction,
-        reviewAction === 'reject' && notes.trim() ? notes.trim() : undefined,
-      );
+      for (const id of ids) {
+        await accountsApi.reviewMemberSubmission(
+          id,
+          reviewAction,
+          reviewAction === 'reject' && notes.trim() ? notes.trim() : undefined,
+        );
+      }
       notifications.show({
         color: 'green',
         message:
@@ -107,6 +138,8 @@ export default function SubmissionsTab() {
             : t.memberSubmissions.rejectedMsg,
       });
       setReviewing(null);
+      setBulkIds(null);
+      setSelected(new Set());
       load();
     } catch {
       notifications.show({ color: 'red', message: t.overview });
@@ -120,6 +153,15 @@ export default function SubmissionsTab() {
 
   const rows = items.map((item) => (
     <Table.Tr key={item.id} data-testid={`submission-row-${item.id}`}>
+      <Table.Td>
+        <Checkbox
+          checked={selected.has(item.id)}
+          disabled={item.status !== 'PENDING'}
+          onChange={() => toggleSelected(item.id)}
+          aria-label={t.memberSubmissions.selectRow}
+          data-testid={`submission-check-${item.id}`}
+        />
+      </Table.Td>
       <Table.Td>
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon size="sm" radius="xl" color={item.member ? 'teal' : 'grape'} variant="light">
@@ -278,18 +320,69 @@ export default function SubmissionsTab() {
             <Text c="dimmed">{t.memberSubmissions.empty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.membersPage.name}</Table.Th>
-                <Table.Th>{t.memberSubmissions.source}</Table.Th>
-                <Table.Th>{t.membersPage.status}</Table.Th>
-                <Table.Th>{t.memberSubmissions.submittedAt}</Table.Th>
-                <Table.Th ta="right">{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <>
+            {selected.size > 0 && (
+              <Group gap="xs" px="md" py="sm" bg="gray.0">
+                <Text size="sm" fw={600}>
+                  {t.memberSubmissions.selectedCount.replace(
+                    '{count}',
+                    String(selected.size),
+                  )}
+                </Text>
+                <Button
+                  size="xs"
+                  color="green"
+                  variant="light"
+                  leftSection={<IconCheck size={14} />}
+                  onClick={() => openBulkReview('approve')}
+                  data-testid="submissions-bulk-approve"
+                >
+                  {t.memberSubmissions.approveSelected}
+                </Button>
+                <Button
+                  size="xs"
+                  color="red"
+                  variant="light"
+                  leftSection={<IconX size={14} />}
+                  onClick={() => openBulkReview('reject')}
+                  data-testid="submissions-bulk-reject"
+                >
+                  {t.memberSubmissions.rejectSelected}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => setSelected(new Set())}
+                >
+                  {t.common.clear}
+                </Button>
+              </Group>
+            )}
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th w={40}>
+                    <Checkbox
+                      checked={allSelected}
+                      indeterminate={!allSelected && selected.size > 0}
+                      onChange={() => {
+                        if (allSelected) setSelected(new Set());
+                        else setSelected(new Set(pendingIds));
+                      }}
+                      disabled={pendingIds.length === 0}
+                      aria-label={t.memberSubmissions.selectAll}
+                    />
+                  </Table.Th>
+                  <Table.Th>{t.membersPage.name}</Table.Th>
+                  <Table.Th>{t.memberSubmissions.source}</Table.Th>
+                  <Table.Th>{t.membersPage.status}</Table.Th>
+                  <Table.Th>{t.memberSubmissions.submittedAt}</Table.Th>
+                  <Table.Th ta="right">{t.common.actions}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{rows}</Table.Tbody>
+            </Table>
+          </>
         )}
       </Card>
 
@@ -300,8 +393,11 @@ export default function SubmissionsTab() {
       />
 
       <Modal
-        opened={!!reviewing}
-        onClose={() => setReviewing(null)}
+        opened={!!reviewing || !!bulkIds}
+        onClose={() => {
+          setReviewing(null);
+          setBulkIds(null);
+        }}
         title={
           reviewAction === 'approve'
             ? t.memberSubmissions.approveTitle
@@ -311,15 +407,20 @@ export default function SubmissionsTab() {
       >
         <Stack gap="md">
           <Text size="sm">
-            {reviewAction === 'approve'
-              ? t.memberSubmissions.approveBody.replace(
-                  '{name}',
-                  reviewing?.data?.name || '—',
-                )
-              : t.memberSubmissions.rejectBody.replace(
-                  '{name}',
-                  reviewing?.data?.name || '—',
-                )}
+            {bulkIds && bulkIds.length > 1
+              ? (reviewAction === 'approve'
+                  ? t.memberSubmissions.bulkApproveBody
+                  : t.memberSubmissions.bulkRejectBody
+                ).replace('{count}', String(bulkIds.length))
+              : reviewAction === 'approve'
+                ? t.memberSubmissions.approveBody.replace(
+                    '{name}',
+                    reviewing?.data?.name || '—',
+                  )
+                : t.memberSubmissions.rejectBody.replace(
+                    '{name}',
+                    reviewing?.data?.name || '—',
+                  )}
           </Text>
           {reviewAction === 'reject' && (
             <Textarea
@@ -331,7 +432,13 @@ export default function SubmissionsTab() {
             />
           )}
           <Group justify="flex-end">
-            <Button variant="default" onClick={() => setReviewing(null)}>
+            <Button
+              variant="default"
+              onClick={() => {
+                setReviewing(null);
+                setBulkIds(null);
+              }}
+            >
               {t.common.cancel}
             </Button>
             <Button
@@ -374,7 +481,7 @@ export default function SubmissionsTab() {
         getUrl={() => Promise.resolve(formLink ?? '')}
         regenerate={() =>
           accountsApi.churchMemberFormLinkRegenerate().then((res) => {
-            const url = buildFormUrl(res.url);
+            const url = buildFormUrl(res.hash);
             setFormLink(url);
             return url;
           })
@@ -391,6 +498,7 @@ function statusBadgeColor(status: MemberSubmissionStatus): string {
 }
 
 const DATA_LABEL_KEYS: Array<[string, string]> = [
+  ['photo', 'membersPage|photo'],
   ['name', 'membersPage|name'],
   ['phone', 'membersPage|phone'],
   ['email', 'membersPage|email'],
@@ -414,12 +522,30 @@ const DATA_LABEL_KEYS: Array<[string, string]> = [
   ['city', 'membersPage|addressCity'],
   ['state', 'membersPage|addressState'],
   ['cep', 'membersPage|addressCep'],
+  ['relatives', 'membersPage|relatives'],
   ['notes', 'membersPage|notes'],
 ];
 
 function resolveKey(t: Record<string, any>, ref: string): string {
   const [section, key] = ref.split('|');
   return t[section]?.[key] ?? key;
+}
+
+const KINSHIP_TRANSLATION_KEYS: Record<string, string> = {
+  CONJUGE: 'kinshipSpouse',
+  PAI: 'kinshipFather',
+  MAE: 'kinshipMother',
+  FILHO: 'kinshipChild',
+  IRMAO: 'kinshipSibling',
+  AVO: 'kinshipGrandparent',
+  NETO: 'kinshipGrandchild',
+  OUTRO: 'kinshipOther',
+};
+
+function relativesKinshipLabel(t: Record<string, any>, kinship?: string | null): string {
+  if (!kinship) return '—';
+  const key = KINSHIP_TRANSLATION_KEYS[kinship];
+  return key ? (t.membersPage?.[key] ?? kinship) : kinship;
 }
 
 function SubmissionsDataModal({
@@ -454,11 +580,45 @@ function SubmissionsDataModal({
                     </Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" style={{ wordBreak: 'break-word' }}>
-                      {field === 'birth_date' || field === 'marriage_date'
-                        ? formatDate(String(value))
-                        : String(value)}
-                    </Text>
+                    {field === 'photo' ? (
+                      value ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={String(value)}
+                          alt={t.membersPage.photo}
+                          style={{
+                            width: 48,
+                            height: 48,
+                            objectFit: 'cover',
+                            borderRadius: 8,
+                          }}
+                        />
+                      ) : (
+                        <Text size="sm" c="dimmed">
+                          —
+                        </Text>
+                      )
+                    ) : field === 'relatives' && Array.isArray(value) ? (
+                      value.length === 0 ? (
+                        <Text size="sm" c="dimmed">
+                          —
+                        </Text>
+                      ) : (
+                        <Stack gap={2}>
+                          {(value as any[]).map((rel, i) => (
+                            <Text key={i} size="sm">
+                              {rel.name} • {relativesKinshipLabel(t, rel.kinship)}
+                            </Text>
+                          ))}
+                        </Stack>
+                      )
+                    ) : (
+                      <Text size="sm" style={{ wordBreak: 'break-word' }}>
+                        {field === 'birth_date' || field === 'marriage_date'
+                          ? formatDate(String(value))
+                          : String(value)}
+                      </Text>
+                    )}
                   </Table.Td>
                 </Table.Tr>
               );

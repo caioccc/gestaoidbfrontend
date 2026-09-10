@@ -65,6 +65,7 @@ interface NavItem {
   adminOnly?: boolean;
   keepAbsolute?: boolean;
   roles?: string[];
+  badge?: number;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -125,11 +126,13 @@ function SidebarContent({
     !!user?.is_staff ||
     (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
   const canApprove = canManageChurch;
-  // Tesoureiro(a) lida com o financeiro; Secretária não enxerga os módulos
-  // financeiros no menu (entradas, saídas, dizimistas, fechamentos, DRE,
-  // extratos e validação mensal).
-  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA');
-  const canSeeUsers = hasRole('PASTOR', 'SECRETARIA');
+  // Tesoureiro(a) e Pastor(a) lidam com o financeiro; Secretária não enxerga
+  // os módulos financeiros no menu (entradas, saídas, dizimistas, fechamentos,
+  // DRE, extratos e validação mensal). Tesoureiro(a) também acessa os módulos
+  // de secretaria da igreja (membros, patrimônio, relatórios), mas não vê
+  // Usuários nem Governança.
+  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO');
+  const canSeeUsers = hasRole('PASTOR');
 
   // Congregações não possuem Relatório Regional: o menu é ocultado nos três
   // contextos possíveis (usuário de congregação, rota /churches/[id] e a
@@ -139,98 +142,59 @@ function SidebarContent({
 
   const dashboardLabel = canFinance ? t.nav.dashboard : t.secretaryDashboard.title;
 
-  const sections: { title: string; items: NavItem[] }[] = [
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  useEffect(() => {
+    if (!canApprove || isCongregationScope) return;
+    let cancelled = false;
+    const load = () => {
+      accountsApi
+        .pendingCongregations()
+        .then((items) => {
+          if (!cancelled) setPendingApprovals(items.length);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const interval = window.setInterval(load, 60000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [canApprove, isCongregationScope]);
+
+  const sections: { title: string; requiresChurch: boolean; items: NavItem[] }[] = [
     {
       title: t.section.overview,
+      requiresChurch: false,
       items: [
         { label: dashboardLabel, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' },
-      ],
-    },
-    ...(canSeeMembers
-      ? [
-          {
-            title: t.section.membership,
-            items: [
-              { label: t.nav.members, icon: <IconUsersGroup size={18} />, href: '/members' },
-              {
-                label: t.nav.memberReports,
-                icon: <IconChartPie size={18} />,
-                href: '/members-reports',
-              },
-            ],
-          },
-        ]
-      : []),
-    {
-      title: t.section.secretary,
-      items: [
         { label: t.nav.calendar, icon: <IconCalendarEvent size={18} />, href: '/calendar' },
-        { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos' },
-        { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas' },
       ],
     },
-    ...(canSeeMembers
+    ...(canApprove || user?.is_staff || (canManageChurch && !user?.is_staff)
       ? [
           {
-            title: t.section.assets,
+            title: t.section.governance,
+            requiresChurch: false,
             items: [
-              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory' },
-            ],
-          },
-        ]
-      : []),
-    {
-      title: t.section.ledger,
-      items: canFinance
-        ? [
-            { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
-            { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
-            { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
-            { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
-            { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
-          ]
-        : [],
-    },
-    {
-      title: t.section.reports,
-      items: canFinance
-        ? [
-            ...(canFinance && !isCongregationScope
-              ? [{ label: t.nav.reports, icon: <IconReport size={18} />, href: '/reports' }]
-              : []),
-            { label: t.nav.dre, icon: <IconChartBar size={18} />, href: '/dre' },
-            { label: t.nav.statement, icon: <IconWallet size={18} />, href: '/statement' },
-            { label: t.nav.validation, icon: <IconClipboardCheck size={18} />, href: '/validation' },
-          ]
-        : [],
-    },
-    ...(showChurchSections
-      ? [
-          {
-            title: t.section.settings,
-            items: [
-              {
-                label: t.nav.settings,
-                icon: <IconSettings size={18} />,
-                href: '/settings',
-              },
-              ...(canSeeUsers
-                ? [
-                    {
-                      label: t.nav.users,
-                      icon: <IconUserShield size={18} />,
-                      href: '/users',
-                    },
-                  ]
-                : []),
-              ...(canManageChurch
+              ...(user?.is_staff
                 ? [
                     {
                       label: t.nav.churches,
+                      icon: <IconShieldCheck size={18} />,
+                      href: '/admin/churches',
+                      keepAbsolute: true,
+                    } as NavItem,
+                  ]
+                : []),
+              ...(canManageChurch && !user?.is_staff
+                ? [
+                    {
+                      label: t.nav.congregations,
                       icon: <IconBuildingChurch size={18} />,
                       href: '/churches',
                       keepAbsolute: true,
-                    },
+                    } as NavItem,
                   ]
                 : []),
               ...(canApprove && !congregationScope
@@ -240,26 +204,71 @@ function SidebarContent({
                       icon: <IconClipboardCheck size={18} />,
                       href: '/approvals',
                       keepAbsolute: true,
-                    },
+                      badge: pendingApprovals,
+                    } as NavItem,
                   ]
                 : []),
             ] as NavItem[],
           },
         ]
       : []),
-    ...(user?.is_staff
+    ...(showChurchSections && canSeeMembers
       ? [
           {
-            title: t.adminChurches.title,
+            title: t.section.secretaryMembership,
+            requiresChurch: true,
             items: [
-              {
-                label: t.adminChurches.title,
-                icon: <IconShieldCheck size={18} />,
-                href: '/admin/churches',
-                adminOnly: true,
-                keepAbsolute: true,
-              } as NavItem,
+              { label: t.nav.members, icon: <IconUsersGroup size={18} />, href: '/members' },
+              { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas' },
+              { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos' },
+              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory' },
+              { label: t.nav.memberReports, icon: <IconChartPie size={18} />, href: '/members-reports' },
             ],
+          },
+        ]
+      : []),
+    ...(canFinance
+      ? [
+          {
+            title: t.section.ledger,
+            requiresChurch: true,
+            items: [
+              { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
+              { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
+              { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
+              { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
+              { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
+            ],
+          },
+        ]
+      : []),
+    ...(canFinance
+      ? [
+          {
+            title: t.section.reports,
+            requiresChurch: true,
+            items: [
+              ...(!isCongregationScope
+                ? [{ label: t.nav.reports, icon: <IconReport size={18} />, href: '/reports' }]
+                : []),
+              { label: t.nav.dre, icon: <IconChartBar size={18} />, href: '/dre' },
+              { label: t.nav.statement, icon: <IconWallet size={18} />, href: '/statement' },
+              { label: t.nav.validation, icon: <IconClipboardCheck size={18} />, href: '/validation' },
+            ],
+          },
+        ]
+      : []),
+    ...(showChurchSections
+      ? [
+          {
+            title: t.section.settings,
+            requiresChurch: false,
+            items: [
+              { label: t.nav.settings, icon: <IconSettings size={18} />, href: '/settings' },
+              ...(canSeeUsers
+                ? [{ label: t.nav.users, icon: <IconUserShield size={18} />, href: '/users' }]
+                : []),
+            ] as NavItem[],
           },
         ]
       : []),
@@ -269,10 +278,7 @@ function SidebarContent({
     <ScrollArea>
       <Flex direction="column" gap={4} p="xs">
         {sections
-          .filter(
-            (section) =>
-              section.title === t.adminChurches.title || showChurchSections
-          )
+          .filter((section) => !section.requiresChurch || showChurchSections)
           .map((section) => {
             const visibleItems = section.items.filter(
               (item) => !item.roles || hasRole(...item.roles)
@@ -324,6 +330,16 @@ function SidebarContent({
                         {item.icon}
                       </ThemeIcon>
                       <Text size="sm">{item.label}</Text>
+                      {item.badge != null && item.badge > 0 ? (
+                        <Badge
+                          size="xs"
+                          color="red"
+                          variant="filled"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          {item.badge}
+                        </Badge>
+                      ) : null}
                     </UnstyledButton>
                   );
                 })}
@@ -365,7 +381,11 @@ function ChurchSwitcher() {
     if (id === user.church?.id) return;
     try {
       await switchChurch(id);
-      router.replace('/dashboard');
+      router.replace(
+        user?.is_staff
+          ? `/admin/churches/${id}/dashboard`
+          : `/churches/${id}/dashboard`,
+      );
     } catch {
       void 0;
     }
@@ -382,16 +402,18 @@ function ChurchSwitcher() {
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>{t.nav.switchChurch}</Menu.Label>
-        {churches.map((church) => (
-          <Menu.Item
-            key={church.id}
-            leftSection={<IconBuildingChurch size={14} />}
-            onClick={() => handleSwitch(church.id)}
-            style={{ fontWeight: church.id === user.church?.id ? 700 : 400 }}
-          >
-            {church.name}
-          </Menu.Item>
-        ))}
+        <ScrollArea.Autosize mah={320}>
+          {churches.map((church) => (
+            <Menu.Item
+              key={church.id}
+              leftSection={<IconBuildingChurch size={14} />}
+              onClick={() => handleSwitch(church.id)}
+              style={{ fontWeight: church.id === user.church?.id ? 700 : 400 }}
+            >
+              {church.name}
+            </Menu.Item>
+          ))}
+        </ScrollArea.Autosize>
       </Menu.Dropdown>
     </Menu>
   );

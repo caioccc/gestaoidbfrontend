@@ -13,12 +13,13 @@ import {
   TextInput,
   Textarea,
   Select,
-  Switch,
+  SegmentedControl,
   NumberInput,
   MultiSelect,
   ActionIcon,
   Loader,
   Center,
+  Divider,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -33,6 +34,7 @@ import {
   IconCopy,
   IconRefresh,
   IconQrcode,
+  IconClock,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import ShareLinkModal from './ShareLinkModal';
@@ -75,6 +77,10 @@ const CATEGORY_ORDER: CalendarEventCategory[] = [
 ];
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const ISO_WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+type CalendarView = 'month' | 'week' | 'day';
+type RecurrenceMode = 'oneoff' | 'monthly' | 'weekly';
 
 // Converte "YYYY-MM-DD" em um Date no horário LOCAL (evita deslocamento de fuso).
 function dateFromApi(value: string): Date {
@@ -83,7 +89,8 @@ function dateFromApi(value: string): Date {
 }
 
 // Formata um Date local como "YYYY-MM-DD" (evita toISOString/UTC).
-function dateToApi(d: Date): string {
+function dateToApi(d: Date | null): string | null {
+  if (!d) return null;
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -94,6 +101,32 @@ function timeToApi(raw: string): string | null {
   const time = raw.trim();
   if (!time) return null;
   return time.length === 5 ? `${time}:00` : time;
+}
+
+// Dia da semana ISO: 0=Seg .. 6=Dom (getDay(): 0=Dom).
+function isoWeekday(jsDay: number): number {
+  return jsDay === 0 ? 6 : jsDay - 1;
+}
+
+function addDays(d: Date, days: number): Date {
+  const out = new Date(d);
+  out.setDate(out.getDate() + days);
+  return out;
+}
+
+function formatShortDate(t: Record<string, any>, d: Date): string {
+  return `${d.getDate()} ${(t.months[d.getMonth()] || '').slice(0, 3)}`;
+}
+
+interface BoardItem {
+  id: number;
+  key: string;
+  title: string;
+  color: string;
+  badge: string;
+  time: string | null;
+  endTime: string | null;
+  ev: CalendarEvent;
 }
 
 export default function CalendarEventsBoard({
@@ -108,6 +141,7 @@ export default function CalendarEventsBoard({
   const { t } = useLanguage();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [view, setView] = useState<CalendarView>('month');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [membersOptions, setMembersOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +149,7 @@ export default function CalendarEventsBoard({
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<CalendarEvent | null>(null);
+  const [detail, setDetail] = useState<CalendarEvent | null>(null);
   const [publicLink, setPublicLink] = useState<CalendarPublicLink | null>(null);
   const [origin, setOrigin] = useState('');
   const [copied, setCopied] = useState(false);
@@ -129,6 +164,10 @@ export default function CalendarEventsBoard({
   const monthLabel = t.months[month];
   const categoryLabel = (c: CalendarEventCategory) => t.calendarEvents.categories[c] || c;
 
+  const weekStart = new Date(cursor);
+  weekStart.setDate(cursor.getDate() - cursor.getDay());
+  const weekEnd = addDays(weekStart, 6);
+
   const canCreateAny = !readOnly && (gateway.canManageGeneral || gateway.canManageFinance);
   const canChooseAudience = !readOnly && gateway.canManageGeneral && gateway.canManageFinance;
   const canEditEvent = (ev: CalendarEvent) =>
@@ -137,8 +176,22 @@ export default function CalendarEventsBoard({
       ? gateway.canManageFinance
       : gateway.canManageGeneral);
 
-  const prevMonth = () => setCursor(new Date(year, month - 1, 1));
-  const nextMonth = () => setCursor(new Date(year, month + 1, 1));
+  const prev = () =>
+    setCursor((v) =>
+      view === 'month'
+        ? new Date(v.getFullYear(), v.getMonth() - 1, 1)
+        : view === 'week'
+          ? addDays(v, -7)
+          : addDays(v, -1)
+    );
+  const next = () =>
+    setCursor((v) =>
+      view === 'month'
+        ? new Date(v.getFullYear(), v.getMonth() + 1, 1)
+        : view === 'week'
+          ? addDays(v, 7)
+          : addDays(v, 1)
+    );
 
   const load = () => {
     setLoading(true);
@@ -165,54 +218,67 @@ export default function CalendarEventsBoard({
     }
   }, []);
 
-  interface BoardItem {
-    id: number;
-    key: string;
-    title: string;
-    color: string;
-    badge: string;
-  }
-
-  const itemsForDay = useMemo(
-    () => (day: number): BoardItem[] => {
+  const itemsForDate = useMemo(
+    () => (d: Date): BoardItem[] => {
       const out: BoardItem[] = [];
+      const iso = (date: Date) => dateToApi(date);
+      const dcursor = iso(d) || '';
       for (const ev of events) {
+        let hit = false;
         if (ev.repeat_monthly) {
-          if (ev.day === day) {
-            out.push({
-              id: ev.id,
-              key: `f-${ev.id}`,
-              title: ev.title,
-              color: CATEGORY_COLORS[ev.category] ?? 'gray',
-              badge: `${categoryLabel(ev.category)} • ${ev.title}`,
-            });
+          hit = ev.day === d.getDate();
+        } else if (ev.repeat_weekly) {
+          const wd = isoWeekday(d.getDay());
+          if (!(ev.weekdays || []).includes(wd)) continue;
+          if (ev.repeat_end_date && dcursor > ev.repeat_end_date) continue;
+          if (ev.date) {
+            const anchor = dateFromApi(ev.date);
+            if (d.getTime() < anchor.getTime()) continue;
+            const interval = ev.repeat_interval || 1;
+            const diffDays = Math.round((d.getTime() - anchor.getTime()) / 86400000);
+            if (diffDays % (7 * interval) !== 0) continue;
           }
+          hit = true;
         } else if (ev.date) {
-          const d = dateFromApi(ev.date);
-          if (d.getFullYear() === year && d.getMonth() === month && d.getDate() === day) {
-            out.push({
-              id: ev.id,
-              key: `f-${ev.id}`,
-              title: ev.title,
-              color: CATEGORY_COLORS[ev.category] ?? 'gray',
-              badge: `${categoryLabel(ev.category)} • ${ev.title}`,
-            });
-          }
+          const dd = dateFromApi(ev.date);
+          hit =
+            dd.getFullYear() === d.getFullYear() &&
+            dd.getMonth() === d.getMonth() &&
+            dd.getDate() === d.getDate();
+        }
+        if (hit) {
+          out.push({
+            id: ev.id,
+            key: `f-${ev.id}`,
+            title: ev.title,
+            color: CATEGORY_COLORS[ev.category] ?? 'gray',
+            badge: `${categoryLabel(ev.category)} • ${ev.title}`,
+            time: ev.start_time,
+            endTime: ev.end_time,
+            ev,
+          });
         }
       }
-      return out.sort((a, b) => a.title.localeCompare(b.title));
+      return out.sort(
+        (a, b) => (a.time ?? '99:00').localeCompare(b.time ?? '99:00')
+      );
     },
-    [events, year, month, categoryLabel]
+    [events, categoryLabel]
   );
 
   const form = useForm<{
     title: string;
     category: CalendarEventCategory;
     audience: CalendarEventAudience;
-    repeat_monthly: boolean;
+    recurrence: RecurrenceMode;
     day: number | null;
     date: Date | null;
+    weekdays: string[];
+    repeat_interval: number;
+    anchor: Date | null;
+    repeat_end_date: Date | null;
     start_time: string;
+    end_time: string;
     description: string;
     members: string[];
   }>({
@@ -220,15 +286,32 @@ export default function CalendarEventsBoard({
       title: '',
       category: 'event',
       audience: 'GENERAL',
-      repeat_monthly: false,
+      recurrence: 'oneoff',
       day: null,
       date: new Date(),
+      weekdays: [],
+      repeat_interval: 1,
+      anchor: null,
+      repeat_end_date: null,
       start_time: '',
+      end_time: '',
       description: '',
       members: [],
     },
     validate: {
       title: (v) => (v.trim().length ? null : t.calendarEvents.title),
+      weekdays: (v, values) =>
+        values.recurrence === 'weekly' && v.length === 0
+          ? t.calendarEvents.weekdays
+          : null,
+      anchor: (v, values) =>
+        values.recurrence === 'weekly' && values.repeat_interval === 2 && !v
+          ? t.calendarEvents.startDate
+          : null,
+      end_time: (v) =>
+        v.trim() && !/^\d{2}:\d{2}$/.test(v.trim())
+          ? t.calendarEvents.timePlaceholder
+          : null,
     },
   });
 
@@ -248,10 +331,15 @@ export default function CalendarEventsBoard({
       title: '',
       category: 'event',
       audience: gateway.canManageGeneral ? 'GENERAL' : 'FINANCE',
-      repeat_monthly: false,
+      recurrence: 'oneoff',
       day: null,
       date: new Date(year, month, 1),
+      weekdays: [],
+      repeat_interval: 1,
+      anchor: null,
+      repeat_end_date: null,
       start_time: '',
+      end_time: '',
       description: '',
       members: [],
     });
@@ -262,14 +350,24 @@ export default function CalendarEventsBoard({
 
   const openEdit = (ev: CalendarEvent) => {
     setEditing(ev);
+    const recurrence: RecurrenceMode = ev.repeat_weekly
+      ? 'weekly'
+      : ev.repeat_monthly
+        ? 'monthly'
+        : 'oneoff';
     form.setValues({
       title: ev.title,
       category: ev.category,
       audience: ev.audience,
-      repeat_monthly: ev.repeat_monthly,
+      recurrence,
       day: ev.repeat_monthly ? ev.day : null,
       date: ev.date ? dateFromApi(ev.date) : new Date(year, month, ev.day ?? 1),
+      weekdays: (ev.weekdays || []).map(String),
+      repeat_interval: ev.repeat_interval || 1,
+      anchor: ev.date ? dateFromApi(ev.date) : null,
+      repeat_end_date: ev.repeat_end_date ? dateFromApi(ev.repeat_end_date) : null,
       start_time: ev.start_time ? ev.start_time.slice(0, 5) : '',
+      end_time: ev.end_time ? ev.end_time.slice(0, 5) : '',
       description: ev.description,
       members: ev.members.map(String),
     });
@@ -286,15 +384,35 @@ export default function CalendarEventsBoard({
       audience: values.audience,
       description: values.description.trim(),
       start_time: timeToApi(values.start_time),
-      repeat_monthly: values.repeat_monthly,
+      end_time: timeToApi(values.end_time) || undefined,
       members: values.members.map(Number),
     };
-    if (values.repeat_monthly) {
+    if (values.recurrence === 'weekly') {
+      payload.repeat_weekly = true;
+      payload.repeat_monthly = false;
+      payload.weekdays = values.weekdays.map(Number);
+      payload.repeat_interval = values.repeat_interval;
+      payload.repeat_end_date = values.repeat_end_date
+        ? dateToApi(values.repeat_end_date)
+        : null;
+      payload.day = null;
+      payload.date = values.anchor ? dateToApi(values.anchor) : null;
+    } else if (values.recurrence === 'monthly') {
+      payload.repeat_monthly = true;
+      payload.repeat_weekly = false;
+      payload.weekdays = [];
+      payload.repeat_interval = 1;
+      payload.repeat_end_date = null;
       payload.day = values.day ?? today.getDate();
       payload.date = null;
     } else {
-      payload.date = values.date ? dateToApi(values.date) : null;
+      payload.repeat_monthly = false;
+      payload.repeat_weekly = false;
+      payload.weekdays = [];
+      payload.repeat_interval = 1;
+      payload.repeat_end_date = null;
       payload.day = null;
+      payload.date = values.date ? dateToApi(values.date) : null;
     }
     try {
       if (editing) {
@@ -322,6 +440,7 @@ export default function CalendarEventsBoard({
       await gateway.delete(deleting.id);
       notifications.show({ color: 'green', message: t.common.delete });
       setDeleting(null);
+      setDetail(null);
       load();
     } catch {
       notifications.show({ color: 'red', message: 'Erro ao excluir o evento.' });
@@ -364,29 +483,231 @@ export default function CalendarEventsBoard({
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
+  const weekdayLabel = (ev: CalendarEvent) =>
+    (ev.weekdays || []).map((d) => ISO_WEEKDAYS[d] ?? d).join(', ');
+
   const formatDateLine = (ev: CalendarEvent) => {
     const parts: string[] = [];
-    if (ev.repeat_monthly) {
+    if (ev.repeat_weekly) {
+      const mode =
+        ev.repeat_interval > 1
+          ? t.calendarEvents.recurringBiweek
+          : t.calendarEvents.recurringWeek;
+      parts.push(mode.replace('{days}', weekdayLabel(ev)));
+      if (ev.date) parts.push(`${t.calendarEvents.from} ${ev.date}`);
+    } else if (ev.repeat_monthly) {
       parts.push(t.calendarEvents.recurringDay.replace('{day}', String(ev.day)));
     } else if (ev.date) {
       parts.push(ev.date);
     }
-    if (ev.start_time) parts.push(ev.start_time.slice(0, 5));
+    if (ev.start_time) {
+      parts.push(
+        ev.end_time
+          ? `${ev.start_time.slice(0, 5)} – ${ev.end_time.slice(0, 5)}`
+          : ev.start_time.slice(0, 5)
+      );
+    }
     if (ev.audience === 'GENERAL' && ev.members_names.length) {
       parts.push(ev.members_names.map((m) => m.name).join(', '));
     }
     return parts.join(' • ');
   };
 
+  const renderEventBadges = (items: BoardItem[]) => {
+    return (
+      <>
+        {items.slice(0, 2).map((b) => (
+          <Badge
+            key={b.key}
+            size="xs"
+            color={b.color}
+            variant="light"
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              cursor: 'pointer',
+            }}
+            onClick={() => setDetail(b.ev)}
+          >
+            {b.time ? `${b.time.slice(0, 5)} ${b.title}` : b.title}
+          </Badge>
+        ))}
+      </>
+    );
+  };
+
+  const renderWeekDayColumn = (d: Date) => {
+    const items = itemsForDate(d);
+    const untimed = items.filter((i) => !i.time);
+    const timed = items.filter((i) => i.time);
+    return (
+      <Stack key={d.toDateString()} gap={2} style={{ minHeight: 120 }}>
+        {items.length === 0 ? (
+          <Text size="xs" c="dimmed" ta="center" py="md">
+            {t.calendarEvents.noEventsDay}
+          </Text>
+        ) : (
+          <>
+            {untimed.map((b) => (
+              <Badge
+                key={b.key}
+                size="xs"
+                color={b.color}
+                variant="light"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setDetail(b.ev)}
+              >
+                {b.title}
+              </Badge>
+            ))}
+            {timed.map((b) => (
+              <Badge
+                key={b.key}
+                size="xs"
+                color={b.color}
+                variant="light"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setDetail(b.ev)}
+              >
+                {b.time ? `${b.time.slice(0, 5)} ${b.title}` : b.title}
+              </Badge>
+            ))}
+          </>
+        )}
+      </Stack>
+    );
+  };
+
+  const renderDayTimeline = (items: BoardItem[]) => {
+    const untimed = items.filter((i) => !i.time);
+    const timed = items.filter((i) => i.time);
+    const hours: number[] = [];
+    if (timed.length) {
+      for (const b of timed) {
+        const startH = Number((b.time || '0').slice(0, 2));
+        const end = b.endTime ? Number(b.endTime.slice(0, 2)) : startH + 1;
+        for (let h = startH; h < Math.min(end, 24); h += 1) {
+          if (!hours.includes(h)) hours.push(h);
+        }
+      }
+    }
+    hours.sort((a, b) => a - b);
+    const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+    return (
+      <Stack gap="xs">
+        {untimed.length > 0 && (
+          <Box>
+            <Text size="xs" fw={700} c="dimmed" mb={4}>
+              {t.calendarEvents.noTime}
+            </Text>
+            <Stack gap={4}>
+              {untimed.map((b) => (
+                <Badge
+                  key={b.key}
+                  size="sm"
+                  color={b.color}
+                  variant="light"
+                  style={{ cursor: 'pointer', alignSelf: 'flex-start' }}
+                  onClick={() => setDetail(b.ev)}
+                >
+                  {b.title}
+                </Badge>
+              ))}
+            </Stack>
+          </Box>
+        )}
+        {hours.length === 0 && untimed.length === 0 ? (
+          <Text size="sm" c="dimmed" ta="center" py="xl">
+            {t.calendarEvents.noEventsDay}
+          </Text>
+        ) : (
+          hours.map((h) => {
+            const atHour = timed.filter((b) => Number((b.time || '0').slice(0, 2)) === h);
+            return (
+              <Group key={h} gap="md" wrap="nowrap" align="stretch">
+                <Text size="xs" c="dimmed" w={48} ta="right" pt={6}>
+                  {hourLabel(h)}
+                </Text>
+                <Stack gap={4} style={{ flex: 1 }}>
+                  {atHour.length === 0 ? (
+                    <Divider color="gray.2" />
+                  ) : (
+                    atHour.map((b) => {
+                      const endH = b.endTime
+                        ? Number(b.endTime.slice(0, 2))
+                        : h + 1;
+                      const duration = Math.max(endH - h, 1);
+                      const span = b.endTime
+                        ? `${b.time?.slice(0, 5)} – ${b.endTime.slice(0, 5)}`
+                        : b.time?.slice(0, 5);
+                      return (
+                        <Box
+                          key={b.key}
+                          style={{
+                            background: `var(--mantine-color-${b.color}-0)`,
+                            border: `1px solid var(--mantine-color-${b.color}-3)`,
+                            borderRadius: 4,
+                            padding: '6px 8px',
+                            minHeight: duration * 28,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setDetail(b.ev)}
+                        >
+                          <Group gap={6} wrap="nowrap">
+                            <Badge size="xs" color={b.color} variant="light">
+                              <Group gap={4} wrap="nowrap">
+                                <IconClock size={11} />
+                                <span>{span}</span>
+                              </Group>
+                            </Badge>
+                            <Text size="sm" fw={600} truncate>
+                              {b.title}
+                            </Text>
+                          </Group>
+                        </Box>
+                      );
+                    })
+                  )}
+                </Stack>
+              </Group>
+            );
+          })
+        )}
+      </Stack>
+    );
+  };
+
+  const viewLabel =
+    view === 'month'
+      ? `${monthLabel} ${year}`
+      : view === 'week'
+        ? `${formatShortDate(t, weekStart)} – ${formatShortDate(t, weekEnd)} ${weekEnd.getFullYear()}`
+        : `${formatShortDate(t, cursor)} ${year}`;
+
+  const onOpenDetail = (ev: CalendarEvent) => setDetail(ev);
+
   return (
     <>
       <Group justify="space-between" mb="md" wrap="wrap">
-        <Group>
-          <Button variant="default" data-testid="calendar-prev-month" leftSection={<IconChevronLeft size={16} />} onClick={prevMonth} />
-          <Text fw={700} w={180} ta="center">
-            {monthLabel} {year}
-          </Text>
-          <Button variant="default" data-testid="calendar-next-month" rightSection={<IconChevronRight size={16} />} onClick={nextMonth} />
+        <Group wrap="wrap">
+          <Group gap="xs">
+            <Button variant="default" data-testid="calendar-prev-month" leftSection={<IconChevronLeft size={16} />} onClick={prev} />
+            <Text fw={700} w={200} ta="center">
+              {viewLabel}
+            </Text>
+            <Button variant="default" data-testid="calendar-next-month" rightSection={<IconChevronRight size={16} />} onClick={next} />
+          </Group>
+          <SegmentedControl
+            value={view}
+            onChange={(v) => setView(v as CalendarView)}
+            data={[
+              { value: 'month', label: t.calendarEvents.viewMonth },
+              { value: 'week', label: t.calendarEvents.viewWeek },
+              { value: 'day', label: t.calendarEvents.viewDay },
+            ]}
+          />
         </Group>
         {canCreateAny && (
           <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
@@ -400,7 +721,7 @@ export default function CalendarEventsBoard({
           <Center py="xl">
             <Loader />
           </Center>
-        ) : (
+        ) : view === 'month' ? (
           <SimpleGrid cols={7} spacing={4}>
             {WEEKDAYS.map((d, i) => (
               <Text key={i} size="xs" fw={700} c="dimmed" ta="center" tt="uppercase">
@@ -412,7 +733,7 @@ export default function CalendarEventsBoard({
             ))}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
-              const items = itemsForDay(day);
+              const items = itemsForDate(new Date(year, month, day));
               const todayCell = isToday(day);
               return (
                 <Tooltip
@@ -424,6 +745,7 @@ export default function CalendarEventsBoard({
                   }
                   withArrow
                   disabled={!items.length}
+                  multiline
                 >
                   <Paper
                     withBorder
@@ -446,29 +768,43 @@ export default function CalendarEventsBoard({
                         {day}
                       </Text>
                       {items.length > 2 && (
-                        <Text size="xs" c="dimmed">
+                        <Text
+                          size="xs"
+                          c="dimmed"
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setView('day');
+                            setCursor(new Date(year, month, day));
+                          }}
+                        >
                           +{items.length - 2}
                         </Text>
                       )}
                     </Group>
                     <Stack gap={2} px={2}>
-                      {items.slice(0, 2).map((b) => (
-                        <Badge
-                          key={b.key}
-                          size="xs"
-                          color={b.color}
-                          variant="light"
-                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        >
-                          {b.title}
-                        </Badge>
-                      ))}
+                      {renderEventBadges(items)}
                     </Stack>
                   </Paper>
                 </Tooltip>
               );
             })}
           </SimpleGrid>
+        ) : view === 'week' ? (
+          <SimpleGrid cols={7} spacing={8}>
+            {WEEKDAYS.map((d, i) => {
+              const date = addDays(weekStart, i);
+              return (
+                <Box key={i}>
+                  <Text size="xs" fw={700} c="dimmed" ta="center" tt="uppercase" mb={4}>
+                    {d} {date.getDate()}
+                  </Text>
+                  {renderWeekDayColumn(date)}
+                </Box>
+              );
+            })}
+          </SimpleGrid>
+        ) : (
+          renderDayTimeline(itemsForDate(cursor))
         )}
       </Paper>
 
@@ -535,12 +871,12 @@ export default function CalendarEventsBoard({
           <Stack gap={6}>
             {events.map((ev) => (
               <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
-                <Box>
+                <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
                   <Group gap="sm" wrap="nowrap">
                     <Badge size="sm" variant="light" color={CATEGORY_COLORS[ev.category] ?? 'gray'}>
                       {categoryLabel(ev.category)}
                     </Badge>
-                    <Text size="sm" fw={500}>
+                    <Text size="sm" fw={500} truncate>
                       {ev.title}
                     </Text>
                   </Group>
@@ -604,13 +940,17 @@ export default function CalendarEventsBoard({
               data={CATEGORY_ORDER.map((c) => ({ value: c, label: categoryLabel(c) }))}
               {...form.getInputProps('category')}
             />
-            <Switch
-              data-testid="event-recurring"
-              label={t.calendarEvents.recurring}
-              checked={form.values.repeat_monthly}
-              onChange={(e) => form.setFieldValue('repeat_monthly', e.currentTarget.checked)}
+            <Select
+              data-testid="event-recurrence"
+              label={t.calendarEvents.recurrence}
+              data={[
+                { value: 'oneoff', label: t.calendarEvents.recurrenceNone },
+                { value: 'monthly', label: t.calendarEvents.recurrenceMonthly },
+                { value: 'weekly', label: t.calendarEvents.recurrenceWeekly },
+              ]}
+              {...form.getInputProps('recurrence')}
             />
-            {form.values.repeat_monthly ? (
+            {form.values.recurrence === 'monthly' && (
               <NumberInput
                 data-testid="event-day"
                 label={t.calendarEvents.dayOfMonth}
@@ -619,7 +959,53 @@ export default function CalendarEventsBoard({
                 value={form.values.day ?? 1}
                 onChange={(v) => form.setFieldValue('day', typeof v === 'number' ? v : Number(v) || null)}
               />
-            ) : (
+            )}
+            {form.values.recurrence === 'weekly' && (
+              <>
+                <MultiSelect
+                  data-testid="event-weekdays"
+                  label={t.calendarEvents.weekdays}
+                  data={ISO_WEEKDAYS.map((l, i) => ({ value: String(i), label: l }))}
+                  value={form.values.weekdays}
+                  onChange={(v) => form.setFieldValue('weekdays', v)}
+                />
+                <Select
+                  data-testid="event-interval"
+                  label={t.calendarEvents.weeklyFrequency}
+                  data={[
+                    { value: '1', label: t.calendarEvents.weeklyEveryWeek },
+                    { value: '2', label: t.calendarEvents.weeklyBiweekly },
+                  ]}
+                  value={String(form.values.repeat_interval)}
+                  onChange={(v) =>
+                    form.setFieldValue('repeat_interval', v === '2' ? 2 : 1)
+                  }
+                />
+                <DateInput
+                  data-testid="event-anchor"
+                  label={t.calendarEvents.startDate}
+                  value={form.values.anchor}
+                  onChange={(v) =>
+                    form.setFieldValue('anchor', v ? (typeof v === 'string' ? dateFromApi(v) : v) : null)
+                  }
+                  locale={locale}
+                />
+                <DateInput
+                  data-testid="event-repeat-end"
+                  label={t.calendarEvents.repeatUntil}
+                  clearable
+                  value={form.values.repeat_end_date}
+                  onChange={(v) =>
+                    form.setFieldValue(
+                      'repeat_end_date',
+                      v ? (typeof v === 'string' ? dateFromApi(v) : v) : null
+                    )
+                  }
+                  locale={locale}
+                />
+              </>
+            )}
+            {form.values.recurrence !== 'weekly' && (
               <DateInput
                 data-testid="event-date"
                 label={t.calendarEvents.date}
@@ -637,6 +1023,14 @@ export default function CalendarEventsBoard({
               placeholder={t.calendarEvents.timePlaceholder}
               {...form.getInputProps('start_time')}
             />
+            {form.values.recurrence === 'weekly' && (
+              <TextInput
+                data-testid="event-end-time"
+                label={t.calendarEvents.endTime}
+                placeholder={t.calendarEvents.timePlaceholder}
+                {...form.getInputProps('end_time')}
+              />
+            )}
             <Textarea
               data-testid="event-description"
               label={t.calendarEvents.description}
@@ -664,6 +1058,81 @@ export default function CalendarEventsBoard({
             </Group>
           </Stack>
         </form>
+      </Modal>
+
+      <Modal
+        opened={!!detail}
+        onClose={() => setDetail(null)}
+        title={detail?.title}
+        centered
+      >
+        {detail && (
+          <Stack gap="md">
+            <Group gap="xs" wrap="wrap">
+              <Badge size="sm" variant="light" color={CATEGORY_COLORS[detail.category] ?? 'gray'}>
+                {categoryLabel(detail.category)}
+              </Badge>
+              <Badge size="sm" variant="default">
+                {detail.audience === 'FINANCE'
+                  ? t.calendarEvents.audienceFinance
+                  : t.calendarEvents.audienceGeneral}
+              </Badge>
+            </Group>
+            <Text size="sm">
+              {formatDateLine(detail)}
+            </Text>
+            {detail.description && (
+              <Text size="sm" c="dimmed">
+                {detail.description}
+              </Text>
+            )}
+            {detail.audience === 'GENERAL' && detail.members_names.length > 0 && (
+              <Stack gap={4}>
+                <Text size="xs" fw={700} c="dimmed">
+                  {t.calendarEvents.members}
+                </Text>
+                <Group gap={4}>
+                  {detail.members_names.map((m) => (
+                    <Badge key={m.id} size="xs" variant="light" color="gray">
+                      {m.name}
+                    </Badge>
+                  ))}
+                </Group>
+              </Stack>
+            )}
+            {detail.created_by_name && (
+              <Text size="xs" c="dimmed">
+                {t.calendarEvents.createdBy.replace('{user}', detail.created_by_name)}
+              </Text>
+            )}
+            {canEditEvent(detail) && (
+              <Group justify="flex-end">
+                <Button
+                  variant="subtle"
+                  leftSection={<IconEdit size={14} />}
+                  onClick={() => {
+                    const ev = detail;
+                    setDetail(null);
+                    openEdit(ev);
+                  }}
+                >
+                  {t.common.edit}
+                </Button>
+                <Button
+                  color="red"
+                  variant="subtle"
+                  leftSection={<IconTrash size={14} />}
+                  onClick={() => {
+                    setDeleting(detail);
+                    setDetail(null);
+                  }}
+                >
+                  {t.common.delete}
+                </Button>
+              </Group>
+            )}
+          </Stack>
+        )}
       </Modal>
 
       <Modal

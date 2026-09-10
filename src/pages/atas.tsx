@@ -32,17 +32,21 @@ import {
   IconQrcode,
   IconRefresh,
   IconTrash,
+  IconWand,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import { RichText } from '../components/RichText';
 import ShareLinkModal from '../components/ShareLinkModal';
+import AtaTemplateModal from '../components/AtaTemplateModal';
+import type { AtaTemplateFormSnapshot } from '../components/AtaTemplateModal';
 import { accountsApi, ChurchMinutesPayload } from '../api/accounts';
 import { saveBlob } from '../api/finance';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { generateMinutesPdf } from '../utils/minutesPdf';
+import { toUpperCamelWords } from '../utils/format';
 import type { ChurchMinutes, MeetingType } from '../types';
 
 function formatISODate(iso: string | null): string {
@@ -88,6 +92,7 @@ export default function MinutesPage() {
   const [toRemovePdf, setToRemovePdf] = useState<ChurchMinutes | null>(null);
   const [removingPdf, setRemovingPdf] = useState(false);
   const [qrMinutes, setQrMinutes] = useState<ChurchMinutes | null>(null);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -156,8 +161,8 @@ export default function MinutesPage() {
       title: values.title,
       meeting_type: values.meeting_type as MeetingType,
       meeting_date: values.meeting_date,
-      location: values.location,
-      recorder: values.recorder,
+      location: toUpperCamelWords(values.location),
+      recorder: toUpperCamelWords(values.recorder),
       participants: values.participants,
       content: values.content,
     };
@@ -177,6 +182,13 @@ export default function MinutesPage() {
       })
       .finally(() => setSaving(false));
   });
+
+  const handleTemplateApply = (
+    html: string,
+    backfill: Partial<AtaTemplateFormSnapshot>,
+  ) => {
+    form.setValues((prev) => ({ ...prev, ...backfill, content: html }));
+  };
 
   const confirmDelete = () => {
     if (!toDelete) return;
@@ -465,10 +477,24 @@ export default function MinutesPage() {
                 {...form.getInputProps('participants')}
               />
               <div>
-                <Text size="sm" fw={500} mb={4}>
-                  {t.minutesPage.content}
-                  <span style={{ color: 'var(--mantine-color-red-6)' }}> *</span>
-                </Text>
+                <Group justify="space-between" mb={4} wrap="nowrap">
+                  <Text size="sm" fw={500}>
+                    {t.minutesPage.content}
+                    <span style={{ color: 'var(--mantine-color-red-6)' }}> *</span>
+                  </Text>
+                  <Tooltip label={t.ataTemplates.chooseTemplateHint} withArrow>
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="violet"
+                      leftSection={<IconWand size={14} />}
+                      onClick={() => setTemplateOpen(true)}
+                      data-testid="minutes-template-open"
+                    >
+                      {t.ataTemplates.chooseTemplate}
+                    </Button>
+                  </Tooltip>
+                </Group>
                 <RichText
                   value={form.values.content}
                   onChange={(html) => form.setFieldValue('content', html)}
@@ -598,6 +624,20 @@ export default function MinutesPage() {
               return publicUrl(next);
             })
           }
+        />
+
+        <AtaTemplateModal
+          opened={templateOpen}
+          onClose={() => setTemplateOpen(false)}
+          church={church}
+          values={{
+            meeting_type: form.values.meeting_type,
+            meeting_date: form.values.meeting_date,
+            location: form.values.location,
+            recorder: form.values.recorder,
+            content: form.values.content,
+          }}
+          onApply={handleTemplateApply}
         />
       </Layout>
     </AuthGuard>

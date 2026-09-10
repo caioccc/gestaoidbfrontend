@@ -126,9 +126,14 @@ export interface CalendarEvent {
   category_display: string;
   description: string;
   start_time: string | null;
+  end_time: string | null;
   members: number[];
   members_names: { id: number; name: string }[];
   repeat_monthly: boolean;
+  repeat_weekly: boolean;
+  weekdays: number[];
+  repeat_interval: number;
+  repeat_end_date: string | null;
   date: string | null;
   month: number | null;
   day: number | null;
@@ -142,7 +147,12 @@ export interface PublicCalendarEvent {
   category_display: string;
   description: string;
   start_time: string | null;
+  end_time: string | null;
   repeat_monthly: boolean;
+  repeat_weekly: boolean;
+  weekdays: number[];
+  repeat_interval: number;
+  repeat_end_date: string | null;
   date: string | null;
   month: number | null;
   day: number | null;

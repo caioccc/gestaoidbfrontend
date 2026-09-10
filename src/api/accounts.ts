@@ -124,6 +124,24 @@ export type ChurchUpdatePayload = Partial<Church> & {
   responsible_user?: ResponsibleUserPayload | null;
 };
 
+export interface MemberListParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  status?: string;
+  area?: string;
+  education?: string;
+  marital_status?: string;
+  church_entry?: string;
+}
+
+export interface MemberListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Member[];
+}
+
 export const accountsApi = {
   login: (email: string, password: string): Promise<LoginResponse> =>
     apiClient.post('/api/accounts/login/', { email, password }).then((r) => r.data),
@@ -203,8 +221,13 @@ export const accountsApi = {
     custom_allowed: boolean;
   }> => apiClient.get('/api/accounts/accounting-categories/').then((r) => r.data),
 
-  members: (): Promise<Member[]> =>
-    apiClient.get('/api/accounts/members/').then((r) => r.data),
+  members: (params?: MemberListParams): Promise<Member[]> =>
+    apiClient.get('/api/accounts/members/', { params }).then((r) => r.data),
+
+  membersPage: (params?: MemberListParams): Promise<MemberListResponse> =>
+    apiClient
+      .get('/api/accounts/members/', { params: { ...(params || {}), paginate: 1 } })
+      .then((r) => r.data),
 
   storageLocations: (): Promise<StorageLocation[]> =>
     apiClient.get('/api/accounts/storage-locations/').then((r) => r.data),
