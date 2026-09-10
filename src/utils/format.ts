@@ -39,6 +39,25 @@ export function toISO(date: Date | null | undefined): string | undefined {
   return `${y}-${m}-${d}`;
 }
 
+export function formatMoneyInput(value: number | null | undefined): string {
+  const num = toNumber(value);
+  if (num === 0) return '';
+  return num.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function parseCurrency(value: string | number | null | undefined): number {
+  const t = String(value ?? '').replace(/[^\d.,-]/g, '');
+  if (!t) return 0;
+  const normalized = t.includes(',')
+    ? t.replace(/\./g, '').replace(',', '.')
+    : t.replace(/\./g, '');
+  const num = parseFloat(normalized);
+  return Number.isNaN(num) ? 0 : num;
+}
+
 export function toUpperCamelWords(value: string) {
   return value
     .trim()

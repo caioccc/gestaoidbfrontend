@@ -41,7 +41,7 @@ type FileSlot = { name: string; key: 'entries' | 'exits' | 'tithers' };
 
 const SLOTS: { key: 'entries' | 'exits' | 'tithers'; label: string; example: string }[] = [
   { key: 'entries', label: 'Entradas', example: 'Data | Culto/Serviço | Categoria | Valor' },
-  { key: 'exits', label: 'Saídas', example: 'Data | Descrição | Categoria | Valor | Comprovante' },
+  { key: 'exits', label: 'Saídas', example: 'Data | Descrição | Categoria | Valor' },
   { key: 'tithers', label: 'Dizimistas', example: 'Nome | Mês | Ano | Valor' },
 ];
 

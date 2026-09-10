@@ -16,11 +16,11 @@ import {
   Button,
   Modal,
   TextInput,
-  NumberInput,
   ActionIcon,
   Tooltip,
   Switch,
   Box,
+  Divider,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -35,10 +35,11 @@ import {
   IconRepeat,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import MoneyInput from '../components/MoneyInput';
 import { useLanguage } from '../i18n';
 import { TitherMatrix, TitherMatrixMember, Reconciliation, Tither, TitherRepeatAudit } from '../types';
 import { financeApi } from '../api/finance';
-import { formatBRL } from '../utils/format';
+import { toUpperCamelWords, formatBRL } from '../utils/format';
 
 const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
@@ -64,6 +65,9 @@ export default function TithersPage() {
   const [tithesTarget, setTithesTarget] = useState<TitherMatrixMember | null>(null);
   const [tithesMonths, setTithesMonths] = useState<(number | '')[]>(Array(12).fill(''));
   const [tithesSaving, setTithesSaving] = useState(false);
+  const [memberMatrixYear, setMemberMatrixYear] = useState<number>(currentYear);
+  const [memberMatrixMonths, setMemberMatrixMonths] = useState<(number | '')[]>(Array(12).fill(''));
+  const [memberMatrixLoading, setMemberMatrixLoading] = useState(false);
 
   const [repeat, setRepeat] = useState<TitherRepeatAudit | null>(null);
   const [repeatLoading, setRepeatLoading] = useState(true);
@@ -135,13 +139,39 @@ export default function TithersPage() {
   const openCreate = () => {
     setEditing(null);
     form.reset();
+    setMemberMatrixYear(currentYear);
+    setMemberMatrixMonths(Array(12).fill(''));
     setModalOpen(true);
+  };
+
+  const loadMemberMatrix = async (member: Tither | null, y: number) => {
+    setMemberMatrixLoading(true);
+    if (!member) {
+      setMemberMatrixMonths(Array(12).fill(''));
+      setMemberMatrixLoading(false);
+      return;
+    }
+    try {
+      const m = await financeApi.tithersMatrix(y);
+      const row = m.members.find((x) => x.id === member.id);
+      setMemberMatrixMonths(
+        Array.from({ length: 12 }, (_, i) =>
+          row && row.months[i] != null ? Number(row.months[i]) : ''
+        )
+      );
+    } catch {
+      setMemberMatrixMonths(Array(12).fill(''));
+    } finally {
+      setMemberMatrixLoading(false);
+    }
   };
 
   const openEdit = (member: Tither) => {
     setEditing(member);
     form.setValues({ name: member.name, is_anonymous: member.is_anonymous });
+    setMemberMatrixYear(currentYear);
     setModalOpen(true);
+    void loadMemberMatrix(member, currentYear);
   };
 
   const handleSave = async () => {
@@ -150,20 +180,26 @@ export default function TithersPage() {
     setSaving(true);
     try {
       const payload = {
-        name: form.values.name.trim(),
+        name: toUpperCamelWords(form.values.name),
         is_anonymous: form.values.is_anonymous,
       };
+      let saved: Tither;
       if (editing) {
-        await financeApi.updateTither(editing.id, payload);
+        saved = await financeApi.updateTither(editing.id, payload);
         notifications.show({ color: 'green', message: 'Membro atualizado.' });
       } else {
-        await financeApi.createTither(payload);
+        saved = await financeApi.createTither(payload);
         notifications.show({ color: 'green', message: 'Membro adicionado.' });
       }
+      const months = memberMatrixMonths.map((v) =>
+        v === '' || v == null ? null : String(v)
+      );
+      await financeApi.updateTitherTitheRecords(saved.id, memberMatrixYear, months);
       setModalOpen(false);
       setEditing(null);
       form.reset();
       setMembers(await financeApi.listTithers());
+      setMatrix(await financeApi.tithersMatrix(year));
     } catch (err: any) {
       notifications.show({
         color: 'red',
@@ -521,6 +557,7 @@ export default function TithersPage() {
         }}
         title={editing ? t.tithersPage.editMember : t.tithersPage.addMember}
         centered
+        size="lg"
       >
         <form onSubmit={form.onSubmit(handleSave)}>
           <Stack gap="md">
@@ -535,6 +572,46 @@ export default function TithersPage() {
               label={t.tithersPage.anonymous}
               {...form.getInputProps('is_anonymous', { type: 'checkbox' })}
             />
+            <Divider label={t.tithersPage.tithesMatrix} labelPosition="left" />
+            <Group gap="md" wrap="wrap" align="flex-end">
+              <Select
+                data-testid="member-matrix-year"
+                label={t.common.year}
+                value={String(memberMatrixYear)}
+                onChange={(v) => {
+                  const y = Number(v);
+                  if (!Number.isNaN(y)) {
+                    setMemberMatrixYear(y);
+                    void loadMemberMatrix(editing, y);
+                  }
+                }}
+                data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+                w={110}
+                disabled={memberMatrixLoading}
+              />
+              <Text size="xs" c="dimmed" mb={4}>
+                {t.tithersPage.emptyHint}
+              </Text>
+            </Group>
+            <ScrollArea.Autosize mah="40vh" type="always">
+              <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="sm">
+                {t.months.map((m, i) => (
+                  <MoneyInput
+                    key={i}
+                    label={m}
+                    placeholder="0,00"
+                    value={memberMatrixMonths[i]}
+                    onValueChange={(v) =>
+                      setMemberMatrixMonths((prev) => {
+                        const next = [...prev];
+                        next[i] = v;
+                        return next;
+                      })
+                    }
+                  />
+                ))}
+              </SimpleGrid>
+            </ScrollArea.Autosize>
             <Group justify="flex-end" mt="xs">
               <Button
                 variant="default"
@@ -586,25 +663,18 @@ export default function TithersPage() {
         <ScrollArea.Autosize mah="60vh" type="always">
           <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="sm">
             {t.months.map((m, i) => (
-              <NumberInput
+              <MoneyInput
                 key={i}
                 label={m}
                 placeholder="0,00"
-                min={0}
-                decimalScale={2}
-                thousandSeparator="."
-                decimalSeparator=","
-                prefix="R$ "
-                fixedDecimalScale
                 value={tithesMonths[i]}
-                onChange={(value) => {
-                  const v = typeof value === 'number' ? value : (value as string);
+                onValueChange={(v) =>
                   setTithesMonths((prev) => {
                     const next = [...prev];
-                    next[i] = v === '' ? '' : Number(v);
+                    next[i] = v;
                     return next;
-                  });
-                }}
+                  })
+                }
               />
             ))}
           </SimpleGrid>

@@ -4,9 +4,12 @@ import PageHeader from '../components/PageHeader';
 import ChurchProfileForm from '../components/ChurchProfileForm';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 
 export default function SettingsPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const { hasRole } = useRoleHelpers(user);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
@@ -55,6 +58,8 @@ export default function SettingsPage() {
         onSave={handleSave}
         responsibleEmail={profile?.responsible_email}
         onResetPassword={handleResetPassword}
+        canResetPassword={!hasRole('SECRETARIA')}
+        showPrebenda={user?.church?.church_type !== 'CONGREGATION'}
       />
     </>
   );

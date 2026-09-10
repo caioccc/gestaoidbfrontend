@@ -12,6 +12,8 @@ export default function CalendarSection({ api, churchLabel }: { api: AdminFinanc
     create: (p) => api.createCalendarEvent(p),
     update: (id, p) => api.updateCalendarEvent(id, p),
     delete: (id) => api.deleteCalendarEvent(id),
+    canManageGeneral: true,
+    canManageFinance: true,
   };
 
   return (

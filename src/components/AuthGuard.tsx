@@ -1,15 +1,17 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Center, Loader, Stack, Text } from '@mantine/core';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 
 interface AuthGuardProps {
   children: React.ReactNode;
   adminOnly?: boolean;
+  roles?: string[];
 }
 
-export default function AuthGuard({ children, adminOnly = false }: AuthGuardProps) {
+export default function AuthGuard({ children, adminOnly = false, roles }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
+  const { hasRole } = useRoleHelpers(user);
   const router = useRouter();
 
   useEffect(() => {
@@ -18,10 +20,18 @@ export default function AuthGuard({ children, adminOnly = false }: AuthGuardProp
       router.replace('/login');
     } else if (adminOnly && !user.is_staff) {
       router.replace('/dashboard');
+    } else if (roles && !hasRole(...roles)) {
+      router.replace('/dashboard');
     }
-  }, [user, isLoading, adminOnly, router]);
+  }, [user, isLoading, adminOnly, roles, hasRole, router]);
 
-  if (isLoading || !user || (adminOnly && !user.is_staff)) {
+  const denied =
+    isLoading ||
+    !user ||
+    (adminOnly && !user.is_staff) ||
+    (roles && !hasRole(...roles));
+
+  if (denied) {
     return (
       <Center h="70vh">
         <Stack align="center" gap="sm">

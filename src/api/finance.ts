@@ -13,6 +13,7 @@ import {
   MonthlyValidation,
   MonthlyValidationResponse,
   Paginated,
+  PublicCalendarPayload,
   Reconciliation,
   RegionalReport,
   Tither,
@@ -249,7 +250,7 @@ export const financeApi = {
       .then((r) => r.data),
 };
 
-// Eventos do calendário financeiro (usuário / igreja vinculada).
+// Eventos do calendário da igreja (agenda da secretaria + financeiro da tesouraria).
 export const calendarEventsApi = {
   list: (): Promise<CalendarEvent[]> =>
     apiClient.get('/api/finance/calendar/events/').then((r) => r.data),
@@ -262,6 +263,18 @@ export const calendarEventsApi = {
 
   delete: (id: number): Promise<void> =>
     apiClient.delete(`/api/finance/calendar/events/${id}/`),
+};
+
+// Calendário público (página /calendario/{hash}) — não exige autenticação.
+export interface PublicCalendarApi {
+  get: (hash: string) => Promise<PublicCalendarPayload>;
+}
+
+export const publicCalendarApi: PublicCalendarApi = {
+  get: (hash: string) =>
+    apiClient
+      .get(`/api/finance/public/calendar/${hash}/`)
+      .then((r) => r.data as PublicCalendarPayload),
 };
 
 // Arquivos modelo oficiais servidos estaticamente pelo Next (/public/templates).

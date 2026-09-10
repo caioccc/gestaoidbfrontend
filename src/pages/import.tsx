@@ -359,46 +359,6 @@ export default function ImportPage() {
                 </Dropzone>
               </Stack>
             ))}
-            <Divider label="Conferência (opcional)" labelPosition="left" my="xs" />
-            <Text c="dimmed" size="sm">
-              Envie o Caixa IDB e/ou o Relatório Regional já preenchidos para conferirmos se os
-              valores batem com os lançamentos importados (nenhum dado é gravado a partir deles).
-            </Text>
-            {DIAG_SLOTS.map((slot) => (
-              <Stack key={slot.key} gap={6}>
-                <Text size="sm" fw={600}>
-                  {dropLabels[slot.key]}
-                </Text>
-                <Dropzone
-                  data-testid={`import-dropzone-${slot.key}`}
-                  accept={[...MS_EXCEL_MIME_TYPE, 'application/vnd.ms-excel']}
-                  multiple={false}
-                  onDrop={(dropped) =>
-                    setFiles((prev) => ({ ...prev, [slot.key]: dropped[0] ?? null }))
-                  }
-                >
-                  <Center py="lg">
-                    <Stack align="center" gap={6}>
-                      <ThemeIcon size={40} radius="xl" color="teal" variant="light">
-                        <IconUpload size={20} />
-                      </ThemeIcon>
-                      {files[slot.key] ? (
-                        <>
-                          <IconCheck size={18} color="var(--mantine-color-green-6)" />
-                          <Text size="sm" fw={600}>
-                            {files[slot.key]?.name}
-                          </Text>
-                        </>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          {t.importPage.dropHint}
-                        </Text>
-                      )}
-                    </Stack>
-                  </Center>
-                </Dropzone>
-              </Stack>
-            ))}
           </Stack>
         </Stepper.Step>
 

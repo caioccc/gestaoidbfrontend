@@ -43,7 +43,7 @@ export default function LandingPage() {
   const { t, locale, setLocale } = useLanguage();
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const router = useRouter();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && colorScheme === 'dark';
@@ -55,13 +55,17 @@ export default function LandingPage() {
   }, [isAuthenticated, router]);
 
   const handleDashboard = () => {
-    router.push(isAuthenticated ? '/dashboard' : '/login');
+    if (!isAuthenticated) {
+      router.push('/login');
+      return;
+    }
+    router.push(user?.is_staff ? '/admin/churches' : '/dashboard');
   };
 
   return (
     <>
       <Head>
-        <title>Financeiro IDB - Gestão Financeira</title>
+        <title>Gestão IDB - Sistema Integrado de Gestão Eclesial</title>
       </Head>
       <Box bg={isDark ? 'dark.8' : 'gray.0'} mih="100vh">
         {/* Header */}
@@ -72,11 +76,8 @@ export default function LandingPage() {
                 <ThemeIcon size="md" radius="md" color="blue" variant="filled">
                   <IconBuildingChurch size={18} />
                 </ThemeIcon>
-                <Text fw={800} size="lg">
-                  Financeiro{' '}
-                  <Text component="span" c="blue" fw={800}>
-                    IDB
-                  </Text>
+                <Text fw={800} size="lg" c="blue">
+                  {t.appTitle}
                 </Text>
               </Group>
               <Group gap="xs">
@@ -170,7 +171,7 @@ export default function LandingPage() {
             <DividerFooter />
             <Flex justify="space-between" align="center" wrap="wrap" gap="sm">
               <Text size="sm" c="dimmed">
-                © {new Date().getFullYear()} Financeiro IDB
+                © {new Date().getFullYear()} Gestão IDB
               </Text>
               <Text size="sm" c="dimmed" ta="center">
                 {t.landing.footer}

@@ -36,7 +36,7 @@ export default function AuthShell({
   maxWidth?: number;
 }) {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-  const { locale, setLocale } = useLanguage();
+  const { t, locale, setLocale } = useLanguage();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -54,14 +54,11 @@ export default function AuthShell({
             <ActionIcon variant="subtle">
               <IconArrowLeft size={18} />
             </ActionIcon>
-            <ThemeIcon size="md" radius="md" color="blue" variant="filled">
+<ThemeIcon size="md" radius="md" color="blue" variant="filled">
               <IconBuildingChurch size={18} />
             </ThemeIcon>
-            <Text fw={800} size="lg">
-              Financeiro{' '}
-              <Text component="span" c="blue" fw={800}>
-                IDB
-              </Text>
+            <Text fw={800} size="lg" c="blue">
+              {t.appTitle}
             </Text>
           </Group>
           <Group gap="xs">

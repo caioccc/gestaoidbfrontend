@@ -12,7 +12,6 @@ import {
   Select,
   Divider,
   Box,
-  NumberInput,
   Modal,
   Alert,
 } from '@mantine/core';
@@ -20,6 +19,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
+import MoneyInput from './MoneyInput';
 import { useLanguage } from '../i18n';
 import { toUpperCamelWords } from '../utils/format';
 
@@ -30,8 +30,6 @@ const UF_LIST = [
 
 export interface ProfileFormValues {
   name: string;
-  pastor_name: string;
-  treasurer_name: string;
   phone: string;
   cep: string;
   street: string;
@@ -46,11 +44,16 @@ export interface ProfileFormValues {
 
 interface ChurchProfileFormProps {
   loading: boolean;
-  initialValues?: Partial<ProfileFormValues>;
+  initialValues?: Partial<ProfileFormValues> & {
+    pastor_name?: string;
+    treasurer_name?: string;
+  };
   saving: boolean;
   onSave: (payload: Record<string, any>) => Promise<void>;
   responsibleEmail?: string | null;
   onResetPassword?: (newPassword: string) => Promise<void>;
+  showPrebenda?: boolean;
+  canResetPassword?: boolean;
 }
 
 export default function ChurchProfileForm({
@@ -60,6 +63,8 @@ export default function ChurchProfileForm({
   onSave,
   responsibleEmail,
   onResetPassword,
+  showPrebenda = true,
+  canResetPassword = true,
 }: ChurchProfileFormProps) {
   const { t } = useLanguage();
   const [cepLoading, setCepLoading] = useState(false);
@@ -74,8 +79,6 @@ export default function ChurchProfileForm({
   const form = useForm<ProfileFormValues>({
     initialValues: {
       name: '',
-      pastor_name: '',
-      treasurer_name: '',
       phone: '',
       cep: '',
       street: '',
@@ -93,7 +96,9 @@ export default function ChurchProfileForm({
       city: (v) => (v.trim().length ? null : t.registerPage.city),
       state: (v) => (v.trim().length ? null : t.registerPage.state),
       pastoral_prebenda_percent: (v) => {
-        const n = Number(v);
+        const n = Number(
+          String(v).includes(',') ? String(v).replace(',', '.') : String(v)
+        );
         return !Number.isNaN(n) && n >= 0 && n <= 100 ? null : 'Valor entre 0 e 100';
       },
     },
@@ -114,8 +119,6 @@ export default function ChurchProfileForm({
     if (initialValues) {
       form.setValues({
         name: initialValues.name ?? '',
-        pastor_name: initialValues.pastor_name ?? '',
-        treasurer_name: initialValues.treasurer_name ?? '',
         phone: initialValues.phone ?? '',
         cep: initialValues.cep ?? '',
         street: initialValues.street ?? '',
@@ -165,16 +168,18 @@ export default function ChurchProfileForm({
   };
 
   const handleSave = async () => {
+    const prebendaRaw = String(form.values.pastoral_prebenda_percent || '').trim();
+    const prebendaValue = Number(
+      prebendaRaw.includes(',') ? prebendaRaw.replace(',', '.') : prebendaRaw
+    );
     const payload = {
       ...form.values,
       name: toUpperCamelWords(form.values.name),
-      pastor_name: toUpperCamelWords(form.values.pastor_name || ''),
-      treasurer_name: toUpperCamelWords(form.values.treasurer_name || ''),
       street: toUpperCamelWords(form.values.street || ''),
       neighborhood: toUpperCamelWords(form.values.neighborhood || ''),
       city: toUpperCamelWords(form.values.city || ''),
       phone: form.values.phone.replace(/\D/g, ''),
-      pastoral_prebenda_percent: Number(form.values.pastoral_prebenda_percent || 10),
+      pastoral_prebenda_percent: Number.isNaN(prebendaValue) ? 10 : prebendaValue,
     };
     await onSave(payload);
   };
@@ -268,17 +273,37 @@ export default function ChurchProfileForm({
       <form onSubmit={form.onSubmit(handleSave)}>
         <Stack gap="lg">
           <Stack gap="sm">
-            <Title order={5}>{t.settingsPage.churchData}</Title>
+            <Title order={5}>{t.settingsPage.registrationData}</Title>
+            <Group grow align="flex-start">
+              <TextInput
+                data-testid="settings-pastor"
+                label={t.registerPage.pastor}
+                value={toUpperCamelWords(initialValues?.pastor_name || '')}
+                readOnly
+              />
+              {initialValues?.treasurer_name ? (
+                <TextInput
+                  data-testid="settings-treasurer"
+                  label={t.registerPage.treasurer}
+                  value={toUpperCamelWords(initialValues.treasurer_name)}
+                  readOnly
+                />
+              ) : null}
+            </Group>
+            <Text size="xs" c="dimmed">
+              {t.settingsPage.registrationDataHint}
+            </Text>
+          </Stack>
+
+          <Divider label={t.settingsPage.churchData} labelPosition="left" />
+
+          <Stack gap="sm">
             <TextInput
               data-testid="settings-name"
               label={t.registerPage.churchName}
               required
               {...form.getInputProps('name')}
             />
-            <Group grow align="flex-start">
-              <TextInput data-testid="settings-pastor" label={t.registerPage.pastor} {...form.getInputProps('pastor_name')} />
-              <TextInput data-testid="settings-treasurer" label={t.registerPage.treasurer} {...form.getInputProps('treasurer_name')} />
-            </Group>
             <MaskedTextInput
               data-testid="settings-phone"
               label={t.registerPage.phone}
@@ -289,15 +314,22 @@ export default function ChurchProfileForm({
               error={form.errors.phone}
               onAccept={(value: string) => form.setFieldValue('phone', value)}
             />
-            <NumberInput
-              data-testid="settings-prebenda"
-              label={t.settingsPage.prebendaPercent}
-              description={t.settingsPage.prebendaHint}
-              min={0}
-              max={100}
-              decimalScale={2}
-              {...form.getInputProps('pastoral_prebenda_percent')}
-            />
+            {showPrebenda && (
+              <MoneyInput
+                data-testid="settings-prebenda"
+                label={t.settingsPage.prebendaPercent}
+                description={t.settingsPage.prebendaHint}
+                percentage
+                value={form.values.pastoral_prebenda_percent}
+                onValueChange={(v) =>
+                  form.setFieldValue(
+                    'pastoral_prebenda_percent',
+                    v === '' ? '' : String(v)
+                  )
+                }
+                error={form.errors.pastoral_prebenda_percent}
+              />
+            )}
             <Group align="flex-end">
               <TextInput
                 data-testid="settings-responsible-email"
@@ -307,21 +339,23 @@ export default function ChurchProfileForm({
                 disabled={!responsibleEmail}
                 style={{ flex: 1 }}
               />
-              <Button
-                data-testid="settings-reset-password"
-                variant="light"
-                color="orange"
-                leftSection={<IconKey size={16} />}
-                disabled={!responsibleEmail || !onResetPassword}
-                onClick={() => {
-                  setNewPassword('');
-                  setRepeatPassword('');
-                  setResetError(null);
-                  setResetOpen(true);
-                }}
-              >
-                {t.settingsPage.resetPassword}
-              </Button>
+              {canResetPassword && (
+                <Button
+                  data-testid="settings-reset-password"
+                  variant="light"
+                  color="orange"
+                  leftSection={<IconKey size={16} />}
+                  disabled={!responsibleEmail || !onResetPassword}
+                  onClick={() => {
+                    setNewPassword('');
+                    setRepeatPassword('');
+                    setResetError(null);
+                    setResetOpen(true);
+                  }}
+                >
+                  {t.settingsPage.resetPassword}
+                </Button>
+              )}
             </Group>
             {!responsibleEmail && (
               <Text size="xs" c="dimmed">
@@ -337,6 +371,7 @@ export default function ChurchProfileForm({
               <MaskedTextInput
                 data-testid="settings-cep"
                 label={t.registerPage.cep}
+                description={t.registerPage.cepHint}
                 placeholder="00000-000"
                 maxLength={9}
                 mask="00000-000"

@@ -24,28 +24,53 @@ import * as XLSX from 'xlsx';
 import apiClient from '../../../api/client';
 import PageHeader from '../../../components/PageHeader';
 import { useLanguage } from '../../../i18n';
-import { RegionalReport } from '../../../types';
+import { RegionalReport, MonthlyClosingsResponse, ChurchType } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { saveBlob } from '../../../api/finance';
 import { formatBRL, toNumber } from '../../../utils/format';
 
 const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
-export default function ReportsSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
+export default function ReportsSection({
+  api,
+  churchLabel,
+  churchType,
+}: {
+  api: AdminFinanceApi;
+  churchLabel: string;
+  churchType?: ChurchType;
+}) {
   const { t } = useLanguage();
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [data, setData] = useState<RegionalReport | null>(null);
+  const [closings, setClosings] = useState<MonthlyClosingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingNational, setDownloadingNational] = useState(false);
 
+  const isCongregation = churchType === 'CONGREGATION';
+
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError(null);
+    if (isCongregation) {
+      api
+        .monthlyClosings(year)
+        .then((d) => active && setClosings(d))
+        .catch(() =>
+          active &&
+          setClosings(null) &&
+          setError('Não foi possível carregar o balancete.')
+        )
+        .finally(() => active && setLoading(false));
+      return () => {
+        active = false;
+      };
+    }
     api
       .regionalReport(year, month)
       .then((d) => active && setData(d))
@@ -54,17 +79,17 @@ export default function ReportsSection({ api, churchLabel }: { api: AdminFinance
     return () => {
       active = false;
     };
-  }, [year, month]);
+  }, [year, month, api, isCongregation]);
 
   useEffect(() => {
-    if (!loading && data) {
+    if (!loading && data && !isCongregation) {
       const hasData =
         (data.remittance?.dizimos?.total_dizimos ?? 0) > 0 ||
         data.monthly_balance?.total_entries > 0 ||
         data.monthly_balance?.total_exits > 0;
       if (!hasData) setError('Sem lançamentos neste período.');
     }
-  }, [loading, data]);
+  }, [loading, data, isCongregation]);
 
   const downloadPdf = async () => {
     setDownloadingPdf(true);
@@ -130,7 +155,87 @@ export default function ReportsSection({ api, churchLabel }: { api: AdminFinance
     }
   };
 
+  const monthClosing = closings?.months.find((m) => m.month === month) ?? null;
   const offers = data ? Object.values(data.remittance.ofertas_departamentos ?? {}) : [];
+
+  if (isCongregation) {
+    return (
+      <>
+        <PageHeader title={t.reportsPage.title} description={churchLabel}>
+          <Group gap="md" wrap="wrap">
+            <Select
+              data-testid="reports-year"
+              label={t.common.year}
+              value={String(year)}
+              onChange={(v) => v && setYear(Number(v))}
+              data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+              w={110}
+            />
+            <Select
+              data-testid="reports-month"
+              label={t.common.month}
+              value={String(month)}
+              onChange={(v) => v && setMonth(Number(v))}
+              data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
+              w={180}
+            />
+          </Group>
+        </PageHeader>
+
+        {error && (
+          <Alert icon={<IconAlertTriangle size={16} />} color="yellow" mb="md">
+            {error}
+          </Alert>
+        )}
+
+        <Alert icon={<IconReport size={16} />} color="blue" variant="light" mb="md">
+          {t.reportsPage.regionalNotAvailable}
+        </Alert>
+
+        {loading ? (
+          <Skeleton height={240} />
+        ) : monthClosing ? (
+          <Paper withBorder radius="md" p="md">
+            <Title order={4} mb="md">
+              {t.reportsPage.trialBalance} — {t.months[month - 1]} / {year}
+            </Title>
+            <Table striped withTableBorder>
+              <Table.Tbody>
+                <Table.Tr>
+                  <Table.Td>{t.closingsPage.previous}</Table.Td>
+                  <Table.Td ta="right">
+                    {formatBRL(monthClosing.previous_balance)}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>{t.reportsPage.entries}</Table.Td>
+                  <Table.Td ta="right">
+                    {formatBRL(monthClosing.total_entries)}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td>{t.reportsPage.exits}</Table.Td>
+                  <Table.Td ta="right">
+                    {formatBRL(monthClosing.total_exits)}
+                  </Table.Td>
+                </Table.Tr>
+                <Table.Tr>
+                  <Table.Td fw={700}>{t.reportsPage.balance}</Table.Td>
+                  <Table.Td ta="right" fw={700}>
+                    {formatBRL(monthClosing.final_balance)}
+                  </Table.Td>
+                </Table.Tr>
+              </Table.Tbody>
+            </Table>
+          </Paper>
+        ) : (
+          <Text c="dimmed" ta="center">
+            {t.common.noData}
+          </Text>
+        )}
+      </>
+    );
+  }
 
   return (
     <>

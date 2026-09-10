@@ -37,9 +37,20 @@ import {
   IconLogout,
   IconLanguage,
   IconChevronDown,
+  IconBuildingChurch,
+  IconUsersGroup,
+  IconUserShield,
+  IconSwitchHorizontal,
+  IconChartPie,
+  IconPackage,
+  IconFileText,
 } from '@tabler/icons-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage, SupportedLocale } from '../i18n';
+import { accountsApi } from '../api/accounts';
+import { Church, ChurchType } from '../types';
+import ContentContextHeader from './ContentContextHeader';
+import NotificationBell from './NotificationBell';
 
 const LOCALES: { value: SupportedLocale; label: string }[] = [
   { value: 'pt-br', label: 'PT-BR' },
@@ -53,23 +64,48 @@ interface NavItem {
   href: string;
   adminOnly?: boolean;
   keepAbsolute?: boolean;
+  roles?: string[];
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+const ROLE_LABELS: Record<string, string> = {
+  PASTOR: 'Pastor(a)',
+  SECRETARIA: 'Secretaria',
+  TESOUREIRO: 'Tesoureiro(a)',
+};
+
+function SidebarContent({
+  onNavigate,
+  churchType,
+}: {
+  onNavigate?: () => void;
+  churchType?: ChurchType;
+}) {
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
+  const { hasRole, canFinance } = useRoleHelpers(user);
 
   // Usar router.query.churchId (valor resolvido, ex.: "7") em vez de
   // fazer parse de router.pathname — que no Next.js contém o placeholder
   // literal "[churchId]" e desfazeria a base de navegação.
   const q = router.query.churchId;
   const adminChurchId = q && !Array.isArray(q) ? String(q) : null;
-  const basePath = adminChurchId ? `/admin/churches/${adminChurchId}` : '';
+  const qc = router.query.congregationId;
+  const congregationId = qc && !Array.isArray(qc) ? String(qc) : null;
+  const basePath = congregationId
+    ? `/churches/${congregationId}`
+    : adminChurchId
+      ? `/admin/churches/${adminChurchId}`
+      : '';
+  // Na visão de congregação, Perfil da Igreja, Usuários e Membros são da
+  // PRÓPRIA congregação (seções /churches/{id}/... ou /admin/churches/{id}/...).
+  // Um ADMIN dentro de uma congregação também não gerencia a Central de
+  // Aprovação da Sede (age como usuário daquela congregação).
+  const congregationScope = !!congregationId || churchType === 'CONGREGATION';
 
   const nav = (href: string) => (basePath ? `${basePath}${href}` : href);
   const isActive = (href: string) => {
-    if (adminChurchId) {
+    if (adminChurchId || congregationId) {
       return router.asPath.replace(/\/$/, '') === nav(href).replace(/\/$/, '');
     }
     return router.pathname === href;
@@ -80,47 +116,134 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   // Um admin (aprovador) sem igreja só vê as seções de gestão financeira
   // quando está dentro de uma igreja específica. Na lista de igrejas,
   // aparece apenas o menu "Igrejas".
-  const showChurchSections = !isAdminWithoutChurch || !!adminChurchId;
+  // Dentro de qualquer igreja (admin ou congregação), Perfil/Usuários/Membros
+  // ficam no escopo da igreja atual; "Igrejas" e "Central de Aprovação" são
+  // páginas globais.
+  const showChurchSections = !isAdminWithoutChurch || !!adminChurchId || !!congregationId;
+
+  const canManageChurch =
+    !!user?.is_staff ||
+    (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
+  const canApprove = canManageChurch;
+  // Tesoureiro(a) lida com o financeiro; Secretária não enxerga os módulos
+  // financeiros no menu (entradas, saídas, dizimistas, fechamentos, DRE,
+  // extratos e validação mensal).
+  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA');
+  const canSeeUsers = hasRole('PASTOR', 'SECRETARIA');
+
+  // Congregações não possuem Relatório Regional: o menu é ocultado nos três
+  // contextos possíveis (usuário de congregação, rota /churches/[id] e a
+  // página admin quando a igreja aberta é uma congregação).
+  const isCongregationScope =
+    churchType === 'CONGREGATION' || user?.church?.church_type === 'CONGREGATION';
+
+  const dashboardLabel = canFinance ? t.nav.dashboard : t.secretaryDashboard.title;
 
   const sections: { title: string; items: NavItem[] }[] = [
     {
       title: t.section.overview,
       items: [
-        { label: t.nav.dashboard, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' },
-        { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
+        { label: dashboardLabel, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' },
       ],
     },
-    {
-      title: t.section.ledger,
-      items: [
-        { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
-        { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
-        { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
-        { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
-      ],
-    },
-    {
-      title: t.section.reports,
-      items: [
-        { label: t.nav.reports, icon: <IconReport size={18} />, href: '/reports' },
-        { label: t.nav.dre, icon: <IconChartBar size={18} />, href: '/dre' },
-        { label: t.nav.statement, icon: <IconWallet size={18} />, href: '/statement' },
-        { label: t.nav.validation, icon: <IconClipboardCheck size={18} />, href: '/validation' },
-      ],
-    },
+    ...(canSeeMembers
+      ? [
+          {
+            title: t.section.membership,
+            items: [
+              { label: t.nav.members, icon: <IconUsersGroup size={18} />, href: '/members' },
+              {
+                label: t.nav.memberReports,
+                icon: <IconChartPie size={18} />,
+                href: '/members-reports',
+              },
+            ],
+          },
+        ]
+      : []),
     {
       title: t.section.secretary,
       items: [
         { label: t.nav.calendar, icon: <IconCalendarEvent size={18} />, href: '/calendar' },
+        { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos' },
+        { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas' },
       ],
+    },
+    ...(canSeeMembers
+      ? [
+          {
+            title: t.section.assets,
+            items: [
+              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory' },
+            ],
+          },
+        ]
+      : []),
+    {
+      title: t.section.ledger,
+      items: canFinance
+        ? [
+            { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
+            { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
+            { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
+            { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
+            { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
+          ]
+        : [],
+    },
+    {
+      title: t.section.reports,
+      items: canFinance
+        ? [
+            ...(canFinance && !isCongregationScope
+              ? [{ label: t.nav.reports, icon: <IconReport size={18} />, href: '/reports' }]
+              : []),
+            { label: t.nav.dre, icon: <IconChartBar size={18} />, href: '/dre' },
+            { label: t.nav.statement, icon: <IconWallet size={18} />, href: '/statement' },
+            { label: t.nav.validation, icon: <IconClipboardCheck size={18} />, href: '/validation' },
+          ]
+        : [],
     },
     ...(showChurchSections
       ? [
           {
             title: t.section.settings,
             items: [
-              { label: t.nav.settings, icon: <IconSettings size={18} />, href: '/settings' },
-            ],
+              {
+                label: t.nav.settings,
+                icon: <IconSettings size={18} />,
+                href: '/settings',
+              },
+              ...(canSeeUsers
+                ? [
+                    {
+                      label: t.nav.users,
+                      icon: <IconUserShield size={18} />,
+                      href: '/users',
+                    },
+                  ]
+                : []),
+              ...(canManageChurch
+                ? [
+                    {
+                      label: t.nav.churches,
+                      icon: <IconBuildingChurch size={18} />,
+                      href: '/churches',
+                      keepAbsolute: true,
+                    },
+                  ]
+                : []),
+              ...(canApprove && !congregationScope
+                ? [
+                    {
+                      label: t.nav.approvals,
+                      icon: <IconClipboardCheck size={18} />,
+                      href: '/approvals',
+                      keepAbsolute: true,
+                    },
+                  ]
+                : []),
+            ] as NavItem[],
           },
         ]
       : []),
@@ -150,52 +273,127 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             (section) =>
               section.title === t.adminChurches.title || showChurchSections
           )
-          .map((section) => (
-          <Box key={section.title} mb="xs">
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase" px="xs" mb={4}>
-              {section.title}
-            </Text>
-            {section.items.map((item) => {
-              const href = item.keepAbsolute ? item.href : nav(item.href);
-              const active = isActive(item.href);
-              return (
-                <UnstyledButton
-                  key={item.href}
-                  onClick={() => {
-                    router.push(href);
-                    onNavigate?.();
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--mantine-radius-sm)',
-                    backgroundColor: active
-                      ? 'var(--mantine-primary-color-light)'
-                      : 'transparent',
-                    color: active
-                      ? 'var(--mantine-primary-color-light-color)'
-                      : 'var(--mantine-color-dimmed)',
-                    fontWeight: active ? 600 : 400,
-                  }}
+          .map((section) => {
+            const visibleItems = section.items.filter(
+              (item) => !item.roles || hasRole(...item.roles)
+            );
+            if (visibleItems.length === 0) return null;
+            return (
+              <Box key={section.title} mb="xs">
+                <Text
+                  size="xs"
+                  fw={700}
+                  c="dimmed"
+                  tt="uppercase"
+                  px="xs"
+                  mb={4}
                 >
-                  <ThemeIcon
-                    variant={active ? 'filled' : 'subtle'}
-                    color={active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)'}
-                    size="sm"
-                  >
-                    {item.icon}
-                  </ThemeIcon>
-                  <Text size="sm">{item.label}</Text>
-                </UnstyledButton>
-              );
-            })}
-          </Box>
-        ))}
+                  {section.title}
+                </Text>
+                {visibleItems.map((item) => {
+                  const href = item.keepAbsolute ? item.href : nav(item.href);
+                  const active = isActive(item.href);
+                  return (
+                    <UnstyledButton
+                      key={item.href}
+                      onClick={() => {
+                        router.push(href);
+                        onNavigate?.();
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--mantine-radius-sm)',
+                        backgroundColor: active
+                          ? 'var(--mantine-primary-color-light)'
+                          : 'transparent',
+                        color: active
+                          ? 'var(--mantine-primary-color-light-color)'
+                          : 'var(--mantine-color-dimmed)',
+                        fontWeight: active ? 600 : 400,
+                      }}
+                    >
+                      <ThemeIcon
+                        variant={active ? 'filled' : 'subtle'}
+                        color={active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)'}
+                        size="sm"
+                      >
+                        {item.icon}
+                      </ThemeIcon>
+                      <Text size="sm">{item.label}</Text>
+                    </UnstyledButton>
+                  );
+                })}
+              </Box>
+            );
+          })}
       </Flex>
     </ScrollArea>
+  );
+}
+
+function ChurchSwitcher() {
+  const router = useRouter();
+  const { t } = useLanguage();
+  const { user, switchChurch } = useAuth();
+  const { hasRole } = useRoleHelpers(user);
+  const [churches, setChurches] = useState<Church[]>([]);
+
+  const canManage =
+    !!user?.is_staff ||
+    (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
+  const show = canManage && !!user?.church;
+
+  useEffect(() => {
+    if (!show) return;
+    let active = true;
+    accountsApi
+      .churches()
+      .then((list) => active && setChurches(list))
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [show]);
+
+  if (!show || churches.length <= 1) return null;
+
+  const handleSwitch = async (id: number) => {
+    if (id === user.church?.id) return;
+    try {
+      await switchChurch(id);
+      router.replace('/dashboard');
+    } catch {
+      void 0;
+    }
+  };
+
+  return (
+    <Menu shadow="md" width={240}>
+      <Menu.Target>
+        <Tooltip label={t.nav.switchChurch}>
+          <ActionIcon variant="subtle" aria-label="switch-church" size="lg">
+            <IconSwitchHorizontal size={18} />
+          </ActionIcon>
+        </Tooltip>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>{t.nav.switchChurch}</Menu.Label>
+        {churches.map((church) => (
+          <Menu.Item
+            key={church.id}
+            leftSection={<IconBuildingChurch size={14} />}
+            onClick={() => handleSwitch(church.id)}
+            style={{ fontWeight: church.id === user.church?.id ? 700 : 400 }}
+          >
+            {church.name}
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   );
 }
 
@@ -208,9 +406,14 @@ function HeaderControls() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && colorScheme === 'dark';
+  const roleLabel = user?.role_display || (user?.role ? ROLE_LABELS[user.role] : null);
 
   return (
     <Group gap="xs">
+      <ChurchSwitcher />
+
+      <NotificationBell />
+
       <Menu shadow="md" width={140}>
         <Menu.Target>
           <ActionIcon variant="subtle" aria-label="language" size="lg">
@@ -244,18 +447,25 @@ function HeaderControls() {
                 <Avatar size="sm" radius="xl" color="blue">
                   {user.name?.charAt(0)?.toUpperCase()}
                 </Avatar>
-                <Box style={{ textAlign: 'left' }} w={130} visibleFrom="sm">
+                <Box style={{ textAlign: 'left' }} w={150} visibleFrom="sm">
                   <Text size="sm" fw={600} truncate>
                     {user.name}
                   </Text>
-                  {user.is_staff ? (
+                  {user.is_staff || !user.church ? (
                     <Badge size="xs" color="grape" variant="light">
                       Admin
                     </Badge>
                   ) : (
-                    <Text size="xs" c="dimmed" truncate>
-                      {user.church?.name}
-                    </Text>
+                    <Flex align="center" gap={4} wrap="nowrap">
+                      {roleLabel && (
+                        <Badge size="xs" color="blue" variant="light">
+                          {roleLabel}
+                        </Badge>
+                      )}
+                      <Text size="xs" c="dimmed" truncate>
+                        {user.church.name}
+                      </Text>
+                    </Flex>
                   )}
                 </Box>
                 <IconChevronDown size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
@@ -283,9 +493,16 @@ function HeaderControls() {
   );
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({
+  children,
+  churchType,
+}: {
+  children: React.ReactNode;
+  churchType?: ChurchType;
+}) {
   const [opened, { toggle, close }] = useDisclosure(false);
   const isMobile = useMediaQuery('(max-width: 60em)');
+  const { t } = useLanguage();
 
   return (
     <AppShell
@@ -305,11 +522,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <ThemeIcon size="md" radius="md" color="blue" variant="filled">
                 <IconLayoutDashboard size={16} />
               </ThemeIcon>
-              <Text fw={800} size="lg">
-                Financeiro{' '}
-                <Text component="span" c="blue" fw={800}>
-                  IDB
-                </Text>
+              <Text fw={800} size="lg" c="blue">
+                {t.appTitle}
               </Text>
             </Flex>
           </Group>
@@ -319,15 +533,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {isMobile ? (
         <AppShell.Navbar p="xs">
-          <SidebarContent onNavigate={close} />
+          <SidebarContent onNavigate={close} churchType={churchType} />
         </AppShell.Navbar>
       ) : (
         <AppShell.Navbar p="xs">
-          <SidebarContent />
+          <SidebarContent churchType={churchType} />
         </AppShell.Navbar>
       )}
 
-      <AppShell.Main>{children}</AppShell.Main>
+      <AppShell.Main>
+        <ContentContextHeader />
+        {children}
+      </AppShell.Main>
     </AppShell>
   );
 }

@@ -1,9 +1,17 @@
-// Tipos compartilhados do frontend - Financeiro IDB
+// Tipos compartilhados do frontend - Gestão IDB
 // Refletem as respostas do backend Django/DRF
+
+export type ChurchType = 'INDEPENDENT' | 'CONGREGATION';
+export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO';
 
 export interface Church {
   id: number;
   name: string;
+  church_type: ChurchType;
+  church_type_display?: string;
+  parent_church: number | null;
+  is_approved: boolean;
+  accounting_category?: string | null;
   pastor_name: string;
   treasurer_name: string;
   phone: string;
@@ -17,8 +25,17 @@ export interface Church {
   longitude?: number | null;
   status: 'PENDING' | 'ACTIVE' | 'REJECTED';
   pastoral_prebenda_percent?: string;
+  responsible_user_id?: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface CardConfig {
+  card_primary_color: string;
+  card_secondary_color: string;
+  card_valid_until: string | null;
+  card_front_phrase: string;
+  card_back_phrase: string;
 }
 
 export interface User {
@@ -28,6 +45,8 @@ export interface User {
   is_staff: boolean;
   is_active: boolean;
   church?: Church | null;
+  role?: Role | null;
+  role_display?: string | null;
 }
 
 export interface LoginResponse {
@@ -82,24 +101,61 @@ export interface FinancialExit {
   category: DepartmentCategory;
   category_display: string;
   amount: string;
-  receipt: string | null;
-  receipt_url: string | null;
   created_at: string;
 }
 
-export type CalendarEventCategory = 'bill' | 'deadline' | 'meeting' | 'event';
+export type CalendarEventCategory =
+  | 'bill'
+  | 'deadline'
+  | 'meeting'
+  | 'event'
+  | 'culto'
+  | 'ensaio';
+
+export type CalendarEventAudience = 'GENERAL' | 'FINANCE';
 
 export interface CalendarEvent {
   id: number;
   church: number;
+  audience: CalendarEventAudience;
+  audience_display: string;
+  created_by: number | null;
+  created_by_name: string;
   title: string;
   category: CalendarEventCategory;
   category_display: string;
+  description: string;
+  start_time: string | null;
+  members: number[];
+  members_names: { id: number; name: string }[];
   repeat_monthly: boolean;
   date: string | null;
   month: number | null;
   day: number | null;
   created_at: string;
+}
+
+export interface PublicCalendarEvent {
+  id: number;
+  title: string;
+  category: CalendarEventCategory;
+  category_display: string;
+  description: string;
+  start_time: string | null;
+  repeat_monthly: boolean;
+  date: string | null;
+  month: number | null;
+  day: number | null;
+}
+
+export interface PublicCalendarPayload {
+  church: { id: number; name: string };
+  events: PublicCalendarEvent[];
+}
+
+export interface CalendarPublicLink {
+  hash: string;
+  url: string;
 }
 
 export interface Tither {
@@ -270,6 +326,23 @@ export interface SpreadsheetInspection {
   rows: string[][];
 }
 
+export interface MemberImportInspection {
+  kind: 'members';
+  headers: string[];
+  expected: SpreadsheetExpectedColumn[];
+  suggested: Record<string, string>;
+  rows: string[][];
+}
+
+export interface MemberImportResult {
+  imported: number;
+  updated: number;
+  skipped: number;
+  dry_run: boolean;
+  errors: string[];
+  rows_by_line: Record<number, [string, number | null]>;
+}
+
 export interface ReconciliationItem {
   label: string;
   provided: number;
@@ -310,7 +383,7 @@ export interface ValidationChecks {
     total_exits: string;
     final_balance: string;
   };
-  prebenda: {
+  prebenda?: {
     percent: string;
     expected: string;
     recorded: string;
@@ -360,6 +433,12 @@ export interface MonthlyValidationResponse {
 export interface PendingChurch {
   id: number;
   name: string;
+  church_type: ChurchType;
+  church_type_display?: string;
+  parent_church: number | null;
+  parent_church_name?: string | null;
+  is_approved: boolean;
+  accounting_category?: string | null;
   pastor_name: string;
   treasurer_name: string;
   phone: string;
@@ -374,4 +453,417 @@ export interface PendingChurch {
   status: string;
   created_at: string;
   user?: User | null;
+  requester_role?: { role: Role; role_display: string } | null;
+}
+
+export interface ChurchMembership {
+  id: number;
+  user_id: number;
+  user_email: string;
+  user_name: string;
+  user_is_active: boolean;
+  role: Role;
+  role_display: string;
+  created_at: string;
+}
+
+export type MemberStatus = 'ACTIVE' | 'INACTIVE';
+
+export type ChurchEntry =
+  | 'ACLAMACAO'
+  | 'BATISMO'
+  | 'RECONCILIACAO'
+  | 'TRANSFERENCIA'
+  | 'OUTRO';
+
+export type MaritalStatus =
+  | 'SOLTEIRO'
+  | 'CASADO'
+  | 'UNIAO_ESTAVEL'
+  | 'SEPARADO'
+  | 'DIVORCIADO'
+  | 'VIUVO';
+
+export type EducationLevel =
+  | 'SEM_ESCOLARIDADE'
+  | 'FUNDAMENTAL'
+  | 'MEDIO_INCOMPLETO'
+  | 'MEDIO'
+  | 'SUPERIOR_INCOMPLETO'
+  | 'SUPERIOR'
+  | 'POS_GRADUACAO';
+
+export type Kinship =
+  | 'CONJUGE'
+  | 'PAI'
+  | 'MAE'
+  | 'FILHO'
+  | 'IRMAO'
+  | 'AVO'
+  | 'NETO'
+  | 'OUTRO';
+
+export interface MemberRelative {
+  id: number;
+  name: string;
+  kinship: Kinship;
+  birth_date: string | null;
+  phone: string;
+}
+
+export interface MinistryArea {
+  id: number;
+  church: number;
+  name: string;
+  created_at: string;
+}
+
+export interface Member {
+  id: number;
+  church: number;
+  name: string;
+  phone: string;
+  email: string;
+  birth_date: string | null;
+  baptism_date: string | null;
+  cpf: string;
+  rg: string;
+  born_in_city: string;
+  born_in_state: string;
+  profession: string;
+  education_level: EducationLevel | '';
+  education_level_display: string;
+  marital_status: MaritalStatus | '';
+  marital_status_display: string;
+  marriage_date: string | null;
+  father_name: string;
+  mother_name: string;
+  card_number: string | null;
+  church_entry: ChurchEntry | '';
+  church_entry_display: string;
+  church_entry_other: string;
+  ministry_areas: number[];
+  ministry_areas_display: MinistryArea[];
+  photo: string | null;
+  status: MemberStatus;
+  status_display: string;
+  notes: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  cep: string;
+  relatives: MemberRelative[];
+  public_hash?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicCardPayload {
+  name: string;
+  card_number: string;
+  photo: string | null;
+  birth_date: string | null;
+  status: MemberStatus;
+  church_name: string;
+  church_city: string;
+  church_state: string;
+  church_phone: string;
+  card_primary_color: string;
+  card_secondary_color: string;
+  card_valid_until: string | null;
+  card_front_phrase: string;
+  card_back_phrase: string;
+}
+
+export interface PublicFormMeta {
+  type: 'member' | 'candidate';
+  church_name: string;
+  church_city: string;
+  church_state: string;
+  church_phone: string;
+  member_name?: string | null;
+  card_number?: string | null;
+}
+
+export interface PublicSubmissionResult {
+  id: number;
+  status: string;
+}
+
+export type MemberSubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface MemberSubmissionData {
+  name: string;
+  phone: string;
+  email: string;
+  birth_date: string | null;
+  cpf: string;
+  rg: string;
+  born_in_city: string;
+  born_in_state: string;
+  profession: string;
+  education_level: string;
+  marital_status: string;
+  marriage_date: string | null;
+  father_name: string;
+  mother_name: string;
+  church_entry: string;
+  church_entry_other: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  cep: string;
+  notes: string;
+}
+
+export interface MemberSubmission {
+  id: number;
+  church: number;
+  member: number | null;
+  member_name: string | null;
+  member_card_number: string | null;
+  source_hash: string;
+  data: Partial<MemberSubmissionData>;
+  status: MemberSubmissionStatus;
+  status_display: string;
+  reviewed_by: number | null;
+  reviewed_by_name: string | null;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+  reviewed_at: string | null;
+}
+
+export interface AccountingCategoryOption {
+  value: string;
+  label: string;
+}
+
+export type AppAlertType =
+  | 'birthday_today'
+  | 'birthday_upcoming'
+  | 'card_validity_soon'
+  | 'card_validity_expired'
+  | 'loan_return_today'
+  | 'loan_return_soon'
+  | 'loan_return_overdue';
+
+export interface AppAlert {
+  type: AppAlertType;
+  member_id?: number;
+  member_name?: string;
+  loan_id?: number;
+  item_id?: number;
+  item_name?: string;
+  borrower_name?: string;
+  date: string;
+}
+
+export interface AlertsResponse {
+  alerts: AppAlert[];
+  generated_at: string;
+}
+
+export interface StorageLocation {
+  id: number;
+  church: number;
+  name: string;
+  created_at: string;
+}
+
+export interface MaterialItemCurrentLoan {
+  loan_id: number;
+  borrower_display: string;
+  borrowed_at: string;
+  expected_return: string;
+}
+
+export interface MaterialItem {
+  id: number;
+  church: number;
+  name: string;
+  description: string;
+  location: number | null;
+  location_name: string | null;
+  current_loan: MaterialItemCurrentLoan | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LoanStatus = 'active' | 'overdue' | 'returned';
+
+export interface Loan {
+  id: number;
+  church: number;
+  item: number;
+  item_name: string;
+  member: number | null;
+  member_name: string | null;
+  borrower_name: string;
+  borrower_display: string;
+  borrowed_at: string;
+  expected_return: string;
+  returned_at: string | null;
+  status: LoanStatus;
+  notes: string;
+  created_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MemberTransferStatus = 'PENDING' | 'RECEIVED' | 'CANCELED';
+
+export interface MemberTransfer {
+  id: number;
+  source_church: number;
+  source_church_name: string;
+  source_member: number;
+  target_church: number;
+  target_church_name: string;
+  status: MemberTransferStatus;
+  status_display: string;
+  issued_at: string;
+  received_at: string | null;
+  member_name: string;
+  member_cpf: string;
+  member_rg: string;
+  member_birth_date: string | null;
+  member_baptism_date: string | null;
+  member_phone: string;
+  member_email: string;
+  member_profession: string;
+  member_father_name: string;
+  member_mother_name: string;
+  member_street: string;
+  member_number: string;
+  member_complement: string;
+  member_neighborhood: string;
+  member_city: string;
+  member_state: string;
+  member_cep: string;
+  member_notes: string;
+}
+
+export interface TransferTargetChurch {
+  id: number;
+  name: string;
+  city: string;
+  state: string;
+}
+
+export type MemberDocumentType =
+  | 'RG'
+  | 'CPF'
+  | 'RESIDENCE_PROOF'
+  | 'OTHER';
+
+export interface MemberDocument {
+  id: number;
+  member: number;
+  doc_type: MemberDocumentType;
+  doc_type_display: string;
+  file_name: string;
+  notes: string;
+  uploaded_by: number | null;
+  uploaded_by_name: string;
+  uploaded_at: string;
+}
+
+export interface BirthdayMember {
+  id: number;
+  name: string;
+  birth_date: string;
+  day: number;
+  age: number | null;
+  phone: string;
+  email: string;
+}
+
+export interface ResponsibleUserPayload {
+  user_id?: number;
+  email?: string;
+  name?: string;
+  role: Role;
+}
+
+export type WorshipServiceType =
+  | 'CELEBRACAO'
+  | 'DOUTRINA'
+  | 'ORACAO'
+  | 'VIGILIA'
+  | 'CEIA'
+  | 'ESCOLA_BIBLICA'
+  | 'JOVENS'
+  | 'OUTRO';
+
+export interface WorshipService {
+  id: number;
+  church: number;
+  date: string;
+  time: string | null;
+  service_type: WorshipServiceType;
+  service_type_display: string;
+  presider: string;
+  preacher: string;
+  theme: string;
+  scripture: string;
+  attendees: number;
+  visitors: number;
+  conversions: number;
+  offering: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MeetingType =
+  | 'ASSEMBLEIA_GERAL'
+  | 'ASSEMBLEIA_EXTRAORDINARIA'
+  | 'DIRETORIA'
+  | 'CONSELHO'
+  | 'OUTRO';
+
+export interface ChurchMinutes {
+  id: number;
+  church: number;
+  title: string;
+  meeting_type: MeetingType;
+  meeting_type_display: string;
+  meeting_date: string;
+  location: string;
+  recorder: string;
+  participants: string;
+  content: string;
+  pdf: string | null;
+  pdf_name: string | null;
+  public_hash: string;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicMinutesPayload {
+  id: number;
+  title: string;
+  meeting_type: MeetingType;
+  meeting_type_display: string;
+  meeting_date: string;
+  location: string;
+  recorder: string;
+  participants: string;
+  content: string;
+  has_pdf: boolean;
+  church: {
+    id: number;
+    name: string;
+    city: string;
+    state: string;
+  };
+  created_at: string;
 }

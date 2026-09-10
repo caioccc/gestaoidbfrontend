@@ -25,18 +25,36 @@ import { useLanguage } from '../i18n';
 import { DashboardSummary } from '../types';
 import { financeApi, fetchAllPages } from '../api/finance';
 import { formatBRL, toNumber } from '../utils/format';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
+import SecretaryDashboard from '../components/SecretaryDashboard';
+import { useRouter } from 'next/router';
 
 const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
 export default function DashboardPage() {
   const { t } = useLanguage();
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
+  const { canFinance } = useRoleHelpers(user);
   const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (user?.is_staff && !user.church) {
+      router.replace('/admin/churches');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, user]);
+
   const [year, setYear] = useState<number>(currentYear);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [deptData, setDeptData] = useState<{ name: string; value: number; color: string }[]>([]);
 
+  const secretaryMode = !isLoading && !!user && !canFinance;
+
   useEffect(() => {
+    if (secretaryMode) return;
     let active = true;
     setLoading(true);
     financeApi
@@ -47,9 +65,10 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, [year]);
+  }, [year, secretaryMode]);
 
   useEffect(() => {
+    if (secretaryMode) return;
     let active = true;
     const start = `${year}-01-01`;
     const end = `${year}-12-31`;
@@ -113,6 +132,10 @@ export default function DashboardPage() {
       icon: <IconScale size={22} />,
     },
   ];
+
+  if (secretaryMode) {
+    return <SecretaryDashboard />;
+  }
 
   return (
     <>

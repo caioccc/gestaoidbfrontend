@@ -11,7 +11,6 @@ import {
   Text,
   ActionIcon,
   Tooltip,
-  NumberInput,
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -25,6 +24,7 @@ import {
   IconDownload,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import MoneyInput from '../components/MoneyInput';
 import ExportModal from '../components/ExportModal';
 import { useLanguage } from '../i18n';
 import { useCategories } from '../hooks/useCategories';
@@ -308,15 +308,12 @@ export default function EntriesPage() {
               required
               {...form.getInputProps('category')}
             />
-            <NumberInput
+            <MoneyInput
               data-testid="entry-amount"
               label={t.common.value}
               required
-              min={0}
-              decimalScale={2}
-              fixedDecimalScale
               value={form.values.amount}
-              onChange={(v) => form.setFieldValue('amount', typeof v === 'number' ? v : toNumber(v))}
+              onValueChange={(v) => form.setFieldValue('amount', typeof v === 'number' ? v : 0)}
               error={form.errors.amount}
             />
             <Group justify="flex-end" mt="xs">

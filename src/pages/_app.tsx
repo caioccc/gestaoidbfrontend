@@ -4,6 +4,7 @@ import '@mantine/charts/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dropzone/styles.css';
 import '@mantine/carousel/styles.css';
+import '@mantine/tiptap/styles.css';
 import 'mantine-datatable/styles.css';
 import 'dayjs/locale/pt-br';
 import 'dayjs/locale/es';
@@ -41,6 +42,20 @@ const APP_ROUTES = [
   '/validation',
 ];
 
+const FINANCE_ROUTES = [
+  '/import',
+  '/entries',
+  '/exits',
+  '/tithers',
+  '/closings',
+  '/reports',
+  '/dre',
+  '/statement',
+  '/validation',
+];
+
+const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'];
+
 const ADMIN_ONLY: string[] = [];
 
 const DATE_LOCALE: Record<SupportedLocale, string> = {
@@ -66,13 +81,14 @@ function RouteGate({
   const router = useRouter();
   const isAppRoute = APP_ROUTES.includes(router.pathname);
   const isAdminRoute = ADMIN_ONLY.includes(router.pathname);
+  const isFinanceRoute = FINANCE_ROUTES.includes(router.pathname);
 
   if (!isAppRoute) {
     return <Component {...pageProps} />;
   }
 
   return (
-    <AuthGuard adminOnly={isAdminRoute}>
+    <AuthGuard adminOnly={isAdminRoute} roles={isFinanceRoute ? FINANCE_ROLES : undefined}>
       <Layout>
         <Component {...pageProps} />
       </Layout>
@@ -84,7 +100,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <MantineProvider theme={theme} defaultColorScheme="light">
       <Head>
-        <title>Financeiro IDB - Gestão Financeira</title>
+        <title>Gestão IDB - Sistema Integrado de Gestão Eclesial</title>
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
       </Head>
       <Notifications position="top-right" />

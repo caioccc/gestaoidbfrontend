@@ -122,34 +122,41 @@ export default function ValidationPanel({
       </Paper>
 
       <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-        <Paper withBorder radius="md" p="md">
-          <Group justify="space-between" mb="sm">
-            <Group>
-              <ThemeIcon color="grape" variant="light" size="lg">
-                <IconCoins size={20} />
-              </ThemeIcon>
-              <Title order={5}>{t.validationPage.prebenda}</Title>
+        {prebenda && (
+          <Paper withBorder radius="md" p="md">
+            <Group justify="space-between" mb="sm">
+              <Group>
+                <ThemeIcon color="grape" variant="light" size="lg">
+                  <IconCoins size={20} />
+                </ThemeIcon>
+                <Title order={5}>{t.validationPage.prebenda}</Title>
+              </Group>
+              <Badge color={prebenda.ok ? 'green' : 'red'} variant="light">
+                {prebenda.ok
+                  ? t.validationPage.prebendaOk
+                  : t.validationPage.prebendaMismatch}
+              </Badge>
             </Group>
-            <Badge color={prebenda.ok ? 'green' : 'red'} variant="light">
-              {prebenda.ok
-                ? t.validationPage.prebendaOk
-                : t.validationPage.prebendaMismatch}
-            </Badge>
-          </Group>
-          <SimpleGrid cols={2}>
-            <ValueBox label="%" value={`${prebenda.percent}%`} />
-            <ValueBox label="Esperado" value={prebenda.expected} money />
-            <ValueBox label="Registrado" value={prebenda.recorded} money />
-            <ValueBox
-              label={`Diferença (tol: ${prebenda.tolerance})`}
-              value={prebenda.difference}
-              money
-              accent={prebenda.ok ? 'green' : 'red'}
-            />
-          </SimpleGrid>
-        </Paper>
+            <SimpleGrid cols={2}>
+              <ValueBox label="%" value={`${prebenda.percent}%`} />
+              <ValueBox label="Esperado" value={prebenda.expected} money />
+              <ValueBox label="Registrado" value={prebenda.recorded} money />
+              <ValueBox
+                label={`Diferença (tol: ${prebenda.tolerance})`}
+                value={prebenda.difference}
+                money
+                accent={prebenda.ok ? 'green' : 'red'}
+              />
+            </SimpleGrid>
+          </Paper>
+        )}
 
-        <Paper withBorder radius="md" p="md">
+        <Paper
+          withBorder
+          radius="md"
+          p="md"
+          style={{ gridColumn: prebenda ? undefined : '1 / -1' }}
+        >
           <Group justify="space-between" mb="sm">
             <Group>
               <ThemeIcon color="orange" variant="light" size="lg">

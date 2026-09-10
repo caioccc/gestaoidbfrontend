@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Button,
   TextInput,
@@ -16,6 +16,7 @@ import {
   Grid,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
@@ -23,11 +24,13 @@ import {
   IconBuildingChurch,
   IconMapPin,
   IconUser,
+  IconBuildingMonument,
+  IconUserShield,
 } from '@tabler/icons-react';
 import AuthShell from '../components/AuthShell';
 import MaskedTextInput from '../components/MaskedTextInput';
 import { useLanguage } from '../i18n';
-import { accountsApi } from '../api/accounts';
+import { accountsApi, RegisterChurchType, RegisterPayload } from '../api/accounts';
 import { toUpperCamelWords, isValidEmail } from '../utils/format';
 
 const UF_LIST = [
@@ -35,11 +38,22 @@ const UF_LIST = [
   'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 
+const ROLE_OPTIONS = [
+  { value: 'PASTOR', label: 'Pastor(a)' },
+  { value: 'TESOUREIRO', label: 'Tesoureiro(a)' },
+];
+
+const CHURCH_TYPE_OPTIONS = [
+  { value: 'INDEPENDENT', label: 'Sede (Igreja Independente)' },
+  { value: 'CONGREGATION', label: 'Congregação' },
+];
+
 interface RegisterForm {
+  church_type: string;
   church_name: string;
+  parent_church: string;
   nationalCode: string;
   pastor_name: string;
-  treasurer_name: string;
   phone: string;
   cep: string;
   street: string;
@@ -51,6 +65,7 @@ interface RegisterForm {
   email: string;
   password: string;
   confirm: string;
+  role: string;
 }
 
 export default function RegisterPage() {
@@ -61,14 +76,46 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [registeredType, setRegisteredType] = useState<'INDEPENDENT' | 'CONGREGATION'>(
+    'CONGREGATION'
+  );
   const [mapQuery, setMapQuery] = useState<string | null>(null);
+  const [parentOptions, setParentOptions] = useState<{ value: string; label: string }[]>([]);
+  const [parentLoading, setParentLoading] = useState(false);
+  const [parentQuery, setParentQuery] = useState('');
+  const [debouncedParentQuery] = useDebouncedValue(parentQuery, 500);
+
+  const loadParentChurches = async (q: string) => {
+    setParentLoading(true);
+    try {
+      const rows = await accountsApi.searchParentChurches(q || undefined);
+      setParentOptions(rows.map((c) => ({ value: String(c.id), label: c.name })));
+    } catch {
+      setParentOptions([]);
+    } finally {
+      setParentLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const trimmed = parentQuery.trim();
+    if (trimmed.length < 3) return;
+    loadParentChurches(trimmed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedParentQuery]);
+
+  useEffect(() => {
+    loadParentChurches('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const form = useForm<RegisterForm>({
     initialValues: {
+      church_type: 'CONGREGATION',
       church_name: '',
+      parent_church: '',
       nationalCode: '',
       pastor_name: '',
-      treasurer_name: '',
       phone: '',
       cep: '',
       street: '',
@@ -80,9 +127,15 @@ export default function RegisterPage() {
       email: '',
       password: '',
       confirm: '',
+      role: '',
     },
     validate: {
+      church_type: (v) => (v ? null : t.registerPage.churchTypeRequired),
       church_name: (v) => (v.trim().length ? null : t.registerPage.churchName),
+      parent_church: (v, values) =>
+        active >= 0 && values.church_type === 'CONGREGATION' && !v
+          ? t.registerPage.parentRequired
+          : null,
       phone: (v) => (v && v.replace(/\D/g, '').length >= 10 ? null : t.registerPage.phoneInvalid),
       city: (v) => (active >= 1 && !v.trim() ? t.registerPage.city : null),
       state: (v) => (active >= 1 && !v.trim() ? t.registerPage.state : null),
@@ -96,6 +149,7 @@ export default function RegisterPage() {
           : null,
       confirm: (v, values) =>
         active >= 2 && v !== values.password ? t.registerPage.passwordMismatch : null,
+      role: (v) => (active >= 2 && !v ? t.registerPage.roleRequired : null),
     },
   });
 
@@ -141,12 +195,13 @@ export default function RegisterPage() {
     setError(null);
     try {
       // Código Nacional não é enviado: o backend não possui esse campo
-      const { nationalCode: _code, confirm: _confirm, ...raw } = form.values;
-      const payload = {
+      const { nationalCode: _code, confirm: _confirm, parent_church, role, ...raw } = form.values;
+      const payload: RegisterPayload = {
         ...raw,
+        church_type: form.values.church_type as RegisterChurchType,
+        role: role as 'PASTOR' | 'TESOUREIRO',
         church_name: toUpperCamelWords(raw.church_name),
         pastor_name: toUpperCamelWords(raw.pastor_name || ''),
-        treasurer_name: toUpperCamelWords(raw.treasurer_name || ''),
         name: toUpperCamelWords(raw.name),
         street: toUpperCamelWords(raw.street || ''),
         neighborhood: toUpperCamelWords(raw.neighborhood || ''),
@@ -154,12 +209,23 @@ export default function RegisterPage() {
         email: raw.email.trim(),
         phone: raw.phone.replace(/\D/g, ''),
       };
+      if (form.values.church_type === 'CONGREGATION') {
+        payload.parent_church = Number(parent_church);
+      }
+      setRegisteredType(form.values.church_type as 'INDEPENDENT' | 'CONGREGATION');
       await accountsApi.register(payload);
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('idb_pending_approval', '1');
       }
       setDone(true);
-      notifications.show({ color: 'green', title: t.registerPage.successTitle, message: t.pendingApprovalMsg });
+      notifications.show({
+          color: 'green',
+          title: t.registerPage.successTitle,
+          message:
+            form.values.church_type === 'INDEPENDENT'
+              ? t.registerPage.pendingSede
+              : t.registerPage.pendingCongregation,
+        });
     } catch (err: any) {
       const data = err?.response?.data;
       const msg = data?.email?.[0] || data?.church_name?.[0] || data?.detail;
@@ -209,7 +275,11 @@ export default function RegisterPage() {
             w="100%"
             title={t.registerPage.note}
           >
-            <Text size="sm">{t.pendingApprovalMsg}</Text>
+            <Text size="sm">
+              {registeredType === 'INDEPENDENT'
+                ? t.registerPage.pendingSede
+                : t.registerPage.pendingCongregation}
+            </Text>
           </Alert>
           <Button variant="default" onClick={() => (window.location.href = '/login')} data-testid="register-go-login">
             {t.login}
@@ -238,6 +308,56 @@ export default function RegisterPage() {
         <Stepper active={active} onStepClick={setActive} allowNextStepsSelect={false} size="sm">
           <Stepper.Step label={t.registerPage.stepChurch} icon={<IconBuildingChurch size={16} />}>
             <Stack gap="md" mt="md">
+              <Select
+                data-testid="register-church-type"
+                label={t.registerPage.churchType}
+                placeholder={t.registerPage.churchTypePlaceholder}
+                required
+                data={CHURCH_TYPE_OPTIONS}
+                {...form.getInputProps('church_type')}
+                onChange={(value) => {
+                  form.setFieldValue('church_type', value as string);
+                  if (value === 'INDEPENDENT') {
+                    form.setFieldValue('parent_church', '');
+                  }
+                }}
+              />
+              {form.values.church_type === 'CONGREGATION' ? (
+                <>
+                  <Alert
+                    icon={<IconBuildingMonument size={16} />}
+                    color="blue"
+                    variant="light"
+                    title={t.registerPage.congregationNoticeTitle}
+                  >
+                    <Text size="sm">{t.registerPage.congregationNotice}</Text>
+                  </Alert>
+                  <Select
+                    data-testid="register-parent"
+                    label={t.registerPage.parentChurch}
+                    placeholder={t.registerPage.parentPlaceholder}
+                    description={t.registerPage.parentHint}
+                    required
+                    searchable
+                    clearable
+                    nothingFoundMessage={t.registerPage.parentNothingFound}
+                    rightSection={parentLoading ? <Loader size="xs" /> : null}
+                    data={parentOptions}
+                    searchValue={parentQuery}
+                    onSearchChange={setParentQuery}
+                    {...form.getInputProps('parent_church')}
+                  />
+                </>
+              ) : (
+                <Alert
+                  icon={<IconBuildingMonument size={16} />}
+                  color="violet"
+                  variant="light"
+                  title={t.registerPage.sedeNoticeTitle}
+                >
+                  <Text size="sm">{t.registerPage.sedeNotice}</Text>
+                </Alert>
+              )}
               <TextInput
                 data-testid="register-church-name"
                 label={t.registerPage.churchName}
@@ -258,11 +378,6 @@ export default function RegisterPage() {
                   label={t.registerPage.pastor}
                   {...form.getInputProps('pastor_name')}
                 />
-                <TextInput
-                  data-testid="register-treasurer"
-                  label={t.registerPage.treasurer}
-                  {...form.getInputProps('treasurer_name')}
-                />
               </Group>
               <MaskedTextInput
                 data-testid="register-phone"
@@ -282,6 +397,7 @@ export default function RegisterPage() {
               <MaskedTextInput
                 data-testid="register-cep"
                 label={t.registerPage.cep}
+                description={t.registerPage.cepHint}
                 placeholder="00000-000"
                 maxLength={9}
                 mask="00000-000"
@@ -357,6 +473,17 @@ export default function RegisterPage() {
 
           <Stepper.Step label={t.registerPage.stepAccess} icon={<IconUser size={16} />}>
             <Stack gap="md" mt="md">
+              <Select
+                data-testid="register-role"
+                label={t.registerPage.role}
+                placeholder={t.registerPage.rolePlaceholder}
+                required
+                data={ROLE_OPTIONS}
+                {...form.getInputProps('role')}
+              />
+              <Alert icon={<IconUserShield size={16} />} color="violet" variant="light">
+                <Text size="sm">{t.registerPage.roleNote}</Text>
+              </Alert>
               <TextInput
                 data-testid="register-name"
                 label={t.registerPage.responsibleName}

@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [pendingMsg, setPendingMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (
@@ -47,6 +48,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     setPending(false);
+    setPendingMsg(null);
     try {
       await login(values.email, values.password);
       sessionStorage.removeItem('idb_pending_approval');
@@ -57,17 +59,23 @@ export default function LoginPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      const isActive = err?.response?.status;
-      if (isActive === 401) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      if (status === 403) {
+        sessionStorage.removeItem('idb_pending_approval');
+        setPending(true);
+        setPendingMsg(detail || null);
+      } else if (status === 401) {
         const pendingFlag =
           typeof window !== 'undefined' && sessionStorage.getItem('idb_pending_approval') === '1';
         if (pendingFlag) {
           setPending(true);
+          setPendingMsg(t.loginPage.inactive);
         } else {
           setError(t.loginPage.invalidCredentials);
         }
       } else {
-        setError(t.loginPage.invalidCredentials);
+        setError(detail || t.loginPage.invalidCredentials);
       }
     } finally {
       setLoading(false);
@@ -86,7 +94,7 @@ export default function LoginPage() {
 
         {pending && (
           <Alert icon={<IconInfoCircle size={16} />} color="yellow" title={t.overview}>
-            {t.loginPage.inactive}
+            {pendingMsg || t.loginPage.inactive}
           </Alert>
         )}
 

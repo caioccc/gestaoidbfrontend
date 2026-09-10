@@ -16,15 +16,21 @@ import PageHeader from '../../../components/PageHeader';
 import ChurchProfileForm from '../../../components/ChurchProfileForm';
 import { useLanguage } from '../../../i18n';
 import { accountsApi } from '../../../api/accounts';
-import { AdminFinanceApi } from '../../../api/adminFinance';
+import { ChurchType } from '../../../types';
 
 interface SettingsSectionProps {
   churchId: number;
   churchLabel: string;
-  api: AdminFinanceApi;
+  churchType?: ChurchType;
+  staffAccess?: boolean;
 }
 
-export default function SettingsSection({ churchId, churchLabel }: SettingsSectionProps) {
+export default function SettingsSection({
+  churchId,
+  churchLabel,
+  churchType,
+  staffAccess = true,
+}: SettingsSectionProps) {
   const { t } = useLanguage();
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,8 +40,10 @@ export default function SettingsSection({ churchId, churchLabel }: SettingsSecti
 
   useEffect(() => {
     let active = true;
-    accountsApi
-      .getChurchProfile(churchId)
+    const fetcher = staffAccess
+      ? accountsApi.getChurchProfile(churchId)
+      : accountsApi.getChurchProfileForSede(churchId);
+    fetcher
       .then((data) => active && setProfile(data))
       .catch(() => {
         setProfile(null);
@@ -45,12 +53,15 @@ export default function SettingsSection({ churchId, churchLabel }: SettingsSecti
     return () => {
       active = false;
     };
-  }, [churchId]);
+  }, [churchId, staffAccess]);
 
   const handleSave = async (payload: Record<string, any>) => {
     setSaving(true);
     try {
-      await accountsApi.updateChurchProfile(churchId, payload);
+      const request = staffAccess
+        ? accountsApi.updateChurchProfile(churchId, payload)
+        : accountsApi.updateChurchProfileForSede(churchId, payload);
+      await request;
       notifications.show({
         color: 'green',
         title: t.settingsPage.saved,
@@ -97,33 +108,36 @@ export default function SettingsSection({ churchId, churchLabel }: SettingsSecti
         saving={saving}
         onSave={handleSave}
         responsibleEmail={profile?.responsible_email}
-        onResetPassword={handleResetPassword}
+        onResetPassword={staffAccess ? handleResetPassword : undefined}
+        showPrebenda={churchType !== 'CONGREGATION'}
       />
 
-      <Paper withBorder radius="md" p="md" mt="lg" style={{ borderColor: 'var(--mantine-color-red-4)' }}>
-        <Group justify="space-between" align="flex-start" wrap="wrap">
-          <Stack gap={4}>
-            <Title order={5} c="red">
-              {t.adminSettings.clearTitle}
-            </Title>
-            <Text size="sm" c="dimmed">
-              {t.adminSettings.clearDescription}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {t.adminSettings.clearWarning}
-            </Text>
-          </Stack>
-          <Button
-            data-testid="settings-clear-data"
-            variant="outline"
-            color="red"
-            leftSection={<IconAlertTriangle size={16} />}
-            onClick={() => setConfirmOpen(true)}
-          >
-            {t.adminSettings.clearButton}
-          </Button>
-        </Group>
-      </Paper>
+      {staffAccess && (
+        <Paper withBorder radius="md" p="md" mt="lg" style={{ borderColor: 'var(--mantine-color-red-4)' }}>
+          <Group justify="space-between" align="flex-start" wrap="wrap">
+            <Stack gap={4}>
+              <Title order={5} c="red">
+                {t.adminSettings.clearTitle}
+              </Title>
+              <Text size="sm" c="dimmed">
+                {t.adminSettings.clearDescription}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {t.adminSettings.clearWarning}
+              </Text>
+            </Stack>
+            <Button
+              data-testid="settings-clear-data"
+              variant="outline"
+              color="red"
+              leftSection={<IconAlertTriangle size={16} />}
+              onClick={() => setConfirmOpen(true)}
+            >
+              {t.adminSettings.clearButton}
+            </Button>
+          </Group>
+        </Paper>
+      )}
 
       <Modal
         opened={confirmOpen}

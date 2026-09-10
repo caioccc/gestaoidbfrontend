@@ -11,9 +11,6 @@ import {
   Text,
   ActionIcon,
   Tooltip,
-  NumberInput,
-  FileInput,
-  Anchor,
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -23,11 +20,11 @@ import {
   IconPlus,
   IconRefresh,
   IconTrash,
-  IconReceipt,
   IconPencil,
   IconDownload,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import MoneyInput from '../components/MoneyInput';
 import ExportModal from '../components/ExportModal';
 import { useLanguage } from '../i18n';
 import { useCategories } from '../hooks/useCategories';
@@ -90,7 +87,6 @@ export default function ExitsPage() {
       description: '',
       category: 'ESPECIAL' as string,
       amount: 0,
-      receipt: null as File | null,
     },
     validate: {
       description: (v) => (v.trim() ? null : t.common.description),
@@ -116,7 +112,6 @@ export default function ExitsPage() {
       description: record.description,
       category: record.category,
       amount: toNumber(record.amount),
-      receipt: null,
     });
     setModalOpen(true);
   };
@@ -131,7 +126,6 @@ export default function ExitsPage() {
       fd.append('description', toSentenceCase(form.values.description));
       fd.append('category', form.values.category);
       fd.append('amount', String(form.values.amount));
-      if (form.values.receipt) fd.append('receipt', form.values.receipt);
       if (editing) {
         await financeApi.updateExit(editing.id, fd);
         notifications.show({ color: 'green', message: 'Saída atualizada.' });
@@ -187,22 +181,6 @@ export default function ExitsPage() {
       textAlign: 'right',
       render: (r) => <Text c="red" fw={600}>{formatBRL(r.amount)}</Text>,
       width: 140,
-    },
-    {
-      accessor: 'receipt',
-      title: t.exitsPage.receipt,
-      width: 120,
-      render: (r) =>
-        r.receipt_url ? (
-          <Anchor href={r.receipt_url} target="_blank" size="sm">
-            <Group gap={4} wrap="nowrap">
-              <IconReceipt size={14} />
-              {t.exitsPage.viewReceipt}
-            </Group>
-          </Anchor>
-        ) : (
-          <Text c="dimmed" size="sm">—</Text>
-        ),
     },
     {
       accessor: 'actions',
@@ -321,24 +299,13 @@ export default function ExitsPage() {
               required
               {...form.getInputProps('category')}
             />
-            <NumberInput
+            <MoneyInput
               data-testid="exit-amount"
               label={t.common.value}
               required
-              min={0}
-              decimalScale={2}
-              fixedDecimalScale
               value={form.values.amount}
-              onChange={(v) => form.setFieldValue('amount', typeof v === 'number' ? v : toNumber(v))}
+              onValueChange={(v) => form.setFieldValue('amount', typeof v === 'number' ? v : 0)}
               error={form.errors.amount}
-            />
-            <FileInput
-              data-testid="exit-receipt"
-              label={t.exitsPage.receipt}
-              placeholder="Anexar comprovante (PDF/imagem)"
-              accept="image/*,application/pdf"
-              value={form.values.receipt}
-              onChange={(f) => form.setFieldValue('receipt', f)}
             />
             <Group justify="flex-end" mt="xs">
               <Button data-testid="exit-cancel" variant="default" onClick={() => setModalOpen(false)}>
