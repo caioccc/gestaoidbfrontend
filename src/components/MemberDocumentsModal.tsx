@@ -46,7 +46,7 @@ export default function MemberDocumentsModal({
   const [deleting, setDeleting] = useState(false);
 
   const [file, setFile] = useState<File | null>(null);
-  const [docType, setDocType] = useState<string | null>('RG');
+  const [docType, setDocType] = useState<string | null>('RESIDENCE_PROOF');
   const [notes, setNotes] = useState('');
   const [uploading, setUploading] = useState(false);
 
@@ -65,7 +65,7 @@ export default function MemberDocumentsModal({
   useEffect(() => {
     if (opened) {
       setFile(null);
-      setDocType('RG');
+      setDocType('RESIDENCE_PROOF');
       setNotes('');
       load();
     }
@@ -93,7 +93,7 @@ export default function MemberDocumentsModal({
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('doc_type', docType || 'RG');
+    formData.append('doc_type', docType || 'RESIDENCE_PROOF');
     if (notes) formData.append('notes', notes);
     try {
       await accountsApi.uploadMemberDocument(member.id, formData);
@@ -129,8 +129,6 @@ export default function MemberDocumentsModal({
   };
 
   const typeOptions = [
-    { value: 'RG', label: t.documents.typeRG },
-    { value: 'CPF', label: t.documents.typeCPF },
     { value: 'RESIDENCE_PROOF', label: t.documents.typeResidenceProof },
     { value: 'OTHER', label: t.documents.typeOther },
   ];
@@ -218,7 +216,7 @@ export default function MemberDocumentsModal({
               label={t.documents.docType}
               data={typeOptions}
               value={docType}
-              onChange={(v) => setDocType(v || 'RG')}
+              onChange={(v) => setDocType(v || 'RESIDENCE_PROOF')}
               style={{ minWidth: 190 }}
               data-testid="doc-type"
             />

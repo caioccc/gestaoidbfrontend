@@ -44,6 +44,7 @@ import {
   IconChartPie,
   IconPackage,
   IconFileText,
+  IconLink,
 } from '@tabler/icons-react';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage, SupportedLocale } from '../i18n';
@@ -64,6 +65,7 @@ interface NavItem {
   href: string;
   adminOnly?: boolean;
   keepAbsolute?: boolean;
+  fixed?: boolean;
   roles?: string[];
   badge?: number;
 }
@@ -84,7 +86,7 @@ function SidebarContent({
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const { hasRole, canFinance } = useRoleHelpers(user);
+  const { hasRole, canFinance, canApproveCongregations } = useRoleHelpers(user);
 
   // Usar router.query.churchId (valor resolvido, ex.: "7") em vez de
   // fazer parse de router.pathname — que no Next.js contém o placeholder
@@ -105,11 +107,20 @@ function SidebarContent({
   const congregationScope = !!congregationId || churchType === 'CONGREGATION';
 
   const nav = (href: string) => (basePath ? `${basePath}${href}` : href);
-  const isActive = (href: string) => {
+  // Menus sem seção em /churches/[congregationId]/[section] (Atas, Cultos,
+  // Patrimônio, Relatórios de Membros) devem abrir nas rotas FIXAS: as APIs
+  // dessas telas já operam sobre user.church (a congregação ativa após o
+  // switch), sem depender de uma seção administrada por churchId.
+  const isFixedInCongregation = (item: NavItem) =>
+    !!item.fixed && !!congregationId && !user?.is_staff;
+  const resolveHref = (item: NavItem) =>
+    item.keepAbsolute || isFixedInCongregation(item) ? item.href : nav(item.href);
+  const isActive = (item: NavItem) => {
+    const href = resolveHref(item);
     if (adminChurchId || congregationId) {
-      return router.asPath.replace(/\/$/, '') === nav(href).replace(/\/$/, '');
+      return router.asPath.replace(/\/$/, '') === href.replace(/\/$/, '');
     }
-    return router.pathname === href;
+    return router.pathname === item.href;
   };
 
   const hasChurch = !!user?.church;
@@ -124,8 +135,8 @@ function SidebarContent({
 
   const canManageChurch =
     !!user?.is_staff ||
+    !!user?.can_manage_churches ||
     (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
-  const canApprove = canManageChurch;
   // Tesoureiro(a) e Pastor(a) lidam com o financeiro; Secretária não enxerga
   // os módulos financeiros no menu (entradas, saídas, dizimistas, fechamentos,
   // DRE, extratos e validação mensal). Tesoureiro(a) também acessa os módulos
@@ -144,7 +155,7 @@ function SidebarContent({
 
   const [pendingApprovals, setPendingApprovals] = useState(0);
   useEffect(() => {
-    if (!canApprove || isCongregationScope) return;
+    if (!canApproveCongregations || isCongregationScope) return;
     let cancelled = false;
     const load = () => {
       accountsApi
@@ -160,7 +171,7 @@ function SidebarContent({
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [canApprove, isCongregationScope]);
+  }, [canApproveCongregations, isCongregationScope]);
 
   const sections: { title: string; requiresChurch: boolean; items: NavItem[] }[] = [
     {
@@ -171,7 +182,7 @@ function SidebarContent({
         { label: t.nav.calendar, icon: <IconCalendarEvent size={18} />, href: '/calendar' },
       ],
     },
-    ...(canApprove || user?.is_staff || (canManageChurch && !user?.is_staff)
+    ...(canApproveCongregations || user?.is_staff || (canManageChurch && !user?.is_staff)
       ? [
           {
             title: t.section.governance,
@@ -197,7 +208,7 @@ function SidebarContent({
                     } as NavItem,
                   ]
                 : []),
-              ...(canApprove && !congregationScope
+              ...(canApproveCongregations && !congregationScope
                 ? [
                     {
                       label: t.nav.approvals,
@@ -219,10 +230,16 @@ function SidebarContent({
             requiresChurch: true,
             items: [
               { label: t.nav.members, icon: <IconUsersGroup size={18} />, href: '/members' },
-              { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas' },
-              { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos' },
-              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory' },
-              { label: t.nav.memberReports, icon: <IconChartPie size={18} />, href: '/members-reports' },
+              { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas', fixed: true },
+              { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos', fixed: true },
+              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory', fixed: true },
+              { label: t.nav.memberReports, icon: <IconChartPie size={18} />, href: '/members-reports', fixed: true },
+              {
+                label: t.nav.links,
+                icon: <IconLink size={18} />,
+                href: '/links',
+                roles: ['PASTOR', 'SECRETARIA'],
+              } as NavItem,
             ],
           },
         ]
@@ -297,8 +314,8 @@ function SidebarContent({
                   {section.title}
                 </Text>
                 {visibleItems.map((item) => {
-                  const href = item.keepAbsolute ? item.href : nav(item.href);
-                  const active = isActive(item.href);
+                  const href = resolveHref(item);
+                  const active = isActive(item);
                   return (
                     <UnstyledButton
                       key={item.href}
@@ -360,6 +377,7 @@ function ChurchSwitcher() {
 
   const canManage =
     !!user?.is_staff ||
+    !!user?.can_manage_churches ||
     (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
   const show = canManage && !!user?.church;
 
@@ -377,15 +395,16 @@ function ChurchSwitcher() {
 
   if (!show || churches.length <= 1) return null;
 
-  const handleSwitch = async (id: number) => {
-    if (id === user.church?.id) return;
+  const handleSwitch = async (church: Church) => {
+    if (church.id === user.church?.id) return;
     try {
-      await switchChurch(id);
-      router.replace(
-        user?.is_staff
-          ? `/admin/churches/${id}/dashboard`
-          : `/churches/${id}/dashboard`,
-      );
+      await switchChurch(church.id);
+      const target = user?.is_staff
+        ? `/admin/churches/${church.id}/dashboard`
+        : church.church_type === 'CONGREGATION' && hasRole('PASTOR')
+          ? `/churches/${church.id}/dashboard`
+          : '/dashboard';
+      router.replace(target);
     } catch {
       void 0;
     }
@@ -407,7 +426,7 @@ function ChurchSwitcher() {
             <Menu.Item
               key={church.id}
               leftSection={<IconBuildingChurch size={14} />}
-              onClick={() => handleSwitch(church.id)}
+              onClick={() => handleSwitch(church)}
               style={{ fontWeight: church.id === user.church?.id ? 700 : 400 }}
             >
               {church.name}

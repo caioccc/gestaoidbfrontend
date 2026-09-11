@@ -12,6 +12,10 @@ export function buildFormUrl(hash: string): string {
   return absoluteUrl(`/formulario/${hash}`);
 }
 
+export function buildLinksUrl(slug: string): string {
+  return absoluteUrl(`/p/${slug}`);
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);

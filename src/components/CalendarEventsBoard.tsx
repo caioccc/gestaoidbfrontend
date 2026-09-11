@@ -20,6 +20,7 @@ import {
   Loader,
   Center,
   Divider,
+  ScrollArea,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -868,44 +869,46 @@ export default function CalendarEventsBoard({
             {readOnly ? t.publicCalendar.empty : t.calendarEvents.noEvents}
           </Text>
         ) : (
-          <Stack gap={6}>
-            {events.map((ev) => (
-              <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
-                <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
-                  <Group gap="sm" wrap="nowrap">
-                    <Badge size="sm" variant="light" color={CATEGORY_COLORS[ev.category] ?? 'gray'}>
-                      {categoryLabel(ev.category)}
-                    </Badge>
-                    <Text size="sm" fw={500} truncate>
-                      {ev.title}
+          <ScrollArea.Autosize mah={400} scrollbars="y">
+            <Stack gap={6}>
+              {events.map((ev) => (
+                <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
+                  <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
+                    <Group gap="sm" wrap="nowrap">
+                      <Badge size="sm" variant="light" color={CATEGORY_COLORS[ev.category] ?? 'gray'}>
+                        {categoryLabel(ev.category)}
+                      </Badge>
+                      <Text size="sm" fw={500} truncate>
+                        {ev.title}
+                      </Text>
+                    </Group>
+                    <Text size="xs" c="dimmed" ml={70}>
+                      {formatDateLine(ev)}
                     </Text>
-                  </Group>
-                  <Text size="xs" c="dimmed" ml={70}>
-                    {formatDateLine(ev)}
-                  </Text>
-                  {ev.description && (
-                    <Text size="xs" c="dimmed" ml={70} lineClamp={2}>
-                      {ev.description}
-                    </Text>
+                    {ev.description && (
+                      <Text size="xs" c="dimmed" ml={70} lineClamp={2}>
+                        {ev.description}
+                      </Text>
+                    )}
+                  </Box>
+                  {canEditEvent(ev) && (
+                    <Group gap={4} wrap="nowrap">
+                      <Tooltip label={t.calendarEvents.edit}>
+                        <ActionIcon size="sm" variant="subtle" onClick={() => openEdit(ev)}>
+                          <IconEdit size={15} />
+                        </ActionIcon>
+                      </Tooltip>
+                      <Tooltip label={t.common.delete}>
+                        <ActionIcon size="sm" color="red" variant="subtle" onClick={() => setDeleting(ev)}>
+                          <IconTrash size={15} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
                   )}
-                </Box>
-                {canEditEvent(ev) && (
-                  <Group gap={4} wrap="nowrap">
-                    <Tooltip label={t.calendarEvents.edit}>
-                      <ActionIcon size="sm" variant="subtle" onClick={() => openEdit(ev)}>
-                        <IconEdit size={15} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label={t.common.delete}>
-                      <ActionIcon size="sm" color="red" variant="subtle" onClick={() => setDeleting(ev)}>
-                        <IconTrash size={15} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                )}
-              </Group>
-            ))}
-          </Stack>
+                </Group>
+              ))}
+            </Stack>
+          </ScrollArea.Autosize>
         )}
       </Paper>
 

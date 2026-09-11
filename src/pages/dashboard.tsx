@@ -137,9 +137,14 @@ export default function DashboardPage() {
     return <SecretaryDashboard />;
   }
 
+  const firstName = user?.name?.split(' ')[0] ?? '';
+  const headerTitle = firstName
+    ? t.dashboard.greeting.replace('{name}', firstName)
+    : t.dashboard.title;
+
   return (
     <>
-      <PageHeader title={t.dashboard.title}>
+      <PageHeader title={headerTitle}>
         <Select
           data-testid="dashboard-year"
           label={t.dashboard.yearLabel}

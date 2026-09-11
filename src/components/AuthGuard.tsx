@@ -7,29 +7,32 @@ interface AuthGuardProps {
   children: React.ReactNode;
   adminOnly?: boolean;
   roles?: string[];
+  allow?: boolean;
 }
 
-export default function AuthGuard({ children, adminOnly = false, roles }: AuthGuardProps) {
+export default function AuthGuard({ children, adminOnly = false, roles, allow }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
   const { hasRole } = useRoleHelpers(user);
   const router = useRouter();
 
+  const deniedBy = () => {
+    if (!user) return 'login';
+    if (adminOnly && !user.is_staff) return 'dashboard';
+    if (allow !== undefined && !allow) return 'dashboard';
+    if (roles && !hasRole(...roles)) return 'dashboard';
+    return null;
+  };
+
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      router.replace('/login');
-    } else if (adminOnly && !user.is_staff) {
-      router.replace('/dashboard');
-    } else if (roles && !hasRole(...roles)) {
-      router.replace('/dashboard');
-    }
-  }, [user, isLoading, adminOnly, roles, hasRole, router]);
+    const target = deniedBy();
+    if (target) router.replace(target === 'login' ? '/login' : '/dashboard');
+  }, [user, isLoading, adminOnly, roles, allow, hasRole, router]);
 
   const denied =
     isLoading ||
-    !user ||
-    (adminOnly && !user.is_staff) ||
-    (roles && !hasRole(...roles));
+    (user && deniedBy() !== null) ||
+    !user;
 
   if (denied) {
     return (

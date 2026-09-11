@@ -35,6 +35,7 @@ const SEGMENT_KEYS: Record<string, string> = {
   'members-reports': 'memberReports',
   users: 'users',
   churches: 'churches',
+  links: 'links',
 };
 
 function flatSectionFromPathname(pathname: string): string | null {

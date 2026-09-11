@@ -24,9 +24,10 @@ export interface UserSession {
   church?: UserSessionChurch | null;
   role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | null;
   role_display?: string | null;
+  can_manage_churches?: boolean;
+  can_approve_congregations?: boolean;
 }
 
-const STAFF_ROLES = ['PASTOR', 'ADMIN'] as const;
 const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'] as const;
 const SECRETARY_ROLES = ['SECRETARIA', 'PASTOR', 'ADMIN'] as const;
 
@@ -58,6 +59,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
     setIsLoading(false);
+
+    // Atualiza a sessão com dados frescos (ex.: can_manage_churches) mesmo que
+    // o cookie carregado tenha sido gravado por uma versão anterior do backend.
+    let active = true;
+    if (token) {
+      accountsApi
+        .me()
+        .then(({ user }) => {
+          if (!active) return;
+          Cookies.set('idb_user_data', JSON.stringify(user), { expires: 7, sameSite: 'lax' });
+          setUser(user);
+        })
+        .catch(() => undefined);
+    }
+    return () => {
+      active = false;
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -104,6 +122,10 @@ export function useRoleHelpers(user: UserSession | null) {
     isAdmin || (role !== null && (roles as string[]).includes(role));
   const canFinance = hasRole(...FINANCE_ROLES);
   const canSecretary = hasRole(...SECRETARY_ROLES);
-  const canManageChurch = hasRole(...STAFF_ROLES) || user?.church?.church_type === 'INDEPENDENT';
-  return { isAdmin, role, hasRole, canFinance, canSecretary, canManageChurch };
+  const canManageChurch =
+    isAdmin ||
+    !!user?.can_manage_churches ||
+    (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
+  const canApproveCongregations = isAdmin || !!user?.can_approve_congregations;
+  return { isAdmin, role, hasRole, canFinance, canSecretary, canManageChurch, canApproveCongregations };
 }

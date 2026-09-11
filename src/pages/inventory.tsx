@@ -4,8 +4,10 @@ import {
   Button,
   Card,
   Center,
+  FileInput,
   Grid,
   Group,
+  Image,
   Loader,
   Modal,
   Select,
@@ -79,6 +81,8 @@ function ItemsTab() {
   const [opened, setOpened] = useState(false);
   const [editing, setEditing] = useState<MaterialItem | null>(null);
   const [saving, setSaving] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [manualFile, setManualFile] = useState<File | null>(null);
   const [toDelete, setToDelete] = useState<MaterialItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -110,6 +114,8 @@ function ItemsTab() {
 
   const openCreate = () => {
     setEditing(null);
+    setPhotoFile(null);
+    setManualFile(null);
     form.setValues({ name: '', description: '', location: null });
     form.resetDirty();
     setOpened(true);
@@ -117,6 +123,8 @@ function ItemsTab() {
 
   const openEdit = (item: MaterialItem) => {
     setEditing(item);
+    setPhotoFile(null);
+    setManualFile(null);
     form.setValues({
       name: item.name,
       description: item.description || '',
@@ -134,6 +142,8 @@ function ItemsTab() {
       name: toUpperCamelWords(form.values.name),
       description: form.values.description.trim(),
       location: form.values.location ? Number(form.values.location) : null,
+      photo: photoFile,
+      manual: manualFile,
     };
     try {
       if (editing) {
@@ -196,6 +206,28 @@ function ItemsTab() {
               <IconTruckReturn size={14} />
             </ThemeIcon>
             <Text fw={600}>{item.name}</Text>
+            {item.photo && (
+              <Image
+                src={item.photo}
+                alt={item.name}
+                h={34}
+                w={44}
+                fit="cover"
+                radius="xs"
+              />
+            )}
+            {item.manual && (
+              <Button
+                component="a"
+                href={item.manual}
+                target="_blank"
+                rel="noreferrer"
+                size="xs"
+                variant="light"
+              >
+                {t.inventoryPage.itemManual}
+              </Button>
+            )}
           </Group>
         </Table.Td>
         <Table.Td>
@@ -329,6 +361,30 @@ function ItemsTab() {
               data-testid="item-location"
               {...form.getInputProps('location')}
             />
+            <Grid>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <FileInput
+                  label={t.inventoryPage.itemPhoto}
+                  placeholder={t.inventoryPage.itemPhoto}
+                  accept="image/*"
+                  clearable
+                  value={photoFile}
+                  onChange={setPhotoFile}
+                  data-testid="item-photo"
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 12, sm: 6 }}>
+                <FileInput
+                  label={t.inventoryPage.itemManual}
+                  placeholder={t.inventoryPage.itemManual}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx"
+                  clearable
+                  value={manualFile}
+                  onChange={setManualFile}
+                  data-testid="item-manual"
+                />
+              </Grid.Col>
+            </Grid>
             <Group justify="flex-end">
               <Button variant="default" onClick={() => setOpened(false)}>
                 {t.common.cancel}

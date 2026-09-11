@@ -28,7 +28,7 @@ import Layout from '../components/Layout';
 import AccountingCategorySelect from '../components/AccountingCategorySelect';
 import MaskedTextInput from '../components/MaskedTextInput';
 import { useLanguage } from '../i18n';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
 import { Church, ChurchMembership, Role } from '../types';
 import { toUpperCamelWords } from '../utils/format';
@@ -83,8 +83,12 @@ function mergeUserOptions(...lists: { value: string; label: string }[][]) {
 export default function ChurchesPage() {
   const { t } = useLanguage();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, switchChurch } = useAuth();
+  const { hasRole, canManageChurch: canManageCongregations } = useRoleHelpers(user);
   const isAdmin = !!user?.is_staff;
+  // Dentro da página (restrita a gestores de Sede + admin), apenas Pastor(a)
+  // e Admin editam congregações; Tesoureiro(a) tem acesso somente leitura.
+  const canEdit = hasRole('PASTOR');
   const [churches, setChurches] = useState<Church[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -170,6 +174,7 @@ export default function ChurchesPage() {
   });
 
   const openCreate = () => {
+    if (!canEdit) return;
     setEditing(null);
     form.reset();
     setActiveStep(0);
@@ -178,6 +183,7 @@ export default function ChurchesPage() {
   };
 
   const openEdit = (church: Church) => {
+    if (!canEdit) return;
     setEditing(church);
     const memberships = congregationUsers[String(church.id)] ?? [];
     const responsible = memberships.find(
@@ -349,8 +355,27 @@ export default function ChurchesPage() {
   const sedeChurch = churches.find((c) => c.church_type === 'INDEPENDENT');
   const congregations = churches.filter((c) => c.church_type === 'CONGREGATION');
 
+  // Administrador abre a igreja no painel admin; Pastor(a) abre a gestão da
+  // congregação; demais gestores (ex.: Tesoureiro) apenas trocam o contexto.
+  const handleOpen = async (church: Church) => {
+    if (isAdmin) {
+      router.push(`/admin/churches/${church.id}/dashboard`);
+      return;
+    }
+    if (hasRole('PASTOR') && church.church_type === 'CONGREGATION') {
+      router.push(`/churches/${church.id}/dashboard`);
+      return;
+    }
+    try {
+      await switchChurch(church.id);
+    } catch {
+      void 0;
+    }
+    router.push('/dashboard');
+  };
+
   return (
-    <AuthGuard roles={['PASTOR']}>
+    <AuthGuard allow={canManageCongregations}>
       <Layout>
         <PageHeader title={t.churchesPage.title} description={t.churchesPage.subtitle}>
           <Group gap="xs">
@@ -362,13 +387,15 @@ export default function ChurchesPage() {
             >
               {t.common.filter}
             </Button>
-            <Button
-              leftSection={<IconPlus size={16} />}
-              onClick={openCreate}
-              data-testid="churches-new"
-            >
-              {t.churchesPage.newChurch}
-            </Button>
+            {canEdit && (
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={openCreate}
+                data-testid="churches-new"
+              >
+                {t.churchesPage.newChurch}
+              </Button>
+            )}
           </Group>
         </PageHeader>
 
@@ -411,13 +438,7 @@ export default function ChurchesPage() {
                     size="xs"
                     variant="light"
                     leftSection={<IconExternalLink size={14} />}
-                    onClick={() =>
-                      router.push(
-                        isAdmin
-                          ? `/admin/churches/${sedeChurch.id}/dashboard`
-                          : '/dashboard'
-                      )
-                    }
+                    onClick={() => handleOpen(sedeChurch)}
                     data-testid={`church-sede-open-${sedeChurch.id}`}
                   >
                     {t.churchesPage.open}
@@ -456,36 +477,34 @@ export default function ChurchesPage() {
                       size="xs"
                       variant="light"
                       leftSection={<IconExternalLink size={14} />}
-                      onClick={() =>
-                        router.push(
-                          isAdmin
-                            ? `/admin/churches/${c.id}/dashboard`
-                            : `/churches/${c.id}/dashboard`
-                        )
-                      }
+                      onClick={() => handleOpen(c)}
                       data-testid={`church-open-${c.id}`}
                     >
                       {t.churchesPage.open}
                     </Button>
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      leftSection={<IconPencil size={14} />}
-                      onClick={() => openEdit(c)}
-                      data-testid={`church-edit-${c.id}`}
-                    >
-                      {t.common.edit}
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="subtle"
-                      color="red"
-                      leftSection={<IconTrash size={14} />}
-                      onClick={() => setToDelete(c)}
-                      data-testid={`church-delete-${c.id}`}
-                    >
-                      {t.common.delete}
-                    </Button>
+                    {canEdit && (
+                      <>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          leftSection={<IconPencil size={14} />}
+                          onClick={() => openEdit(c)}
+                          data-testid={`church-edit-${c.id}`}
+                        >
+                          {t.common.edit}
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          color="red"
+                          leftSection={<IconTrash size={14} />}
+                          onClick={() => setToDelete(c)}
+                          data-testid={`church-delete-${c.id}`}
+                        >
+                          {t.common.delete}
+                        </Button>
+                      </>
+                    )}
                   </Group>
                 </Group>
               </Card>

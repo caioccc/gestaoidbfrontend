@@ -26,6 +26,7 @@ import MemberCard from './MemberCard';
 import MemberCardModal from './MemberCardModal';
 import { useLanguage } from '../i18n';
 import {
+  isValidCpf,
   isValidEmail,
   toISO,
   toSentenceCase,
@@ -201,6 +202,10 @@ export default function MemberFormModal({
     validate: {
       name: (v) => (v.trim().length ? null : t.membersPage.name),
       email: (v) => (v && !isValidEmail(v) ? t.email : null),
+      cpf: (v) =>
+        v && v.replace(/\D/g, '').length === 11 && !isValidCpf(v)
+          ? t.membersPage.cpfInvalid
+          : null,
     },
   });
 

@@ -20,6 +20,7 @@ import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
 import MoneyInput from './MoneyInput';
+import ImageUpload from './ImageUpload';
 import { useLanguage } from '../i18n';
 import { toUpperCamelWords } from '../utils/format';
 
@@ -40,6 +41,7 @@ export interface ProfileFormValues {
   latitude: number | null;
   longitude: number | null;
   pastoral_prebenda_percent: string;
+  logo: string | null;
 }
 
 interface ChurchProfileFormProps {
@@ -89,6 +91,7 @@ export default function ChurchProfileForm({
       latitude: null,
       longitude: null,
       pastoral_prebenda_percent: '10',
+      logo: null,
     },
     validate: {
       name: (v) => (v.trim().length ? null : t.registerPage.churchName),
@@ -132,6 +135,7 @@ export default function ChurchProfileForm({
           initialValues.pastoral_prebenda_percent != null
             ? String(initialValues.pastoral_prebenda_percent)
             : '10',
+        logo: initialValues.logo ?? null,
       });
       form.resetDirty();
     }
@@ -172,7 +176,7 @@ export default function ChurchProfileForm({
     const prebendaValue = Number(
       prebendaRaw.includes(',') ? prebendaRaw.replace(',', '.') : prebendaRaw
     );
-    const payload = {
+    const payload: Record<string, any> = {
       ...form.values,
       name: toUpperCamelWords(form.values.name),
       street: toUpperCamelWords(form.values.street || ''),
@@ -181,6 +185,11 @@ export default function ChurchProfileForm({
       phone: form.values.phone.replace(/\D/g, ''),
       pastoral_prebenda_percent: Number.isNaN(prebendaValue) ? 10 : prebendaValue,
     };
+    if (form.values.logo !== (initialValues?.logo ?? null)) {
+      payload.logo = form.values.logo ?? '';
+    } else {
+      delete payload.logo;
+    }
     await onSave(payload);
   };
 
@@ -293,6 +302,15 @@ export default function ChurchProfileForm({
             <Text size="xs" c="dimmed">
               {t.settingsPage.registrationDataHint}
             </Text>
+            <Group align="flex-end">
+              <ImageUpload
+                label={t.settingsPage.churchLogo}
+                placeholder={t.settingsPage.churchLogo}
+                value={form.values.logo}
+                onChange={(dataUrl) => form.setFieldValue('logo', dataUrl)}
+                height={120}
+              />
+            </Group>
           </Stack>
 
           <Divider label={t.settingsPage.churchData} labelPosition="left" />

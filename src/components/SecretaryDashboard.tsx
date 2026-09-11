@@ -449,7 +449,7 @@ export default function SecretaryDashboard() {
                   <ThemeIcon color={tile.color} variant="light">
                     {tile.icon}
                   </ThemeIcon>
-                  <Text size="sm" fw={600} c="dark">
+                  <Text size="sm" fw={600}>
                     {tile.label}
                   </Text>
                 </Group>

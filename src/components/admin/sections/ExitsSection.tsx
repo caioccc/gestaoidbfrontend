@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Button,
+  FileInput,
   Group,
   Stack,
   Select,
@@ -11,6 +12,7 @@ import {
   Text,
   ActionIcon,
   Tooltip,
+  Anchor,
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -53,6 +55,7 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -101,12 +104,14 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
 
   const openCreate = () => {
     setEditing(null);
+    setReceiptFile(null);
     form.reset();
     setModalOpen(true);
   };
 
   const openEdit = (record: FinancialExit) => {
     setEditing(record);
+    setReceiptFile(null);
     form.setValues({
       date: isoToDate(record.date) ?? new Date(),
       description: record.description,
@@ -126,6 +131,7 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
       fd.append('description', toSentenceCase(form.values.description));
       fd.append('category', form.values.category);
       fd.append('amount', String(form.values.amount));
+      if (receiptFile) fd.append('receipt', receiptFile);
       if (editing) {
         await api.updateExit(editing.id, fd);
         notifications.show({ color: 'green', message: 'Saída atualizada.' });
@@ -181,6 +187,27 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
       textAlign: 'right',
       render: (r) => <Text c="red" fw={600}>{formatBRL(r.amount)}</Text>,
       width: 140,
+    },
+    {
+      accessor: 'receipt',
+      title: t.exitsPage.receipt,
+      render: (r) =>
+        r.receipt ? (
+          <Anchor
+            href={r.receipt}
+            target="_blank"
+            rel="noreferrer"
+            size="sm"
+            data-testid={`exit-receipt-${r.id}`}
+          >
+            {r.receipt.split('/').pop()?.split('?')[0]?.slice(0, 30) || t.exitsPage.receipt}
+          </Anchor>
+        ) : (
+          <Text size="sm" c="dimmed">
+            —
+          </Text>
+        ),
+      width: 200,
     },
     {
       accessor: 'actions',
@@ -306,6 +333,15 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
               value={form.values.amount}
               onValueChange={(v) => form.setFieldValue('amount', typeof v === 'number' ? v : 0)}
               error={form.errors.amount}
+            />
+            <FileInput
+              data-testid="exit-receipt"
+              label={t.exitsPage.receipt}
+              placeholder={t.exitsPage.receipt}
+              accept=".pdf,.png,.jpg,.jpeg,.webp"
+              clearable
+              value={receiptFile}
+              onChange={setReceiptFile}
             />
             <Group justify="flex-end" mt="xs">
               <Button data-testid="exit-cancel" variant="default" onClick={() => setModalOpen(false)}>

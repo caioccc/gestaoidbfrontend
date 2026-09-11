@@ -24,6 +24,7 @@ export interface Church {
   latitude?: number | null;
   longitude?: number | null;
   status: 'PENDING' | 'ACTIVE' | 'REJECTED';
+  logo?: string | null;
   pastoral_prebenda_percent?: string;
   responsible_user_id?: number | null;
   created_at: string;
@@ -90,6 +91,7 @@ export interface FinancialEntry {
   category: DepartmentCategory;
   category_display: string;
   amount: string;
+  receipt?: string | null;
   created_at: string;
 }
 
@@ -101,6 +103,7 @@ export interface FinancialExit {
   category: DepartmentCategory;
   category_display: string;
   amount: string;
+  receipt?: string | null;
   created_at: string;
 }
 
@@ -701,6 +704,8 @@ export interface MaterialItem {
   description: string;
   location: number | null;
   location_name: string | null;
+  photo?: string | null;
+  manual?: string | null;
   current_loan: MaterialItemCurrentLoan | null;
   created_at: string;
   updated_at: string;
@@ -768,8 +773,6 @@ export interface TransferTargetChurch {
 }
 
 export type MemberDocumentType =
-  | 'RG'
-  | 'CPF'
   | 'RESIDENCE_PROOF'
   | 'OTHER';
 
@@ -876,4 +879,89 @@ export interface PublicMinutesPayload {
     state: string;
   };
   created_at: string;
+}
+
+export type ChurchLinkType =
+  | 'CUSTOM'
+  | 'PIX'
+  | 'WHATSAPP'
+  | 'YOUTUBE'
+  | 'MAPS'
+  | 'INSTAGRAM'
+  | 'CALENDAR'
+  | 'MEMBERSHIP';
+
+export type ChurchPixAmountMode = 'OPEN' | 'FIXED' | 'GRID';
+
+export interface ChurchPublicLink {
+  id: number;
+  church: number;
+  title: string;
+  description?: string;
+  link_type: ChurchLinkType;
+  link_type_display: string;
+  url: string;
+  pix_key?: string | null;
+  pix_type?: string | null;
+  pix_amount_mode?: ChurchPixAmountMode | null;
+  pix_fixed_amount?: string | number | null;
+  pix_grid_amounts?: number[] | null;
+  pix_open_amount?: boolean;
+  whatsapp_number?: string;
+  address_cep?: string;
+  address_street?: string;
+  address_number?: string;
+  address_neighborhood?: string;
+  address_city?: string;
+  address_state?: string;
+  icon_key: string | null;
+  order: number;
+  is_active: boolean;
+  highlight: boolean;
+  click_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChurchLinksConfig {
+  slug: string;
+  public_links_enabled: boolean;
+  theme_color: string;
+  default_pix_key: string | null;
+  default_pix_type: string | null;
+}
+
+export interface PublicChurchLinkRowBase {
+  title: string;
+  link_type: ChurchLinkType;
+  url: string;
+  icon_key: string | null;
+  highlight: boolean;
+}
+
+export interface PublicChurchLink extends PublicChurchLinkRowBase {
+  id: number;
+  description?: string;
+  link_type_display: string;
+  pix_key?: string | null;
+  pix_type?: string | null;
+  pix_amount_mode?: ChurchPixAmountMode | null;
+  pix_fixed_amount?: string | number | null;
+  pix_grid_amounts?: number[] | null;
+  pix_open_amount?: boolean;
+}
+
+export interface PublicChurchLinkSystem extends PublicChurchLinkRowBase {}
+
+export interface PublicChurchLinksPayload {
+  church: {
+    id: number;
+    name: string;
+    city: string;
+    state: string;
+    theme_color: string;
+    logo?: string | null;
+  };
+  system_links: PublicChurchLinkSystem[];
+  links: PublicChurchLink[];
 }

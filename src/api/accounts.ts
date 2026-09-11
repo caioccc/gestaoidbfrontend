@@ -31,12 +31,17 @@ import {
   User,
   WorshipService,
   WorshipServiceType,
+  ChurchLinksConfig,
+  ChurchPublicLink,
+  PublicChurchLinksPayload,
 } from '../types';
 
 export interface MaterialItemPayload {
   name: string;
   description?: string;
   location?: number | null;
+  photo?: File | null;
+  manual?: File | null;
 }
 
 export interface WorshipServicePayload {
@@ -157,6 +162,9 @@ export const accountsApi = {
   getProfile: (): Promise<any> =>
     apiClient.get('/api/accounts/profile/').then((r) => r.data),
 
+  me: (): Promise<{ user: User }> =>
+    apiClient.get('/api/accounts/me/').then((r) => r.data),
+
   updateProfile: (payload: Record<string, any>): Promise<any> =>
     apiClient.put('/api/accounts/profile/', payload).then((r) => r.data),
 
@@ -249,10 +257,10 @@ export const accountsApi = {
     apiClient.get('/api/accounts/materials/').then((r) => r.data),
 
   createMaterial: (payload: MaterialItemPayload): Promise<MaterialItem> =>
-    apiClient.post('/api/accounts/materials/', payload).then((r) => r.data),
+    apiClient.post('/api/accounts/materials/', materialFormData(payload)).then((r) => r.data),
 
   updateMaterial: (id: number, payload: MaterialItemPayload): Promise<MaterialItem> =>
-    apiClient.patch(`/api/accounts/materials/${id}/`, payload).then((r) => r.data),
+    apiClient.patch(`/api/accounts/materials/${id}/`, materialFormData(payload)).then((r) => r.data),
 
   deleteMaterial: (id: number): Promise<void> =>
     apiClient.delete(`/api/accounts/materials/${id}/`).then(() => undefined),
@@ -555,6 +563,16 @@ function appendMinutesPayload(fd: FormData, payload: Record<string, any>): void 
   });
 }
 
+function materialFormData(payload: MaterialItemPayload): FormData {
+  const fd = new FormData();
+  fd.append('name', payload.name);
+  if (payload.description) fd.append('description', payload.description);
+  if (payload.location != null) fd.append('location', String(payload.location));
+  if (payload.photo) fd.append('photo', payload.photo);
+  if (payload.manual) fd.append('manual', payload.manual);
+  return fd;
+}
+
 export const publicMinutesApi = {
   get: (hash: string): Promise<PublicMinutesPayload> =>
     apiClient
@@ -581,5 +599,40 @@ export const publicFormApi = {
   submit: (hash: string, data: Record<string, unknown>): Promise<PublicSubmissionResult> =>
     apiClient
       .post(`/api/accounts/public/forms/${hash}/`, { data })
+      .then((r) => r.data),
+};
+
+export const churchLinksApi = {
+  list: (): Promise<ChurchPublicLink[]> =>
+    apiClient.get('/api/accounts/church-links/').then((r) => r.data),
+
+  create: (data: Partial<ChurchPublicLink>): Promise<ChurchPublicLink> =>
+    apiClient.post('/api/accounts/church-links/', data).then((r) => r.data),
+
+  update: (id: number, data: Partial<ChurchPublicLink>): Promise<ChurchPublicLink> =>
+    apiClient.patch(`/api/accounts/church-links/${id}/`, data).then((r) => r.data),
+
+  remove: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/church-links/${id}/`).then((r) => r.data),
+
+  reorder: (order: number[]): Promise<{ status: string }> =>
+    apiClient.post('/api/accounts/church-links/reorder/', { order }).then((r) => r.data),
+
+  config: (): Promise<ChurchLinksConfig> =>
+    apiClient.get('/api/accounts/church-links/config/').then((r) => r.data),
+
+  updateConfig: (data: Partial<ChurchLinksConfig>): Promise<ChurchLinksConfig> =>
+    apiClient.patch('/api/accounts/church-links/config/', data).then((r) => r.data),
+};
+
+export const publicLinksApi = {
+  get: (slug: string): Promise<PublicChurchLinksPayload> =>
+    apiClient
+      .get(`/api/accounts/public/churches/${slug}/links/`)
+      .then((r) => r.data),
+
+  click: (id: number): Promise<void> =>
+    apiClient
+      .post(`/api/accounts/public/links/${id}/click/`)
       .then((r) => r.data),
 };
