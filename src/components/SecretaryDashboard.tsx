@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActionIcon,
+  Avatar,
+  Badge,
   Button,
   Card,
   Center,
@@ -16,6 +19,7 @@ import {
 import { useRouter } from 'next/router';
 import {
   IconArrowsRightLeft,
+  IconBrandWhatsapp,
   IconBuildingChurch,
   IconCake,
   IconCalendarEvent,
@@ -29,11 +33,12 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import PageHeader from './PageHeader';
+import SendWhatsAppModal from './SendWhatsAppModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import { calendarEventsApi } from '../api/finance';
-import type { AppAlert, CalendarEvent } from '../types';
+import type { AppAlert, CalendarEvent, SecretaryActionItem, SecretaryActions } from '../types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -72,6 +77,8 @@ export default function SecretaryDashboard() {
   const [minutesCount, setMinutesCount] = useState(0);
   const [pendingTransfers, setPendingTransfers] = useState(0);
   const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [secretaryActions, setSecretaryActions] = useState<SecretaryActions | null>(null);
+  const [waAction, setWaAction] = useState<SecretaryActionItem | null>(null);
   const [recentCultos, setRecentCultos] = useState<
     { id: number; date: string; typeLabel: string; theme: string }[]
   >([]);
@@ -94,10 +101,12 @@ export default function SecretaryDashboard() {
       accountsApi.minutes(),
       accountsApi.incomingTransfers(),
       calendarEventsApi.list(),
+      accountsApi.secretaryActions(),
     ])
-      .then(([alertsRes, members, loans, cultos, minutes, transfers, events]) => {
+      .then(([alertsRes, members, loans, cultos, minutes, transfers, events, actions]) => {
         if (!active) return;
         setAlerts(alertsRes.alerts ?? []);
+        setSecretaryActions(actions);
         setActiveMembers(members.filter((m) => m.status === 'ACTIVE').length);
         setOpenLoans(loans.filter((l) => l.returned_at === null).length);
         setCultosMonth(cultos.filter((c) => c.date.startsWith(monthPrefix)).length);
@@ -297,6 +306,31 @@ export default function SecretaryDashboard() {
     </Group>
   );
 
+  const actionGroups = secretaryActions
+    ? [
+        { key: 'birthdays', title: sd.actionsBirthdays, items: secretaryActions.birthdays_today, color: 'pink', icon: <IconCake size={16} /> },
+        { key: 'care', title: sd.actionsCare, items: secretaryActions.absent_pending_contact, color: 'orange', icon: <IconUsers size={16} /> },
+        { key: 'visitors', title: sd.actionsVisitors, items: secretaryActions.new_visitors, color: 'violet', icon: <IconUserPlus size={16} /> },
+        { key: 'cards', title: sd.actionsCards, items: secretaryActions.cards_expiring, color: 'red', icon: <IconIdBadge size={16} /> },
+      ]
+    : [];
+  const actionCount = actionGroups.reduce((acc, g) => acc + g.items.length, 0);
+
+  const churchName = user?.church?.name ?? '';
+
+  const removeActionItem = (memberId: number) => {
+    setSecretaryActions((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        birthdays_today: prev.birthdays_today.filter((i) => i.member_id !== memberId),
+        absent_pending_contact: prev.absent_pending_contact.filter((i) => i.member_id !== memberId),
+        new_visitors: prev.new_visitors.filter((i) => i.member_id !== memberId),
+        cards_expiring: prev.cards_expiring.filter((i) => i.member_id !== memberId),
+      };
+    });
+  };
+
   return (
     <>
       <PageHeader title={headerTitle} description={sd.subtitle}>
@@ -321,6 +355,79 @@ export default function SecretaryDashboard() {
         </Center>
       ) : (
         <>
+          {secretaryActions && (
+            <Card withBorder radius="md" p="md" mb="lg" data-testid="secretary-actions">
+              <Group justify="space-between" mb="sm">
+                <Group gap="xs">
+                  <ThemeIcon color="green" variant="light" size="md">
+                    <IconBrandWhatsapp size={16} />
+                  </ThemeIcon>
+                  <Title order={4} size="md">
+                    {sd.actionsTitle}
+                  </Title>
+                </Group>
+                <Badge color="green" variant="light" size="lg" data-testid="secretary-actions-count">
+                  {actionCount}
+                </Badge>
+              </Group>
+              {actionCount === 0 ? (
+                <Text size="sm" c="dimmed">
+                  {sd.actionsEmpty}
+                </Text>
+              ) : (
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" mt="sm">
+                  {actionGroups.map((group) =>
+                    group.items.length === 0 ? null : (
+                      <Stack key={group.key} gap={4}>
+                        <Group gap={6} mb={2}>
+                          <ThemeIcon color={group.color} variant="light" size="sm">
+                            {group.icon}
+                          </ThemeIcon>
+                          <Text size="sm" fw={700}>
+                            {group.title}
+                          </Text>
+                          <Badge color={group.color} variant="light" size="xs" ml="auto">
+                            {group.items.length}
+                          </Badge>
+                        </Group>
+                        {group.items.map((item) => (
+                          <Group
+                            key={`${group.key}-${item.member_id}`}
+                            gap="xs"
+                            wrap="nowrap"
+                            p={6}
+                            style={{ borderRadius: 'var(--mantine-radius-md)' }}
+                            data-testid={`sa-row-${group.key}-${item.member_id}`}
+                          >
+                            <Avatar src={item.photo || null} radius="xl" size="sm">
+                              {item.name?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                              <Text size="sm" fw={500} truncate>
+                                {item.name}
+                              </Text>
+                              <Text size="xs" c="dimmed" truncate>
+                                {item.phone || '—'}
+                              </Text>
+                            </Stack>
+                            <ActionIcon
+                              variant="subtle"
+                              color="green"
+                              onClick={() => setWaAction(item)}
+                              data-testid={`sa-wa-${group.key}-${item.member_id}`}
+                            >
+                              <IconBrandWhatsapp size={16} />
+                            </ActionIcon>
+                          </Group>
+                        ))}
+                      </Stack>
+                    ),
+                  )}
+                </SimpleGrid>
+              )}
+            </Card>
+          )}
+
           <SimpleGrid cols={{ base: 2, sm: 3, lg: 7 }} spacing="sm" mb="lg">
             {statCards.map((card) => (
               <Card key={card.key} withBorder shadow="sm" padding="lg">
@@ -458,6 +565,17 @@ export default function SecretaryDashboard() {
           </SimpleGrid>
         </>
       )}
+
+      <SendWhatsAppModal
+        opened={!!waAction}
+        onClose={() => setWaAction(null)}
+        member={waAction
+          ? { id: waAction.member_id, name: waAction.name, phone: waAction.phone }
+          : null}
+        defaultCategory={waAction?.category_hint}
+        churchName={churchName}
+        onSent={(memberId) => removeActionItem(memberId)}
+      />
     </>
   );
 }

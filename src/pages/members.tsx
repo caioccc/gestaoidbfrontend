@@ -40,6 +40,7 @@ import {
   IconFileTypePdf,
   IconShare2,
   IconDotsVertical,
+  IconBrandWhatsapp,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
@@ -53,6 +54,8 @@ import CardConfigTab from '../components/CardConfigTab';
 import TransfersTab from '../components/TransfersTab';
 import SubmissionsTab from '../components/SubmissionsTab';
 import ShareLinkModal from '../components/ShareLinkModal';
+import MembersFunnelTab from '../components/MembersFunnelTab';
+import SendWhatsAppModal from '../components/SendWhatsAppModal';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
@@ -83,6 +86,7 @@ function MembersTab({
   const [editing, setEditing] = useState<Member | null>(null);
   const [cardMember, setCardMember] = useState<Member | null>(null);
   const [shareMember, setShareMember] = useState<Member | null>(null);
+  const [waMember, setWaMember] = useState<Member | null>(null);
   const [docsMember, setDocsMember] = useState<Member | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -426,9 +430,22 @@ function MembersTab({
         </Group>
       </Table.Td>
       <Table.Td>
-        <Text truncate maw={150}>
-          {m.phone || '—'}
-        </Text>
+        <Group gap={4} wrap="nowrap">
+          <Text truncate maw={150}>
+            {m.phone || '—'}
+          </Text>
+          {m.phone && (
+            <ActionIcon
+              variant="subtle"
+              color="green"
+              size="sm"
+              onClick={() => setWaMember(m)}
+              data-testid={`member-wa-${m.id}`}
+            >
+              <IconBrandWhatsapp size={14} />
+            </ActionIcon>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td>
         <Text truncate maw={190}>
@@ -475,6 +492,15 @@ function MembersTab({
               data-testid={`member-declaration-${m.id}`}
             >
               {t.membersPage.declaration}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconBrandWhatsapp size={14} />}
+              color="green"
+              disabled={!m.phone}
+              onClick={() => setWaMember(m)}
+              data-testid={`member-wa-menu-${m.id}`}
+            >
+              {t.membersPage.sendWhatsApp}
             </Menu.Item>
             <Menu.Divider />
             <Menu.Item
@@ -784,6 +810,21 @@ function MembersTab({
         onClose={() => setDocsMember(null)}
       />
 
+      <SendWhatsAppModal
+        opened={!!waMember}
+        onClose={() => setWaMember(null)}
+        member={waMember}
+        churchName={churchName}
+        churchCity={churchContact?.city || ''}
+        onSent={(id) =>
+          setMembers((prev) =>
+            prev.map((m) =>
+              m.id === id ? { ...m, last_contact_at: new Date().toISOString() } : m,
+            ),
+          )
+        }
+      />
+
       <Modal
         opened={renewOpen}
         onClose={() => setRenewOpen(false)}
@@ -1069,6 +1110,9 @@ export default function MembersPage() {
     if (router.query.tab === 'transfers') {
       setTab('transfers');
     }
+    if (router.query.tab === 'funnel') {
+      setTab('funnel');
+    }
   }, [router.query.tab]);
 
   const handleRenewValidity = async (date: string | null) => {
@@ -1085,6 +1129,9 @@ export default function MembersPage() {
             <Tabs.List>
               <Tabs.Tab value="members" data-testid="tab-members">
                 {t.membersPage.tabsMembers}
+              </Tabs.Tab>
+              <Tabs.Tab value="funnel" data-testid="tab-funnel">
+                {t.membersPage.tabsFunnel}
               </Tabs.Tab>
               <Tabs.Tab value="areas" data-testid="tab-areas">
                 {t.membersPage.tabsAreas}
@@ -1115,6 +1162,13 @@ export default function MembersPage() {
           />
         ) : tab === 'areas' ? (
           <AreasTab />
+        ) : tab === 'funnel' ? (
+          <MembersFunnelTab
+            churchName={church?.name || ''}
+            churchCity={church?.city || ''}
+            cardConfig={cardData.config}
+            churchContact={cardData.contact}
+          />
         ) : tab === 'config' ? (
           <CardConfigTab churchName={church?.name || ''} data={cardData} />
         ) : tab === 'transfers' ? (

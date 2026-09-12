@@ -3,9 +3,6 @@ import Cookies from 'js-cookie';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 apiClient.interceptors.request.use((config) => {

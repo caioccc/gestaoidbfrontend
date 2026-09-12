@@ -4,9 +4,13 @@ import {
   AlertsResponse,
   BirthdayMember,
   CalendarPublicLink,
+  CertificateIssueData,
+  CertificateTemplate,
+  CertificateType,
   Church,
   ChurchMembership,
   ChurchMinutes,
+  EcclesiasticalCertificate,
   Loan,
   LoginResponse,
   MaterialItem,
@@ -38,6 +42,9 @@ import {
   GrowthGroupPayload,
   GrowthGroupStats,
   GrowthGroupWeekday,
+  MessageTemplate,
+  PreparedWhatsApp,
+  SecretaryActions,
 } from '../types';
 
 export interface MaterialItemPayload {
@@ -46,6 +53,18 @@ export interface MaterialItemPayload {
   location?: number | null;
   photo?: File | null;
   manual?: File | null;
+}
+
+export interface CertificateTemplatePayload {
+  name: string;
+  certificate_type: CertificateType;
+  layout_mode: 'SYSTEM_DEFAULT' | 'CUSTOM_IMAGE' | 'BASE_PDF';
+  default_verse?: string;
+  is_active?: boolean;
+  background_image?: File | null;
+  base_pdf?: File | null;
+  remove_background_image?: boolean;
+  remove_base_pdf?: boolean;
 }
 
 export interface WorshipServicePayload {
@@ -240,6 +259,41 @@ export const accountsApi = {
     apiClient
       .get('/api/accounts/members/', { params: { ...(params || {}), paginate: 1 } })
       .then((r) => r.data),
+
+  messageTemplates: (): Promise<MessageTemplate[]> =>
+    apiClient.get('/api/accounts/message-templates/').then((r) => r.data),
+
+  createMessageTemplate: (payload: Partial<MessageTemplate>): Promise<MessageTemplate> =>
+    apiClient.post('/api/accounts/message-templates/', payload).then((r) => r.data),
+
+  updateMessageTemplate: (
+    id: number,
+    payload: Partial<MessageTemplate>,
+  ): Promise<MessageTemplate> =>
+    apiClient.patch(`/api/accounts/message-templates/${id}/`, payload).then((r) => r.data),
+
+  deleteMessageTemplate: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/message-templates/${id}/`).then(() => undefined),
+
+  prepareWhatsapp: (
+    id: number,
+    payload: {
+      template_id?: number;
+      custom_text?: string;
+      category?: string;
+    },
+  ): Promise<PreparedWhatsApp> =>
+    apiClient
+      .post(`/api/accounts/members/${id}/prepare-whatsapp/`, payload)
+      .then((r) => r.data),
+
+  setMemberStage: (id: number, stage: string): Promise<{ id: number; lifecycle_stage: string }> =>
+    apiClient
+      .patch(`/api/accounts/members/${id}/stage/`, { lifecycle_stage: stage })
+      .then((r) => r.data),
+
+  secretaryActions: (): Promise<SecretaryActions> =>
+    apiClient.get('/api/accounts/secretary-actions/').then((r) => r.data),
 
   storageLocations: (): Promise<StorageLocation[]> =>
     apiClient.get('/api/accounts/storage-locations/').then((r) => r.data),
@@ -558,6 +612,47 @@ export const accountsApi = {
         ...(notes ? { notes } : {}),
       })
       .then((r) => r.data),
+
+  certificateTemplates: (): Promise<CertificateTemplate[]> =>
+    apiClient.get('/api/accounts/certificate-templates/').then((r) => r.data),
+
+  createCertificateTemplate: (payload: CertificateTemplatePayload): Promise<CertificateTemplate> =>
+    apiClient
+      .post('/api/accounts/certificate-templates/', certificateTemplateFormData(payload))
+      .then((r) => r.data),
+
+  updateCertificateTemplate: (
+    id: number,
+    payload: CertificateTemplatePayload,
+  ): Promise<CertificateTemplate> =>
+    apiClient
+      .patch(`/api/accounts/certificate-templates/${id}/`, certificateTemplateFormData(payload))
+      .then((r) => r.data),
+
+  deleteCertificateTemplate: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/certificate-templates/${id}/`).then(() => undefined),
+
+  certificates: (
+    params?: { type?: CertificateType; year?: string; search?: string },
+  ): Promise<EcclesiasticalCertificate[]> =>
+    apiClient.get('/api/accounts/certificates/', { params }).then((r) => r.data),
+
+  issueCertificate: (
+    payload: CertificateIssueData,
+    template: number | null,
+    generatedPdf?: File | null,
+  ): Promise<EcclesiasticalCertificate> =>
+    apiClient
+      .post('/api/accounts/certificates/', certificateIssueFormData(payload, template, generatedPdf))
+      .then((r) => r.data),
+
+  certificatePdfDownload: (id: number): Promise<Blob> =>
+    apiClient
+      .get(`/api/accounts/certificates/${id}/pdf/`, { responseType: 'blob' })
+      .then((r) => r.data),
+
+  deleteCertificate: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/certificates/${id}/`).then(() => undefined),
 };
 
 function appendMinutesPayload(fd: FormData, payload: Record<string, any>): void {
@@ -565,6 +660,61 @@ function appendMinutesPayload(fd: FormData, payload: Record<string, any>): void 
     if (value === undefined || value === null) return;
     fd.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
   });
+}
+
+const FILE_EXT_BY_TYPE: Record<string, string> = {
+  'image/webp': '.webp',
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/gif': '.gif',
+  'image/avif': '.avif',
+  'application/pdf': '.pdf',
+};
+
+function fileWithName(file: File | null | undefined, fallback: string): File | undefined {
+  if (!file) return undefined;
+  if (file.name && file.name.trim()) return file;
+  const ext = FILE_EXT_BY_TYPE[file.type] ?? '';
+  return new File([file], `${fallback}${ext}`, { type: file.type });
+}
+
+function certificateTemplateFormData(payload: CertificateTemplatePayload): FormData {
+  const fd = new FormData();
+  fd.append('name', payload.name);
+  fd.append('certificate_type', payload.certificate_type);
+  fd.append('layout_mode', payload.layout_mode);
+  if (payload.default_verse) fd.append('default_verse', payload.default_verse);
+  if (payload.is_active != null) fd.append('is_active', payload.is_active ? 'true' : 'false');
+  const background = fileWithName(payload.background_image, 'background');
+  const basePdf = fileWithName(payload.base_pdf, 'base');
+  if (background) fd.append('background_image', background);
+  if (basePdf) fd.append('base_pdf', basePdf);
+  if (payload.remove_background_image) fd.append('remove_background_image', 'true');
+  if (payload.remove_base_pdf) fd.append('remove_base_pdf', 'true');
+  return fd;
+}
+
+function certificateIssueFormData(
+  payload: CertificateIssueData,
+  template: number | null,
+  generatedPdf?: File | null,
+): FormData {
+  const fd = new FormData();
+  fd.append('certificate_type', payload.certificate_type);
+  fd.append('recipient_name', payload.recipient_name);
+  if (payload.member != null) fd.append('member', String(payload.member));
+  fd.append('event_date', payload.event_date);
+  fd.append('officiant_name', payload.officiant_name);
+  if (payload.father_name) fd.append('father_name', payload.father_name);
+  if (payload.mother_name) fd.append('mother_name', payload.mother_name);
+  if (payload.scripture_verse) fd.append('scripture_verse', payload.scripture_verse);
+  if (payload.registry_book) fd.append('registry_book', payload.registry_book);
+  if (payload.registry_page) fd.append('registry_page', payload.registry_page);
+  if (payload.registry_number) fd.append('registry_number', payload.registry_number);
+  if (template != null) fd.append('template', String(template));
+  const generated = fileWithName(generatedPdf, 'certificate');
+  if (generated) fd.append('generated_pdf', generated);
+  return fd;
 }
 
 function materialFormData(payload: MaterialItemPayload): FormData {

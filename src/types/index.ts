@@ -482,6 +482,13 @@ export interface ChurchMembership {
 
 export type MemberStatus = 'ACTIVE' | 'INACTIVE';
 
+export type LifecycleStage =
+  | 'VISITOR'
+  | 'INTEGRATION'
+  | 'ACTIVE'
+  | 'ABSENT_CARE'
+  | 'TRANSITION';
+
 export type ChurchEntry =
   | 'ACLAMACAO'
   | 'BATISMO'
@@ -560,6 +567,9 @@ export interface Member {
   photo: string | null;
   status: MemberStatus;
   status_display: string;
+  lifecycle_stage?: LifecycleStage;
+  lifecycle_stage_display?: string;
+  last_contact_at?: string | null;
   notes: string;
   street: string;
   number: string;
@@ -1024,4 +1034,114 @@ export interface GrowthGroupStats {
   coverage: number;
   overlap_count: number;
   overlap_ids: number[];
+}
+
+export type MessageTemplateCategory =
+  | 'BIRTHDAY'
+  | 'WELCOME'
+  | 'CARE'
+  | 'VERSE'
+  | 'CARD_EXPIRING'
+  | 'CUSTOM';
+
+export interface MessageTemplate {
+  id: number;
+  church: number;
+  title: string;
+  category: MessageTemplateCategory;
+  category_display: string;
+  content: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PreparedWhatsApp {
+  member_id: number;
+  whatsapp_url: string;
+  formatted_message: string;
+}
+
+export interface SecretaryActionItem {
+  member_id: number;
+  name: string;
+  photo: string | null;
+  phone: string;
+  lifecycle_stage: LifecycleStage | string;
+  category_hint: MessageTemplateCategory;
+}
+
+export interface SecretaryActions {
+  generated_at: string;
+  birthdays_today: SecretaryActionItem[];
+  absent_pending_contact: SecretaryActionItem[];
+  new_visitors: SecretaryActionItem[];
+  cards_expiring: SecretaryActionItem[];
+}
+
+export type CertificateType =
+  | 'BAPTISM'
+  | 'CHILD_PRESENTATION'
+  | 'MEMBERSHIP_COURSE'
+  | 'CUSTOM';
+
+export type CertificateLayoutMode =
+  | 'SYSTEM_DEFAULT'
+  | 'CUSTOM_IMAGE'
+  | 'BASE_PDF';
+
+export interface CertificateTemplate {
+  id: number;
+  church: number;
+  name: string;
+  certificate_type: CertificateType;
+  certificate_type_display: string;
+  layout_mode: CertificateLayoutMode;
+  layout_mode_display: string;
+  background_image: string | null;
+  background_image_url: string | null;
+  background_image_name: string | null;
+  base_pdf: string | null;
+  base_pdf_name: string | null;
+  default_verse: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface EcclesiasticalCertificate {
+  id: number;
+  church: number;
+  template: number | null;
+  template_name: string | null;
+  certificate_type: CertificateType;
+  certificate_type_display: string;
+  recipient_name: string;
+  member: number | null;
+  member_name: string | null;
+  event_date: string;
+  officiant_name: string;
+  father_name: string;
+  mother_name: string;
+  scripture_verse: string;
+  registry_book: string;
+  registry_page: string;
+  registry_number: string;
+  generated_pdf: string | null;
+  generated_pdf_name: string | null;
+  created_by: number | null;
+  created_at: string;
+}
+
+export interface CertificateIssueData {
+  certificate_type: CertificateType;
+  recipient_name: string;
+  member: number | null;
+  event_date: string;
+  officiant_name: string;
+  father_name?: string;
+  mother_name?: string;
+  scripture_verse?: string;
+  registry_book?: string;
+  registry_page?: string;
+  registry_number?: string;
 }

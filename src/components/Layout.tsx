@@ -46,6 +46,7 @@ import {
   IconFileText,
   IconLink,
   IconHomeHeart,
+  IconCertificate,
 } from '@tabler/icons-react';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage, SupportedLocale } from '../i18n';
@@ -235,6 +236,12 @@ function SidebarContent({
               { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos', fixed: true },
               { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory', fixed: true },
               { label: t.nav.memberReports, icon: <IconChartPie size={18} />, href: '/members-reports', fixed: true },
+              {
+                label: t.nav.certificates,
+                icon: <IconCertificate size={18} />,
+                href: '/certificates',
+                roles: ['PASTOR', 'SECRETARIA'],
+              } as NavItem,
               {
                 label: t.nav.links,
                 icon: <IconLink size={18} />,
