@@ -34,6 +34,10 @@ import {
   ChurchLinksConfig,
   ChurchPublicLink,
   PublicChurchLinksPayload,
+  GrowthGroup,
+  GrowthGroupPayload,
+  GrowthGroupStats,
+  GrowthGroupWeekday,
 } from '../types';
 
 export interface MaterialItemPayload {
@@ -635,4 +639,26 @@ export const publicLinksApi = {
     apiClient
       .post(`/api/accounts/public/links/${id}/click/`)
       .then((r) => r.data),
+};
+
+export interface GrowthGroupListParams {
+  search?: string;
+  weekday?: GrowthGroupWeekday | '';
+}
+
+export const growthGroupsApi = {
+  list: (params?: GrowthGroupListParams): Promise<GrowthGroup[]> =>
+    apiClient.get('/api/accounts/growth-groups/', { params }).then((r) => r.data),
+
+  create: (payload: GrowthGroupPayload): Promise<GrowthGroup> =>
+    apiClient.post('/api/accounts/growth-groups/', payload).then((r) => r.data),
+
+  update: (id: number, payload: Partial<GrowthGroupPayload>): Promise<GrowthGroup> =>
+    apiClient.patch(`/api/accounts/growth-groups/${id}/`, payload).then((r) => r.data),
+
+  remove: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/growth-groups/${id}/`).then(() => undefined),
+
+  stats: (): Promise<GrowthGroupStats> =>
+    apiClient.get('/api/accounts/growth-groups/stats/').then((r) => r.data),
 };

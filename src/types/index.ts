@@ -965,3 +965,63 @@ export interface PublicChurchLinksPayload {
   system_links: PublicChurchLinkSystem[];
   links: PublicChurchLink[];
 }
+
+export type GrowthGroupWeekday = 0 | 1 | 2 | 4;
+
+export const GROWTH_GROUP_WEEKDAYS: GrowthGroupWeekday[] = [0, 1, 2, 4];
+
+export interface GrowthGroup {
+  id: number;
+  church: number;
+  name: string;
+  leader: number;
+  leader_name: string;
+  host: number | null;
+  host_name: string | null;
+  weekday: GrowthGroupWeekday;
+  weekday_display: string;
+  time: string | null;
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  address: string;
+  radius_meters: number;
+  latitude: number | null;
+  longitude: number | null;
+  is_active: boolean;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GrowthGroupPayload {
+  name: string;
+  leader: number | null;
+  host?: number | null;
+  weekday: GrowthGroupWeekday | null;
+  time: string;
+  cep: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  radius_meters: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  is_active: boolean;
+}
+
+export interface GrowthGroupStats {
+  total_active: number;
+  total_leaders: number;
+  most_frequent_day: number | null;
+  coverage: number;
+  overlap_count: number;
+  overlap_ids: number[];
+}

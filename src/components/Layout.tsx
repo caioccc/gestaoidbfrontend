@@ -45,6 +45,7 @@ import {
   IconPackage,
   IconFileText,
   IconLink,
+  IconHomeHeart,
 } from '@tabler/icons-react';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage, SupportedLocale } from '../i18n';
@@ -239,6 +240,12 @@ function SidebarContent({
                 icon: <IconLink size={18} />,
                 href: '/links',
                 roles: ['PASTOR', 'SECRETARIA'],
+              } as NavItem,
+              {
+                label: t.nav.growthGroups,
+                icon: <IconHomeHeart size={18} />,
+                href: '/growth-groups',
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
               } as NavItem,
             ],
           },
