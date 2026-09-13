@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
+  Box,
   Card,
   Group,
   Text,
@@ -23,6 +24,7 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
+import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconUsersGroup,
@@ -45,6 +47,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import MemberFormModal from '../components/MemberFormModal';
 import MemberCardModal from '../components/MemberCardModal';
 import MemberCardBatchModal from '../components/MemberCardBatchModal';
@@ -103,6 +106,7 @@ function MembersTab({
   const [fMarital, setFMarital] = useState<string | null>(null);
   const [fEntry, setFEntry] = useState<string | null>(null);
   const PAGE_SIZE = 25;
+  const isWide = useMediaQuery('(min-width: 1300px)');
 
   useEffect(() => {
     const handle = setTimeout(() => setDbSearch(fSearch), 300);
@@ -397,6 +401,65 @@ function MembersTab({
     }
   };
 
+  const memberMenuItems = (m: Member) => (
+    <>
+      <Menu.Item
+        leftSection={<IconId size={14} />}
+        onClick={() => setCardMember(m)}
+        data-testid={`member-card-${m.id}`}
+      >
+        {t.membersPage.viewCard}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconShare2 size={14} />}
+        disabled={m.status !== 'ACTIVE'}
+        onClick={() => setShareMember(m)}
+        data-testid={`member-share-${m.id}`}
+      >
+        {t.membersPage.shareCard}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconFileDescription size={14} />}
+        onClick={() => downloadDeclaration(m)}
+        data-testid={`member-declaration-${m.id}`}
+      >
+        {t.membersPage.declaration}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconBrandWhatsapp size={14} />}
+        color="green"
+        disabled={!m.phone}
+        onClick={() => setWaMember(m)}
+        data-testid={`member-wa-menu-${m.id}`}
+      >
+        {t.membersPage.sendWhatsApp}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconFileDescription size={14} />}
+        onClick={() => setDocsMember(m)}
+        data-testid={`member-docs-${m.id}`}
+      >
+        {t.documents.title}
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(m)}
+        data-testid={`member-edit-${m.id}`}
+      >
+        {t.common.edit}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconTrash size={14} />}
+        color="red"
+        onClick={() => setToDelete(m)}
+        data-testid={`member-delete-${m.id}`}
+      >
+        {t.common.delete}
+      </Menu.Item>
+    </>
+  );
+
   const rows = members.map((m) => (
     <Table.Tr key={m.id} data-testid={`member-row-${m.id}`}>
       <Table.Td>
@@ -447,11 +510,13 @@ function MembersTab({
           )}
         </Group>
       </Table.Td>
-      <Table.Td>
-        <Text truncate maw={190}>
-          {m.email || '—'}
-        </Text>
-      </Table.Td>
+      {isWide && (
+        <Table.Td>
+          <Text truncate maw={190}>
+            {m.email || '—'}
+          </Text>
+        </Table.Td>
+      )}
       <Table.Td>
         <Text truncate maw={140}>
           {m.church_entry_display || '—'}
@@ -470,55 +535,7 @@ function MembersTab({
               <IconDotsVertical size={16} />
             </ActionIcon>
           </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<IconId size={14} />}
-              onClick={() => setCardMember(m)}
-              data-testid={`member-card-${m.id}`}
-            >
-              {t.membersPage.viewCard}
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<IconShare2 size={14} />}
-              disabled={m.status !== 'ACTIVE'}
-              onClick={() => setShareMember(m)}
-              data-testid={`member-share-${m.id}`}
-            >
-              {t.membersPage.shareCard}
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<IconFileDescription size={14} />}
-              onClick={() => downloadDeclaration(m)}
-              data-testid={`member-declaration-${m.id}`}
-            >
-              {t.membersPage.declaration}
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<IconBrandWhatsapp size={14} />}
-              color="green"
-              disabled={!m.phone}
-              onClick={() => setWaMember(m)}
-              data-testid={`member-wa-menu-${m.id}`}
-            >
-              {t.membersPage.sendWhatsApp}
-            </Menu.Item>
-            <Menu.Divider />
-            <Menu.Item
-              leftSection={<IconPencil size={14} />}
-              onClick={() => openEdit(m)}
-              data-testid={`member-edit-${m.id}`}
-            >
-              {t.common.edit}
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<IconTrash size={14} />}
-              color="red"
-              onClick={() => setToDelete(m)}
-              data-testid={`member-delete-${m.id}`}
-            >
-              {t.common.delete}
-            </Menu.Item>
-          </Menu.Dropdown>
+          <Menu.Dropdown>{memberMenuItems(m)}</Menu.Dropdown>
         </Menu>
       </Table.Td>
     </Table.Tr>
@@ -718,7 +735,8 @@ function MembersTab({
           </Stack>
         ) : (
           <>
-            <Table striped highlightOnHover>
+            <Box visibleFrom="lg">
+              <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th w={36}>
@@ -732,14 +750,77 @@ function MembersTab({
                   </Table.Th>
                   <Table.Th>{t.membersPage.name}</Table.Th>
                   <Table.Th>{t.membersPage.phone}</Table.Th>
-                  <Table.Th>{t.membersPage.email}</Table.Th>
+                  {isWide && <Table.Th>{t.membersPage.email}</Table.Th>}
                   <Table.Th>{t.membersPage.churchEntry}</Table.Th>
                   <Table.Th>{t.membersPage.status}</Table.Th>
                   <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
+              {members.map((m) => (
+                <MobileItemCard
+                  key={m.id}
+                  testId={`member-mobile-${m.id}`}
+                  media={
+                    <Avatar
+                      src={m.photo || null}
+                      radius="xl"
+                      size={48}
+                      data-testid={`member-mobile-avatar-${m.id}`}
+                    >
+                      {m.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  }
+                  actions={memberMenuItems(m)}
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {m.name}
+                    </Text>
+                    {m.card_number && (
+                      <Text size="xs" c="dimmed" truncate>
+                        #{m.card_number}
+                      </Text>
+                    )}
+                    <Group gap={4} wrap="nowrap">
+                      <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                        {m.phone || '—'}
+                      </Text>
+                      {m.phone && (
+                        <ActionIcon
+                          variant="subtle"
+                          color="green"
+                          size="sm"
+                          onClick={() => setWaMember(m)}
+                          data-testid={`member-mobile-wa-${m.id}`}
+                        >
+                          <IconBrandWhatsapp size={14} />
+                        </ActionIcon>
+                      )}
+                    </Group>
+                    <Text size="sm" c="dimmed" truncate>
+                      {m.email || '—'}
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate>
+                      {m.church_entry_display || '—'}
+                    </Text>
+                    <Badge
+                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                      variant="light"
+                      size="sm"
+                      style={{ width: 'fit-content' }}
+                    >
+                      {m.status === 'ACTIVE'
+                        ? t.membersPage.active
+                        : t.membersPage.inactive}
+                    </Badge>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
             {total > PAGE_SIZE && (
               <Group justify="center" py="sm">
                 <Pagination

@@ -1,5 +1,10 @@
 import React from 'react';
-import type { CertificateLayoutMode, CertificateType } from '../types';
+import type {
+  CertificateFieldKey,
+  CertificateFieldLayout,
+  CertificateLayoutMode,
+  CertificateType,
+} from '../types';
 import { CERT_A4_H_PX, CERT_A4_W_PX, formatPtDate } from '../utils/certificate';
 
 export interface CertificateChurchData {
@@ -21,6 +26,8 @@ export interface CertificateData {
   registry_book?: string;
   registry_page?: string;
   registry_number?: string;
+  custom_text?: string;
+  certificate_number?: string;
 }
 
 export interface CertificateLabels {
@@ -42,6 +49,7 @@ interface CertificateDocumentProps {
   data: CertificateData;
   layoutMode: CertificateLayoutMode;
   backgroundImage?: string | null;
+  fieldsLayout?: Record<CertificateFieldKey, CertificateFieldLayout> | null;
   labels: CertificateLabels;
   innerRef?: React.Ref<HTMLDivElement>;
 }
@@ -59,15 +67,93 @@ const sharedOuter: React.CSSProperties = {
   fontFamily: "Georgia, 'Times New Roman', serif",
 };
 
+const LAYOUT_FIELD_KEYS: CertificateFieldKey[] = [
+  'recipient_name',
+  'event_date',
+  'church_name',
+  'officiant_name',
+  'parents_names',
+  'scripture_verse',
+  'custom_text',
+  'registry_info',
+  'certificate_number',
+];
+
+function layoutValues(
+  data: CertificateData,
+  church: CertificateChurchData,
+  labels: CertificateLabels,
+): Record<CertificateFieldKey, string> {
+  return {
+    recipient_name: data.recipient_name,
+    event_date: formatPtDate(data.event_date),
+    church_name: church.name,
+    officiant_name: data.officiant_name,
+    parents_names: [data.father_name, data.mother_name].filter(Boolean).join(' e '),
+    scripture_verse: data.scripture_verse ?? '',
+    custom_text: data.custom_text ?? '',
+    registry_info: [
+      data.registry_number && `${labels.term} ${data.registry_number}`,
+      data.registry_page && `${labels.page} ${data.registry_page}`,
+      data.registry_book && `${labels.book} ${data.registry_book}`,
+    ]
+      .filter(Boolean)
+      .join(' | '),
+    certificate_number: data.certificate_number ?? '',
+  };
+}
+
 export function CertificateDocument({
   church,
   data,
   layoutMode,
   backgroundImage,
+  fieldsLayout,
   labels,
   innerRef,
 }: CertificateDocumentProps) {
   const isImage = layoutMode === 'CUSTOM_IMAGE';
+  const hasLayout =
+    isImage && !!fieldsLayout && Object.keys(fieldsLayout).length > 0;
+
+  if (hasLayout && fieldsLayout) {
+    const values = layoutValues(data, church, labels);
+    return (
+      <div
+        ref={innerRef}
+        style={{
+          ...sharedOuter,
+          backgroundImage: backgroundImage ? `url("${backgroundImage}")` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+        data-testid="cert-doc-layout"
+      >
+        {LAYOUT_FIELD_KEYS.filter((k) => fieldsLayout[k]?.enabled).map((k) => {
+          const f = fieldsLayout[k];
+          return (
+            <div
+              key={k}
+              style={{
+                position: 'absolute',
+                left: `${f.x}%`,
+                top: `${f.y}%`,
+                transform: 'translate(-50%, -50%)',
+                fontSize: f.font_size,
+                fontWeight: Number(f.font_weight),
+                color: f.color,
+                textAlign: f.align,
+                lineHeight: 1.3,
+                maxWidth: '88%',
+              }}
+            >
+              {values[k]}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (isImage) {
     const overlay: React.CSSProperties = {

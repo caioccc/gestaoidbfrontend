@@ -445,6 +445,7 @@ export default function CertificateIssueModal({
                         data={issueData}
                         layoutMode={layoutMode}
                         backgroundImage={bgDataUrl}
+                        fieldsLayout={selectedTemplate?.fields_layout}
                         labels={certLabels}
                       />
                     </Box>

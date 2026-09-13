@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Box,
   Group,
   Stack,
   Select,
@@ -10,6 +11,7 @@ import {
   Skeleton,
   Text,
   Flex,
+  ThemeIcon,
   Button,
   ActionIcon,
   Modal,
@@ -18,8 +20,9 @@ import { notifications } from '@mantine/notifications';
 import { IconLock, IconLockOpen, IconAlertTriangle, IconDownload } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import ExportModal from '../components/ExportModal';
+import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
-import { MonthlyClosingsResponse } from '../types';
+import { MonthlyClosingsResponse, MonthlyClosing } from '../types';
 import { financeApi, saveBlob } from '../api/finance';
 import { formatBRL } from '../utils/format';
 
@@ -99,6 +102,34 @@ export default function ClosingsPage() {
     };
   }, [year]);
 
+  const closingActions = (c: MonthlyClosing) => (
+    <>
+      <Button
+        data-testid={`closings-toggle-${c.month}`}
+        size="xs"
+        variant={c.is_closed ? 'outline' : 'light'}
+        color={c.is_closed ? 'yellow' : 'teal'}
+        leftSection={c.is_closed ? <IconLockOpen size={14} /> : <IconLock size={14} />}
+        loading={busy && confirmTarget?.month === c.month}
+        onClick={() => setConfirmTarget({ month: c.month, close: !c.is_closed })}
+      >
+        {c.is_closed ? t.closingsPage.reopen : t.closingsPage.close}
+      </Button>
+      <ActionIcon
+        data-testid={`closings-caixa-${c.month}`}
+        variant="subtle"
+        color="blue"
+        size="md"
+        title={t.closingsPage.downloadCaixa}
+        aria-label={t.closingsPage.downloadCaixa}
+        loading={caixaBusy === c.month}
+        onClick={() => handleDownloadCaixa(c.month)}
+      >
+        <IconDownload size={16} />
+      </ActionIcon>
+    </>
+  );
+
   return (
     <>
       <PageHeader title={t.closingsPage.title}>
@@ -130,96 +161,123 @@ export default function ClosingsPage() {
             {t.common.noData}
           </Text>
         ) : (
-          <ScrollArea>
-            <Table striped withTableBorder highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.common.month}</Table.Th>
-                  <Table.Th ta="right">{t.closingsPage.previous}</Table.Th>
-                  <Table.Th ta="right">{t.closingsPage.entries}</Table.Th>
-                  <Table.Th ta="right">{t.closingsPage.exits}</Table.Th>
-                  <Table.Th ta="right">{t.closingsPage.final}</Table.Th>
-                  <Table.Th ta="center">{t.common.status}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {data.months.map((m) => (
-                  <Table.Tr key={m.month}>
-                    <Table.Td fw={600}>{t.months[m.month - 1]}</Table.Td>
-                    <Table.Td ta="right">{formatBRL(m.previous_balance)}</Table.Td>
-                    <Table.Td ta="right" c="green">
-                      {formatBRL(m.total_entries)}
+          <>
+            <Box visibleFrom="sm">
+            <ScrollArea>
+              <Table striped withTableBorder highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.common.month}</Table.Th>
+                    <Table.Th ta="right">{t.closingsPage.previous}</Table.Th>
+                    <Table.Th ta="right">{t.closingsPage.entries}</Table.Th>
+                    <Table.Th ta="right">{t.closingsPage.exits}</Table.Th>
+                    <Table.Th ta="right">{t.closingsPage.final}</Table.Th>
+                    <Table.Th ta="center">{t.common.status}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {data.months.map((m) => (
+                    <Table.Tr key={m.month}>
+                      <Table.Td fw={600}>{t.months[m.month - 1]}</Table.Td>
+                      <Table.Td ta="right">{formatBRL(m.previous_balance)}</Table.Td>
+                      <Table.Td ta="right" c="green">
+                        {formatBRL(m.total_entries)}
+                      </Table.Td>
+                      <Table.Td ta="right" c="red">
+                        {formatBRL(m.total_exits)}
+                      </Table.Td>
+                      <Table.Td ta="right" fw={700}>
+                        {formatBRL(m.final_balance)}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        <Group gap={6} justify="center" wrap="nowrap">
+                          <Badge color={m.is_closed ? 'green' : 'yellow'} variant="light">
+                            {m.is_closed ? t.closingsPage.closed : t.closingsPage.open}
+                          </Badge>
+                          {closingActions(m)}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                  <Table.Tr
+                    style={{
+                      borderTop: '2px solid var(--mantine-color-default-border)',
+                      backgroundColor: 'var(--mantine-color-default-hover)',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    <Table.Td fw={800}>{t.common.total}</Table.Td>
+                    <Table.Td ta="right" c="dimmed">
+                      {formatBRL(0)}
+                    </Table.Td>
+                    <Table.Td ta="right" c="teal">
+                      {formatBRL(data.grand_total.total_entries)}
                     </Table.Td>
                     <Table.Td ta="right" c="red">
-                      {formatBRL(m.total_exits)}
+                      {formatBRL(data.grand_total.total_exits)}
                     </Table.Td>
-                    <Table.Td ta="right" fw={700}>
-                      {formatBRL(m.final_balance)}
+                    <Table.Td ta="right" c="blue">
+                      {formatBRL(
+                        Number(data.grand_total.total_entries) -
+                          Number(data.grand_total.total_exits)
+                      )}
                     </Table.Td>
-                    <Table.Td ta="center">
-                      <Group gap={6} justify="center" wrap="nowrap">
-                        <Badge color={m.is_closed ? 'green' : 'yellow'} variant="light">
-                          {m.is_closed ? t.closingsPage.closed : t.closingsPage.open}
-                        </Badge>
-                        <Button
-                          data-testid={`closings-toggle-${m.month}`}
-                          size="xs"
-                          variant={m.is_closed ? 'outline' : 'light'}
-                          color={m.is_closed ? 'yellow' : 'teal'}
-                          leftSection={
-                            m.is_closed ? <IconLockOpen size={14} /> : <IconLock size={14} />
-                          }
-                          loading={busy && confirmTarget?.month === m.month}
-                          onClick={() =>
-                            setConfirmTarget({ month: m.month, close: !m.is_closed })
-                          }
-                        >
-                          {m.is_closed ? t.closingsPage.reopen : t.closingsPage.close}
-                        </Button>
-                        <ActionIcon
-                          data-testid={`closings-caixa-${m.month}`}
-                          variant="subtle"
-                          color="blue"
-                          size="md"
-                          title={t.closingsPage.downloadCaixa}
-                          aria-label={t.closingsPage.downloadCaixa}
-                          loading={caixaBusy === m.month}
-                          onClick={() => handleDownloadCaixa(m.month)}
-                        >
-                          <IconDownload size={16} />
-                        </ActionIcon>
-                      </Group>
-                    </Table.Td>
+                    <Table.Td />
                   </Table.Tr>
-                ))}
-                <Table.Tr
-                  style={{
-                    borderTop: '2px solid var(--mantine-color-default-border)',
-                    backgroundColor: 'var(--mantine-color-default-hover)',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  <Table.Td fw={800}>{t.common.total}</Table.Td>
-                  <Table.Td ta="right" c="dimmed">
-                    {formatBRL(0)}
-                  </Table.Td>
-                  <Table.Td ta="right" c="teal">
-                    {formatBRL(data.grand_total.total_entries)}
-                  </Table.Td>
-                  <Table.Td ta="right" c="red">
-                    {formatBRL(data.grand_total.total_exits)}
-                  </Table.Td>
-                  <Table.Td ta="right" c="blue">
-                    {formatBRL(
-                      Number(data.grand_total.total_entries) -
-                        Number(data.grand_total.total_exits)
-                    )}
-                  </Table.Td>
-                  <Table.Td />
-                </Table.Tr>
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          </Box>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {data.months.map((c) => (
+              <MobileItemCard
+                key={c.id}
+                testId={`closing-mobile-${c.id}`}
+                media={
+                  <ThemeIcon
+                    color={c.is_closed ? 'green' : 'orange'}
+                    variant="light"
+                    radius="md"
+                    size="lg"
+                  >
+                    {c.is_closed ? <IconLockOpen size={20} /> : <IconLock size={20} />}
+                  </ThemeIcon>
+                }
+                actions={closingActions(c)}
+              >
+                <Stack gap={4}>
+                  <Group gap={6} align="center" wrap="nowrap">
+                    <Text fw={600}>{t.months[c.month - 1]}</Text>
+                    <Badge color={c.is_closed ? 'green' : 'yellow'} variant="light" size="sm">
+                      {c.is_closed ? t.closingsPage.closed : t.closingsPage.open}
+                    </Badge>
+                  </Group>
+                  <Text size="xs" c="dimmed" truncate>
+                    {t.closingsPage.previous}: {formatBRL(c.previous_balance)}
+                  </Text>
+                  <Text size="xs" c="green" truncate>
+                    {t.closingsPage.entries}: +{formatBRL(c.total_entries)}
+                  </Text>
+                  <Text size="xs" c="red" truncate>
+                    {t.closingsPage.exits}: -{formatBRL(c.total_exits)}
+                  </Text>
+                  <Text
+                    fw={700}
+                    c={
+                      Number(c.final_balance) > 0
+                        ? 'teal'
+                        : Number(c.final_balance) < 0
+                          ? 'red'
+                          : 'dimmed'
+                    }
+                  >
+                    {t.closingsPage.final}: {formatBRL(c.final_balance)}
+                  </Text>
+                </Stack>
+              </MobileItemCard>
+            ))}
+          </Stack>
+          </>
         )}
       </Paper>
       <Flex justify="flex-end" mt="sm">

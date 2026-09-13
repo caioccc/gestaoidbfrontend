@@ -93,6 +93,7 @@ export default function PublicMemberCardPage() {
     state: '',
     cep: '',
     relatives: [],
+    public_hash: card.public_hash ?? null,
     created_at: '',
     updated_at: '',
   } as Member;
@@ -113,6 +114,7 @@ export default function PublicMemberCardPage() {
     card_valid_until: card.card_valid_until,
     card_front_phrase: card.card_front_phrase,
     card_back_phrase: card.card_back_phrase,
+    card_theme: card.card_theme ?? 'CLASSIC',
   };
 
   const validity = cardValidityDate(config);
@@ -139,6 +141,7 @@ export default function PublicMemberCardPage() {
             config={config}
             churchContact={churchContact}
             hideAddress
+            publicHash={card.public_hash ?? null}
           />
 
           <Paper withBorder radius="md" p="sm" w="100%" maw={400}>

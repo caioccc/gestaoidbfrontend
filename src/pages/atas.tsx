@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActionIcon,
+  Badge,
+  Box,
   Button,
   Card,
   Center,
@@ -37,6 +39,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import { RichText } from '../components/RichText';
 import ShareLinkModal from '../components/ShareLinkModal';
 import AtaTemplateModal from '../components/AtaTemplateModal';
@@ -287,6 +290,69 @@ export default function MinutesPage() {
     }
   };
 
+  const minuteActions = (m: ChurchMinutes) => (
+    <Group gap={4} justify="flex-end" wrap="nowrap">
+      <Tooltip label={t.minutesPage.generatePdf}>
+        <ActionIcon
+          variant="subtle"
+          loading={generatingId === m.id}
+          onClick={() => generatePdf(m)}
+          aria-label={t.minutesPage.generatePdf}
+          data-testid={`minute-genpdf-${m.id}`}
+        >
+          <IconFileTypePdf size={16} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.qrShare.qr}>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => setQrMinutes(m)}
+          aria-label={t.qrShare.qr}
+          data-testid={`minute-qr-${m.id}`}
+        >
+          <IconQrcode size={16} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.minutesPage.copyLink}>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => copyLink(m)}
+          aria-label={t.minutesPage.copyLink}
+        >
+          <IconLink size={16} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.minutesPage.regenerate}>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => setToRegenerate(m)}
+          aria-label={t.minutesPage.regenerate}
+        >
+          <IconRefresh size={16} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.common.edit}>
+        <ActionIcon
+          variant="subtle"
+          onClick={() => openEdit(m)}
+          aria-label={t.common.edit}
+        >
+          <IconPencil size={16} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.common.delete}>
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          onClick={() => setToDelete(m)}
+          aria-label={t.common.delete}
+        >
+          <IconTrash size={16} />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
+  );
+
   return (
     <AuthGuard>
       <Layout>
@@ -309,118 +375,90 @@ export default function MinutesPage() {
           </Card>
         ) : (
           <Card withBorder p={0}>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.minutesPage.minuteTitle}</Table.Th>
-                  <Table.Th>{t.minutesPage.meetingDate}</Table.Th>
-                  <Table.Th>{t.minutesPage.meetingType}</Table.Th>
-                  <Table.Th>{t.common.name}</Table.Th>
-                  <Table.Th>{t.minutesPage.pdf}</Table.Th>
-                  <Table.Th ta="right">{t.common.actions}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {minutes.map((m) => (
-                  <Table.Tr key={m.id}>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>
-                        {m.title}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.minutesPage.minuteTitle}</Table.Th>
+                    <Table.Th>{t.minutesPage.meetingDate}</Table.Th>
+                    <Table.Th>{t.minutesPage.meetingType}</Table.Th>
+                    <Table.Th>{t.common.name}</Table.Th>
+                    <Table.Th>{t.minutesPage.pdf}</Table.Th>
+                    <Table.Th ta="right">{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {minutes.map((m) => (
+                    <Table.Tr key={m.id} data-testid={`minute-row-${m.id}`}>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>
+                          {m.title}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+                          {formatISODate(m.meeting_date)}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{m.meeting_type_display}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{m.recorder || '—'}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        {m.pdf_name ? (
+                          <Button
+                            variant="subtle"
+                            size="compact-sm"
+                            leftSection={<IconPdf size={16} />}
+                            onClick={() => downloadPdf(m)}
+                          >
+                            PDF
+                          </Button>
+                        ) : (
+                          <Text size="sm" c="dimmed">
+                            —
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>{minuteActions(m)}</Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {minutes.map((m) => (
+                <MobileItemCard
+                  key={m.id}
+                  testId={`minute-mobile-${m.id}`}
+                  media={
+                    <ThemeIcon color="blue" variant="light" radius="md" size="lg">
+                      <IconFileText size={20} />
+                    </ThemeIcon>
+                  }
+                  actions={minuteActions(m)}
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {m.title}
+                    </Text>
+                    <Group gap={4} wrap="nowrap" align="center">
+                      <Badge variant="light" size="sm">
+                        {m.meeting_type_display}
+                      </Badge>
+                      <Text size="sm" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
                         {formatISODate(m.meeting_date)}
                       </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{m.meeting_type_display}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{m.recorder || '—'}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {m.pdf_name ? (
-                        <Button
-                          variant="subtle"
-                          size="compact-sm"
-                          leftSection={<IconPdf size={16} />}
-                          onClick={() => downloadPdf(m)}
-                        >
-                          PDF
-                        </Button>
-                      ) : (
-                        <Text size="sm" c="dimmed">
-                          —
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4} justify="flex-end" wrap="nowrap">
-                        <Tooltip label={t.minutesPage.generatePdf}>
-                          <ActionIcon
-                            variant="subtle"
-                            loading={generatingId === m.id}
-                            onClick={() => generatePdf(m)}
-                            aria-label={t.minutesPage.generatePdf}
-                            data-testid={`minute-genpdf-${m.id}`}
-                          >
-                            <IconFileTypePdf size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.qrShare.qr}>
-                          <ActionIcon
-                            variant="subtle"
-                            onClick={() => setQrMinutes(m)}
-                            aria-label={t.qrShare.qr}
-                            data-testid={`minute-qr-${m.id}`}
-                          >
-                            <IconQrcode size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.minutesPage.copyLink}>
-                          <ActionIcon
-                            variant="subtle"
-                            onClick={() => copyLink(m)}
-                            aria-label={t.minutesPage.copyLink}
-                          >
-                            <IconLink size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.minutesPage.regenerate}>
-                          <ActionIcon
-                            variant="subtle"
-                            onClick={() => setToRegenerate(m)}
-                            aria-label={t.minutesPage.regenerate}
-                          >
-                            <IconRefresh size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.common.edit}>
-                          <ActionIcon
-                            variant="subtle"
-                            onClick={() => openEdit(m)}
-                            aria-label={t.common.edit}
-                          >
-                            <IconPencil size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.common.delete}>
-                          <ActionIcon
-                            variant="subtle"
-                            color="red"
-                            onClick={() => setToDelete(m)}
-                            aria-label={t.common.delete}
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                      {m.recorder || '—'}
+                    </Text>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
           </Card>
         )}
 

@@ -25,6 +25,79 @@ export function formatCardDate(date: Date): string {
   return `${d}/${m}/${date.getFullYear()}`;
 }
 
+export function memberPublicProfileUrl(publicHash: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/perfil/${encodeURIComponent(publicHash)}`;
+}
+
+export interface VcfMemberData {
+  name: string;
+  phone?: string | null;
+  photo?: string | null;
+  note?: string;
+}
+
+function vcfEscape(value: string): string {
+  return (value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/,/g, '\\,')
+    .replace(/;/g, '\\;')
+    .replace(/\r?\n/g, '\\n');
+}
+
+export function buildVcf(member: VcfMemberData, photoDataUrl?: string | null): string {
+  const lines: string[] = ['BEGIN:VCARD', 'VERSION:3.0'];
+  lines.push(`N:${vcfEscape(member.name)}`);
+  lines.push(`FN:${vcfEscape(member.name)}`);
+  if (member.phone) {
+    const digits = (member.phone || '').replace(/\D/g, '');
+    if (digits) lines.push(`TEL;TYPE=CELL:${digits}`);
+  }
+  if (photoDataUrl && photoDataUrl.startsWith('data:')) {
+    const [header, b64] = photoDataUrl.split(',');
+    const photoType = (header.match(/image\/([a-zA-Z0-9+]+)/) || [])[1];
+    if (b64) lines.push(`PHOTO;ENCODING=b;TYPE=${(photoType || 'JPEG').toUpperCase()}:${b64}`);
+  }
+  if (member.note) lines.push(`NOTE:${vcfEscape(member.note)}`);
+  lines.push('END:VCARD');
+  return lines.join('\r\n');
+}
+
+function readAsDataUrl(blob: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function downloadVcf(member: VcfMemberData): Promise<void> {
+  let photoDataUrl: string | null = null;
+  try {
+    if (member.photo) {
+      const res = await fetch(member.photo);
+      if (res.ok) photoDataUrl = await readAsDataUrl(await res.blob());
+    }
+  } catch {
+    photoDataUrl = null;
+  }
+  const text = buildVcf(member, photoDataUrl);
+  const blob = new Blob([text], { type: 'text/vcard;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const baseName = (member.name || 'contato')
+    .trim()
+    .replace(/[^a-zA-Z0-9_\- ]/g, '')
+    .replace(/\s+/g, '_');
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${baseName || 'contato'}.vcf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
 export async function downloadMemberCardPairPng(
   node: HTMLElement,
   name: string

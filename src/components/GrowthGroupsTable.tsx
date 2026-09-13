@@ -4,22 +4,27 @@ import React from 'react';
 import {
   ActionIcon,
   Badge,
+  Box,
   Group,
   Input,
   Menu,
   Paper,
   Select,
   Skeleton,
+  Stack,
   Table,
   Text,
+  ThemeIcon,
 } from '@mantine/core';
 import {
   IconDots,
   IconEdit,
+  IconHomeHeart,
   IconMapPin,
   IconSearch,
   IconTrash,
 } from '@tabler/icons-react';
+import MobileItemCard from './MobileItemCard';
 import { useLanguage } from '../i18n';
 import type { GrowthGroup, GrowthGroupWeekday } from '../types';
 
@@ -69,6 +74,34 @@ export default function GrowthGroupsTable({
     label: weekdayName(w),
   }));
 
+  const groupActions = (g: GrowthGroup) => (
+    <>
+      <Menu.Item
+        leftSection={<IconMapPin size={16} />}
+        onClick={() => onView(g)}
+      >
+        {t.growthGroups.viewOnMap}
+      </Menu.Item>
+      {canEdit && (
+        <Menu.Item
+          leftSection={<IconEdit size={16} />}
+          onClick={() => onEdit(g)}
+        >
+          {t.common.edit}
+        </Menu.Item>
+      )}
+      {canDelete && (
+        <Menu.Item
+          leftSection={<IconTrash size={16} />}
+          color="red"
+          onClick={() => onDelete(g)}
+        >
+          {t.common.delete}
+        </Menu.Item>
+      )}
+    </>
+  );
+
   if (loading) {
     return (
       <Paper withBorder p="md">
@@ -84,6 +117,22 @@ export default function GrowthGroupsTable({
     <Table.Tr key={g.id} data-testid={`gc-row-${g.id}`}>
       <Table.Td>
         <Text fw={600}>{g.name}</Text>
+      </Table.Td>
+      <Table.Td>
+        <Group gap={4} wrap="nowrap">
+          <Badge variant="light" data-testid={`gc-category-badge-${g.id}`}>
+            {g.category_display}
+          </Badge>
+          {g.is_full && (
+            <Badge
+              variant="light"
+              color="red"
+              data-testid={`gc-full-badge-${g.id}`}
+            >
+              {t.growthGroups.isFullBadge}
+            </Badge>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td>{g.leader_name}</Table.Td>
       <Table.Td>{g.host_name || '—'}</Table.Td>
@@ -114,31 +163,7 @@ export default function GrowthGroupsTable({
               <IconDots size={18} />
             </ActionIcon>
           </Menu.Target>
-          <Menu.Dropdown>
-            <Menu.Item
-              leftSection={<IconMapPin size={16} />}
-              onClick={() => onView(g)}
-            >
-              {t.growthGroups.viewOnMap}
-            </Menu.Item>
-            {canEdit && (
-              <Menu.Item
-                leftSection={<IconEdit size={16} />}
-                onClick={() => onEdit(g)}
-              >
-                {t.common.edit}
-              </Menu.Item>
-            )}
-            {canDelete && (
-              <Menu.Item
-                leftSection={<IconTrash size={16} />}
-                color="red"
-                onClick={() => onDelete(g)}
-              >
-                {t.common.delete}
-              </Menu.Item>
-            )}
-          </Menu.Dropdown>
+          <Menu.Dropdown>{groupActions(g)}</Menu.Dropdown>
         </Menu>
       </Table.Td>
     </Table.Tr>
@@ -170,21 +195,98 @@ export default function GrowthGroupsTable({
           {t.growthGroups.noGroups}
         </Text>
       ) : (
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t.growthGroups.nameLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.leaderLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.hostLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.weekdayLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.timeLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.addressLabel}</Table.Th>
-              <Table.Th>{t.growthGroups.activeLabel}</Table.Th>
-              <Table.Th>{t.common.actions}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{rows}</Table.Tbody>
-        </Table>
+        <>
+          <Box visibleFrom="sm">
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t.growthGroups.nameLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.category}</Table.Th>
+                  <Table.Th>{t.growthGroups.leaderLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.hostLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.weekdayLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.timeLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.addressLabel}</Table.Th>
+                  <Table.Th>{t.growthGroups.activeLabel}</Table.Th>
+                  <Table.Th>{t.common.actions}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{rows}</Table.Tbody>
+            </Table>
+          </Box>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {groups.map((g) => (
+              <MobileItemCard
+                key={g.id}
+                testId={`gc-mobile-${g.id}`}
+                media={
+                  <ThemeIcon
+                    color={g.is_active ? 'teal' : 'gray'}
+                    variant="light"
+                    radius="md"
+                    size="lg"
+                  >
+                    <IconHomeHeart size={20} />
+                  </ThemeIcon>
+                }
+                actions={groupActions(g)}
+              >
+                <Stack gap={4}>
+                  <Text fw={600} truncate>
+                    {g.name}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {g.leader_name}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {g.host_name || '—'}
+                  </Text>
+                  <Group gap={4} wrap="nowrap" align="center">
+                    <Badge
+                      variant="light"
+                      size="sm"
+                      data-testid={`gc-mobile-category-${g.id}`}
+                    >
+                      {g.category_display}
+                    </Badge>
+                    {g.is_full && (
+                      <Badge
+                        variant="light"
+                        size="sm"
+                        color="red"
+                        data-testid={`gc-mobile-full-${g.id}`}
+                      >
+                        {t.growthGroups.isFullBadge}
+                      </Badge>
+                    )}
+                  </Group>
+                  <Group gap={4} wrap="nowrap" align="center">
+                    <Badge variant="light" size="sm">
+                      {weekdayName(g.weekday)}
+                    </Badge>
+                    <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+                      {g.time}
+                    </Text>
+                  </Group>
+                  <Text size="sm" c="dimmed" truncate>
+                    {g.address}
+                  </Text>
+                  {g.latitude != null && g.longitude != null && (
+                    <Group gap={4} wrap="nowrap">
+                      <IconMapPin
+                        size={12}
+                        style={{ color: 'var(--mantine-color-dimmed)' }}
+                      />
+                      <Text size="xs" c="dimmed">
+                        {g.radius_meters}m
+                      </Text>
+                    </Group>
+                  )}
+                </Stack>
+              </MobileItemCard>
+            ))}
+          </Stack>
+        </>
       )}
     </Paper>
   );

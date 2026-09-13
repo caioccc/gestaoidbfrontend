@@ -166,7 +166,7 @@ export async function generateMinutesPdf(opts: MinutesPdfOptions): Promise<void>
 
   const root = buildDocument({ ...opts, content: clean });
   root.style.cssText +=
-    'position:fixed;left:-10000px;top:0;z-index:-1;';
+    'position:fixed;top:0;left:0;z-index:-1;pointer-events:none;';
   document.body.appendChild(root);
 
   try {
@@ -180,8 +180,8 @@ export async function generateMinutesPdf(opts: MinutesPdfOptions): Promise<void>
       backgroundColor: '#ffffff',
     });
 
-    const imgW = root.offsetWidth || OUT_W_PX;
-    const imgH = root.offsetHeight;
+    const imgW = root.offsetWidth || root.scrollWidth || OUT_W_PX;
+    const imgH = root.offsetHeight || root.scrollHeight || 1;
     const contentWmm = A4_W_MM - MARGIN_X_MM * 2;
     const pdfHmm = (contentWmm * imgH) / imgW;
     const pages = Math.max(1, Math.ceil(pdfHmm / PAGE_CONTENT_MM));

@@ -8,6 +8,7 @@ export const DEFAULT_CARD_CONFIG: CardConfig = {
   card_valid_until: null,
   card_front_phrase: '',
   card_back_phrase: '',
+  card_theme: 'CLASSIC',
 };
 
 export interface ChurchContact {
@@ -42,6 +43,7 @@ function fromChurch(data: Record<string, any> | null | undefined): CardConfig {
     card_valid_until: data.card_valid_until || null,
     card_front_phrase: data.card_front_phrase || '',
     card_back_phrase: data.card_back_phrase || '',
+    card_theme: data.card_theme === 'BLACK_PREMIUM' ? 'BLACK_PREMIUM' : 'CLASSIC',
   };
 }
 

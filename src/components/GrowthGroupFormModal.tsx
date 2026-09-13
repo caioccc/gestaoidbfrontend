@@ -21,7 +21,7 @@ import { IconCrosshair } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import ChurchMap from './ChurchMap';
 import MaskedTextInput from './MaskedTextInput';
-import type { GrowthGroup, GrowthGroupPayload, Member } from '../types';
+import type { GrowthGroup, GrowthGroupCategory, GrowthGroupPayload, Member } from '../types';
 
 interface GrowthGroupFormModalProps {
   opened: boolean;
@@ -46,6 +46,8 @@ interface FormValues {
   city: string;
   state: string;
   radius: number;
+  category: GrowthGroupCategory;
+  is_full: boolean;
   is_active: boolean;
   latitude: number | null;
   longitude: number | null;
@@ -68,6 +70,15 @@ export default function GrowthGroupFormModal({
 }: GrowthGroupFormModalProps) {
   const { t } = useLanguage();
 
+  const categoryOptions: Array<{ value: GrowthGroupCategory; label: string }> = [
+    { value: 'ADULTS', label: t.growthGroups.categoryAdults },
+    { value: 'YOUTH', label: t.growthGroups.categoryYouth },
+    { value: 'TEENS', label: t.growthGroups.categoryTeens },
+    { value: 'WOMEN', label: t.growthGroups.categoryWomen },
+    { value: 'MEN', label: t.growthGroups.categoryMen },
+    { value: 'MIXED', label: t.growthGroups.categoryMixed },
+  ];
+
   const empty = (): FormValues => ({
     name: '',
     leader: null,
@@ -82,6 +93,8 @@ export default function GrowthGroupFormModal({
     city: '',
     state: '',
     radius: 1000,
+    category: 'MIXED',
+    is_full: false,
     is_active: true,
     latitude: null,
     longitude: null,
@@ -132,6 +145,8 @@ export default function GrowthGroupFormModal({
             city: editing.city || '',
             state: editing.state || '',
             radius: editing.radius_meters,
+            category: editing.category,
+            is_full: editing.is_full,
             is_active: editing.is_active,
             latitude: editing.latitude,
             longitude: editing.longitude,
@@ -409,6 +424,8 @@ export default function GrowthGroupFormModal({
       city: values.city.trim(),
       state: values.state.trim().toUpperCase(),
       radius_meters: values.radius > 0 ? values.radius : 1,
+      category: values.category,
+      is_full: values.is_full,
       latitude: lat,
       longitude: lng,
       is_active: values.is_active,
@@ -485,6 +502,18 @@ export default function GrowthGroupFormModal({
               value={form.values.radius}
               onChange={(v) => form.setFieldValue('radius', Number(v) || 1)}
               data-testid="gc-radius"
+            />
+          </Group>
+          <Group grow align="flex-end">
+            <Select
+              label={t.growthGroups.category}
+              placeholder={t.growthGroups.categoryPlaceholder}
+              data={categoryOptions}
+              value={form.values.category}
+              onChange={(v) =>
+                form.setFieldValue('category', (v as GrowthGroupCategory) ?? 'MIXED')
+              }
+              data-testid="gc-category"
             />
           </Group>
           <Text size="xs" c="dimmed">
@@ -592,6 +621,14 @@ export default function GrowthGroupFormModal({
               form.setFieldValue('longitude', lng);
             }}
             onPick={handleMapPick}
+          />
+
+          <Switch
+            label={t.growthGroups.isFull}
+            description={t.growthGroups.isFullHelp}
+            checked={form.values.is_full}
+            onChange={(e) => form.setFieldValue('is_full', e.currentTarget.checked)}
+            data-testid="gc-full"
           />
 
           <Switch

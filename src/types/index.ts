@@ -31,12 +31,15 @@ export interface Church {
   updated_at: string;
 }
 
+export type CardTheme = 'CLASSIC' | 'BLACK_PREMIUM';
+
 export interface CardConfig {
   card_primary_color: string;
   card_secondary_color: string;
   card_valid_until: string | null;
   card_front_phrase: string;
   card_back_phrase: string;
+  card_theme?: CardTheme;
 }
 
 export interface User {
@@ -599,6 +602,28 @@ export interface PublicCardPayload {
   card_valid_until: string | null;
   card_front_phrase: string;
   card_back_phrase: string;
+  card_theme?: CardTheme;
+  public_hash?: string | null;
+}
+
+export interface PublicMemberProfile {
+  name: string;
+  photo: string | null;
+  birth_date: string | null;
+  status: MemberStatus;
+  status_label: string;
+  member_since: string | null;
+  ministry_areas: string[];
+  role_title: string | null;
+  whatsapp: string | null;
+  card_theme: CardTheme;
+  valid_until: string | null;
+  church: {
+    name: string;
+    city: string;
+    state: string;
+    logo: string | null;
+  };
 }
 
 export interface PublicFormMeta {
@@ -952,6 +977,7 @@ export interface PublicChurchLinkRowBase {
 export interface PublicChurchLink extends PublicChurchLinkRowBase {
   id: number;
   description?: string;
+  address?: string;
   link_type_display: string;
   pix_key?: string | null;
   pix_type?: string | null;
@@ -978,6 +1004,14 @@ export interface PublicChurchLinksPayload {
 
 export type GrowthGroupWeekday = 0 | 1 | 2 | 4;
 
+export type GrowthGroupCategory =
+  | 'ADULTS'
+  | 'YOUTH'
+  | 'TEENS'
+  | 'WOMEN'
+  | 'MEN'
+  | 'MIXED';
+
 export const GROWTH_GROUP_WEEKDAYS: GrowthGroupWeekday[] = [0, 1, 2, 4];
 
 export interface GrowthGroup {
@@ -1000,6 +1034,9 @@ export interface GrowthGroup {
   state: string;
   address: string;
   radius_meters: number;
+  category: GrowthGroupCategory;
+  category_display: string;
+  is_full: boolean;
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
@@ -1022,6 +1059,8 @@ export interface GrowthGroupPayload {
   city: string;
   state: string;
   radius_meters: number;
+  category: GrowthGroupCategory;
+  is_full: boolean;
   latitude?: number | null;
   longitude?: number | null;
   is_active: boolean;
@@ -1090,6 +1129,27 @@ export type CertificateLayoutMode =
   | 'CUSTOM_IMAGE'
   | 'BASE_PDF';
 
+export type CertificateFieldKey =
+  | 'recipient_name'
+  | 'event_date'
+  | 'church_name'
+  | 'officiant_name'
+  | 'parents_names'
+  | 'scripture_verse'
+  | 'custom_text'
+  | 'registry_info'
+  | 'certificate_number';
+
+export interface CertificateFieldLayout {
+  enabled: boolean;
+  x: number;
+  y: number;
+  font_size: number;
+  font_weight: '400' | '600' | '700';
+  align: 'left' | 'center' | 'right';
+  color: string;
+}
+
 export interface CertificateTemplate {
   id: number;
   church: number;
@@ -1105,6 +1165,7 @@ export interface CertificateTemplate {
   base_pdf_name: string | null;
   default_verse: string;
   is_active: boolean;
+  fields_layout?: Record<CertificateFieldKey, CertificateFieldLayout> | null;
   created_at: string;
 }
 

@@ -5,6 +5,7 @@ import {
   ColorInput,
   Grid,
   Group,
+  SegmentedControl,
   Stack,
   Text,
   TextInput,
@@ -19,7 +20,7 @@ import MemberCard from './MemberCard';
 import { useLanguage } from '../i18n';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { accountsApi } from '../api/accounts';
-import type { CardConfig } from '../types';
+import type { CardConfig, CardTheme } from '../types';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -54,6 +55,7 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
       card_valid_until: toDate(config.card_valid_until),
       card_front_phrase: config.card_front_phrase,
       card_back_phrase: config.card_back_phrase,
+      card_theme: config.card_theme ?? 'CLASSIC' as CardTheme,
     },
     validate: {
       card_primary_color: (v) => (HEX_RE.test(v) ? null : t.cardConfig.invalidColor),
@@ -68,6 +70,7 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
       card_valid_until: toDate(config.card_valid_until),
       card_front_phrase: config.card_front_phrase,
       card_back_phrase: config.card_back_phrase,
+      card_theme: config.card_theme ?? 'CLASSIC' as CardTheme,
     });
     form.resetDirty();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,6 +82,7 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
     card_valid_until: toISO(form.values.card_valid_until),
     card_front_phrase: form.values.card_front_phrase,
     card_back_phrase: form.values.card_back_phrase,
+    card_theme: form.values.card_theme,
   };
 
   const handleSave = async () => {
@@ -93,6 +97,7 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
         card_valid_until: toISO(form.values.card_valid_until),
         card_front_phrase: form.values.card_front_phrase.trim(),
         card_back_phrase: form.values.card_back_phrase.trim(),
+        card_theme: form.values.card_theme,
       };
       await accountsApi.updateProfile(payload);
       notifications.show({ color: 'green', message: t.cardConfig.saved });
@@ -113,6 +118,16 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
         <Card withBorder shadow="sm" p="md">
           <Stack gap="sm">
             <Text fw={600}>{t.cardConfig.appearance}</Text>
+            <SegmentedControl
+              data-testid="member-card-theme"
+              fullWidth
+              value={form.values.card_theme}
+              onChange={(v) => form.setFieldValue('card_theme', v as CardTheme)}
+              data={[
+                { label: t.cardConfig.themeClassic, value: 'CLASSIC' },
+                { label: t.cardConfig.themeBlackPremium, value: 'BLACK_PREMIUM' },
+              ]}
+            />
             <Group grow align="flex-start">
               <ColorInput
                 label={t.cardConfig.primaryColor}

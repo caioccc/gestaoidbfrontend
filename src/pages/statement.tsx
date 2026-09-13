@@ -10,11 +10,18 @@ import {
   Badge,
   ScrollArea,
   Box,
+  ThemeIcon,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { IconFileSpreadsheet, IconAlertTriangle } from '@tabler/icons-react';
+import {
+  IconFileSpreadsheet,
+  IconAlertTriangle,
+  IconArrowUpRight,
+  IconArrowDownRight,
+} from '@tabler/icons-react';
 import * as XLSX from 'xlsx';
 import PageHeader from '../components/PageHeader';
+import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
 import { financeApi, fetchAllPages } from '../api/finance';
 import { FinancialEntry, FinancialExit } from '../types';
@@ -164,37 +171,84 @@ export default function StatementPage() {
             <Text c="dimmed">{t.common.noData}</Text>
           </Stack>
         ) : (
-          <ScrollArea>
-            <Table striped withTableBorder highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.common.date}</Table.Th>
-                  <Table.Th>{t.common.type || 'Tipo'}</Table.Th>
-                  <Table.Th>{t.common.description}</Table.Th>
-                  <Table.Th>{t.common.category}</Table.Th>
-                  <Table.Th ta="right">{t.common.value}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {rows.map((r) => (
-                  <Table.Tr key={r.id}>
-                    <Table.Td>{formatDate(r.date)}</Table.Td>
-                    <Table.Td>
-                      <Badge color={r.type === 'entry' ? 'green' : 'red'} variant="light" size="sm">
-                        {r.type === 'entry' ? t.entries : t.exits}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{r.description}</Table.Td>
-                    <Table.Td>{r.category}</Table.Td>
-                    <Table.Td ta="right" c={r.type === 'entry' ? 'green' : 'red'} fw={600}>
-                      {r.type === 'entry' ? '' : '-'}
-                      {formatBRL(r.amount)}
-                    </Table.Td>
+          <>
+            <ScrollArea>
+              <Box visibleFrom="sm">
+                <Table striped withTableBorder highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.common.date}</Table.Th>
+                    <Table.Th>{t.common.type || 'Tipo'}</Table.Th>
+                    <Table.Th>{t.common.description}</Table.Th>
+                    <Table.Th>{t.common.category}</Table.Th>
+                    <Table.Th ta="right">{t.common.value}</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {rows.map((r) => (
+                    <Table.Tr key={r.id}>
+                      <Table.Td>{formatDate(r.date)}</Table.Td>
+                      <Table.Td>
+                        <Badge color={r.type === 'entry' ? 'green' : 'red'} variant="light" size="sm">
+                          {r.type === 'entry' ? t.entries : t.exits}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>{r.description}</Table.Td>
+                      <Table.Td>{r.category}</Table.Td>
+                      <Table.Td ta="right" c={r.type === 'entry' ? 'green' : 'red'} fw={600}>
+                        {r.type === 'entry' ? '' : '-'}
+                        {formatBRL(r.amount)}
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Box>
           </ScrollArea>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {rows.map((r) => (
+              <MobileItemCard
+                key={r.id}
+                testId={`statement-mobile-${r.id}`}
+                media={
+                  <ThemeIcon
+                    color={r.type === 'entry' ? 'green' : 'red'}
+                    variant="light"
+                    radius="md"
+                    size="lg"
+                  >
+                    {r.type === 'entry' ? (
+                      <IconArrowUpRight size={20} />
+                    ) : (
+                      <IconArrowDownRight size={20} />
+                    )}
+                  </ThemeIcon>
+                }
+              >
+                <Stack gap={4}>
+                  <Group justify="space-between" align="center" wrap="nowrap" gap="xs">
+                    <Text fw={600} truncate>
+                      {formatDate(r.date)}
+                    </Text>
+                    <Badge color={r.type === 'entry' ? 'green' : 'red'} variant="light" size="sm">
+                      {r.type === 'entry' ? t.entries : t.exits}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" truncate>
+                    {r.description}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {r.category}
+                  </Text>
+                  <Text fw={700} c={r.type === 'entry' ? 'green' : 'red'}>
+                    {r.type === 'entry' ? '+' : '-'}
+                    {formatBRL(r.amount)}
+                  </Text>
+                </Stack>
+              </MobileItemCard>
+            ))}
+          </Stack>
+          </>
         )}
       </Paper>
     </>

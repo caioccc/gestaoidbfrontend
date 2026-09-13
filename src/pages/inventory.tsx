@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
+  Box,
   Button,
   Card,
   Center,
@@ -23,7 +24,9 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowRotaryLeft,
+  IconBox,
   IconBuildingWarehouse,
+  IconMapPin,
   IconPencil,
   IconPlus,
   IconRefresh,
@@ -34,6 +37,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { toISO, toUpperCamelWords } from '../utils/format';
@@ -196,6 +200,42 @@ function ItemsTab() {
     );
   });
 
+  const itemActions = (item: MaterialItem) => (
+    <Group gap={4} justify="flex-end" wrap="nowrap">
+      {item.manual && (
+        <Button
+          component="a"
+          href={item.manual}
+          target="_blank"
+          rel="noreferrer"
+          size="xs"
+          variant="light"
+        >
+          {t.inventoryPage.itemManual}
+        </Button>
+      )}
+      <Button
+        size="xs"
+        variant="subtle"
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(item)}
+        data-testid={`item-edit-${item.id}`}
+      >
+        {t.common.edit}
+      </Button>
+      <Button
+        size="xs"
+        variant="subtle"
+        color="red"
+        leftSection={<IconTrash size={14} />}
+        onClick={() => setToDelete(item)}
+        data-testid={`item-delete-${item.id}`}
+      >
+        {t.common.delete}
+      </Button>
+    </Group>
+  );
+
   const rows = filtered.map((item) => {
     const loan = item.current_loan;
     return (
@@ -318,18 +358,86 @@ function ItemsTab() {
             <Text c="dimmed">{t.inventoryPage.itemsEmpty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.inventoryPage.itemName}</Table.Th>
-                <Table.Th>{t.inventoryPage.itemDescription}</Table.Th>
-                <Table.Th>{t.inventoryPage.itemLocation}</Table.Th>
-                <Table.Th>{t.inventoryPage.itemStatus}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.inventoryPage.itemName}</Table.Th>
+                    <Table.Th>{t.inventoryPage.itemDescription}</Table.Th>
+                    <Table.Th>{t.inventoryPage.itemLocation}</Table.Th>
+                    <Table.Th>{t.inventoryPage.itemStatus}</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{rows}</Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {filtered.map((item) => {
+                const loan = item.current_loan;
+                return (
+                  <MobileItemCard
+                    key={item.id}
+                    testId={`item-mobile-${item.id}`}
+                    media={
+                      item.photo ? (
+                        <Image
+                          src={item.photo}
+                          alt={item.name}
+                          h={48}
+                          w={64}
+                          fit="cover"
+                          radius="md"
+                        />
+                      ) : (
+                        <ThemeIcon color="teal" variant="light" radius="md" size="lg">
+                          <IconBox size={20} />
+                        </ThemeIcon>
+                      )
+                    }
+                    actions={itemActions(item)}
+                  >
+                    <Stack gap={4}>
+                      <Text fw={600} truncate>
+                        {item.name}
+                      </Text>
+                      <Text size="sm" c="dimmed" truncate>
+                        {item.description || '—'}
+                      </Text>
+                      <Group gap={4} wrap="nowrap" align="center">
+                        <IconMapPin size={14} style={{ flexShrink: 0 }} />
+                        <Text size="sm" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>
+                          {item.location_name || '—'}
+                        </Text>
+                      </Group>
+                      {loan ? (
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color="red"
+                          style={{ width: 'fit-content' }}
+                        >
+                          {t.inventoryPage.loanedUntil
+                            .replace('{date}', formatISODate(loan.expected_return))
+                            .replace('{person}', loan.borrower_display)}
+                        </Badge>
+                      ) : (
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color="green"
+                          style={{ width: 'fit-content' }}
+                        >
+                          {t.inventoryPage.available}
+                        </Badge>
+                      )}
+                    </Stack>
+                  </MobileItemCard>
+                );
+              })}
+            </Stack>
+          </>
         )}
       </Card>
 
@@ -509,6 +617,30 @@ function LocationsTab() {
     }
   };
 
+  const locationActions = (loc: StorageLocation) => (
+    <Group gap={4} justify="flex-end">
+      <Button
+        size="xs"
+        variant="subtle"
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(loc)}
+        data-testid={`location-edit-${loc.id}`}
+      >
+        {t.common.edit}
+      </Button>
+      <Button
+        size="xs"
+        variant="subtle"
+        color="red"
+        leftSection={<IconTrash size={14} />}
+        onClick={() => setToDelete(loc)}
+        data-testid={`location-delete-${loc.id}`}
+      >
+        {t.common.delete}
+      </Button>
+    </Group>
+  );
+
   const rows = locations.map((loc) => (
     <Table.Tr key={loc.id} data-testid={`location-row-${loc.id}`}>
       <Table.Td>
@@ -520,27 +652,7 @@ function LocationsTab() {
         </Group>
       </Table.Td>
       <Table.Td style={{ textAlign: 'right' }}>
-        <Group gap={4} justify="flex-end">
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconPencil size={14} />}
-            onClick={() => openEdit(loc)}
-            data-testid={`location-edit-${loc.id}`}
-          >
-            {t.common.edit}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            onClick={() => setToDelete(loc)}
-            data-testid={`location-delete-${loc.id}`}
-          >
-            {t.common.delete}
-          </Button>
-        </Group>
+        {locationActions(loc)}
       </Table.Td>
     </Table.Tr>
   ));
@@ -577,15 +689,39 @@ function LocationsTab() {
             <Text c="dimmed">{t.inventoryPage.locationsEmpty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.inventoryPage.locationName}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.inventoryPage.locationName}</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{rows}</Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {locations.map((loc) => (
+                <MobileItemCard
+                  key={loc.id}
+                  testId={`location-mobile-${loc.id}`}
+                  media={
+                    <ThemeIcon color="teal" variant="light" radius="md" size="lg">
+                      <IconBuildingWarehouse size={20} />
+                    </ThemeIcon>
+                  }
+                  actions={locationActions(loc)}
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {loc.name}
+                    </Text>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
+          </>
         )}
       </Card>
 
@@ -848,6 +984,47 @@ function LoansTab() {
     return [...open, ...returned];
   }, [visibleLoans]);
 
+  const loanActions = (loan: Loan) => {
+    const open = isOpen(loan);
+    return (
+      <Group gap={4} justify="flex-end" wrap="nowrap">
+        {open && (
+          <>
+            <Button
+              size="xs"
+              variant="subtle"
+              color="green"
+              leftSection={<IconArrowRotaryLeft size={14} />}
+              onClick={() => setToReturn(loan)}
+              data-testid={`loan-return-${loan.id}`}
+            >
+              {t.inventoryPage.markReturn}
+            </Button>
+            <Button
+              size="xs"
+              variant="subtle"
+              leftSection={<IconPencil size={14} />}
+              onClick={() => openEdit(loan)}
+              data-testid={`loan-edit-${loan.id}`}
+            >
+              {t.common.edit}
+            </Button>
+          </>
+        )}
+        <Button
+          size="xs"
+          variant="subtle"
+          color="red"
+          leftSection={<IconTrash size={14} />}
+          onClick={() => setToDelete(loan)}
+          data-testid={`loan-delete-${loan.id}`}
+        >
+          {t.common.delete}
+        </Button>
+      </Group>
+    );
+  };
+
   const loanRows = sortedLoans.map((loan) => {
     const open = isOpen(loan);
     const overdue = isOverdue(loan);
@@ -921,43 +1098,7 @@ function LoansTab() {
             </Badge>
           )}
         </Table.Td>
-        <Table.Td style={{ textAlign: 'right' }}>
-          <Group gap={4} justify="flex-end" wrap="nowrap">
-            {open && (
-              <>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  color="green"
-                  leftSection={<IconArrowRotaryLeft size={14} />}
-                  onClick={() => setToReturn(loan)}
-                  data-testid={`loan-return-${loan.id}`}
-                >
-                  {t.inventoryPage.markReturn}
-                </Button>
-                <Button
-                  size="xs"
-                  variant="subtle"
-                  leftSection={<IconPencil size={14} />}
-                  onClick={() => openEdit(loan)}
-                  data-testid={`loan-edit-${loan.id}`}
-                >
-                  {t.common.edit}
-                </Button>
-              </>
-            )}
-            <Button
-              size="xs"
-              variant="subtle"
-              color="red"
-              leftSection={<IconTrash size={14} />}
-              onClick={() => setToDelete(loan)}
-              data-testid={`loan-delete-${loan.id}`}
-            >
-              {t.common.delete}
-            </Button>
-          </Group>
-        </Table.Td>
+        <Table.Td style={{ textAlign: 'right' }}>{loanActions(loan)}</Table.Td>
       </Table.Tr>
     );
   });
@@ -1024,19 +1165,118 @@ function LoansTab() {
             <Text c="dimmed">{t.inventoryPage.loansEmpty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.inventoryPage.loanItem}</Table.Th>
-                <Table.Th>{t.inventoryPage.loanBorrower}</Table.Th>
-                <Table.Th>{t.inventoryPage.borrowedAt}</Table.Th>
-                <Table.Th>{t.inventoryPage.expectedReturn}</Table.Th>
-                <Table.Th>{t.inventoryPage.itemStatus}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{loanRows}</Table.Tbody>
-          </Table>
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.inventoryPage.loanItem}</Table.Th>
+                    <Table.Th>{t.inventoryPage.loanBorrower}</Table.Th>
+                    <Table.Th>{t.inventoryPage.borrowedAt}</Table.Th>
+                    <Table.Th>{t.inventoryPage.expectedReturn}</Table.Th>
+                    <Table.Th>{t.inventoryPage.itemStatus}</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{loanRows}</Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {sortedLoans.map((loan) => {
+                const open = isOpen(loan);
+                const overdue = isOverdue(loan);
+                const dueToday = isDueToday(loan);
+                return (
+                  <MobileItemCard
+                    key={loan.id}
+                    testId={`loan-mobile-${loan.id}`}
+                    media={
+                      <ThemeIcon
+                        color={overdue ? 'red' : 'teal'}
+                        variant="light"
+                        radius="md"
+                        size="lg"
+                      >
+                        <IconTruckReturn size={20} />
+                      </ThemeIcon>
+                    }
+                    actions={loanActions(loan)}
+                  >
+                    <Stack gap={4}>
+                      <Text fw={600} truncate c={open ? 'red' : undefined}>
+                        {loan.item_name}
+                      </Text>
+                      {loan.notes && (
+                        <Text size="sm" c="dimmed" truncate>
+                          {loan.notes}
+                        </Text>
+                      )}
+                      <Text size="sm" fw={500} c={open ? 'red' : undefined} truncate>
+                        {loan.borrower_display}
+                      </Text>
+                      {loan.member_name && (
+                        <Text size="xs" c="dimmed" truncate>
+                          {loan.member_name}
+                        </Text>
+                      )}
+                      <Text size="xs" c="dimmed">
+                        {t.inventoryPage.borrowedAt}: {formatISODate(loan.borrowed_at)}
+                      </Text>
+                      <Text
+                        size="xs"
+                        fw={500}
+                        c={overdue ? 'red' : open ? 'orange' : undefined}
+                      >
+                        {t.inventoryPage.expectedReturn}: {formatISODate(loan.expected_return)}
+                      </Text>
+                      {open ? (
+                        overdue ? (
+                          <Badge
+                            size="sm"
+                            variant="filled"
+                            color="red"
+                            style={{ width: 'fit-content' }}
+                          >
+                            {t.inventoryPage.overdueSince.replace(
+                              '{date}',
+                              formatISODate(loan.expected_return),
+                            )}
+                          </Badge>
+                        ) : dueToday ? (
+                          <Badge
+                            size="sm"
+                            variant="filled"
+                            color="orange"
+                            style={{ width: 'fit-content' }}
+                          >
+                            {t.inventoryPage.dueToday}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            size="sm"
+                            variant="light"
+                            color="red"
+                            style={{ width: 'fit-content' }}
+                          >
+                            {t.inventoryPage.statusActive}
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color="green"
+                          style={{ width: 'fit-content' }}
+                        >
+                          {t.inventoryPage.statusReturned}
+                        </Badge>
+                      )}
+                    </Stack>
+                  </MobileItemCard>
+                );
+              })}
+            </Stack>
+          </>
         )}
       </Card>
 

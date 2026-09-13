@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Box,
   Card,
   Group,
   Text,
@@ -27,6 +28,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
@@ -171,6 +173,34 @@ export default function UsersPage() {
     );
   }
 
+  const roleSelect = (u: ChurchMembership) => (
+    <Select
+      size="xs"
+      value={u.role}
+      data={ROLE_OPTIONS}
+      disabled={!canManageUsers || u.user_id === user?.id || savingRoleId === u.id}
+      onChange={(v) => v && handleRoleChange(u.id, v as Role)}
+      data-testid={`user-role-${u.id}`}
+      variant="default"
+      w={150}
+    />
+  );
+
+  const deleteAction = (u: ChurchMembership) =>
+    canManageUsers ? (
+      <Button
+        size="xs"
+        variant="subtle"
+        color="red"
+        leftSection={<IconTrash size={14} />}
+        disabled={u.user_id === user?.id}
+        onClick={() => setToRemove(u)}
+        data-testid={`user-remove-${u.id}`}
+      >
+        {t.common.delete}
+      </Button>
+    ) : null;
+
   const rows = users.map((u) => (
     <Table.Tr key={u.id} data-testid={`user-row-${u.id}`}>
       <Table.Td>
@@ -184,34 +214,37 @@ export default function UsersPage() {
         </Text>
       </Table.Td>
       <Table.Td>{u.user_email}</Table.Td>
-      <Table.Td>
-        <Select
-          size="xs"
-          value={u.role}
-          data={ROLE_OPTIONS}
-          disabled={!canManageUsers || u.user_id === user?.id || savingRoleId === u.id}
-          onChange={(v) => v && handleRoleChange(u.id, v as Role)}
-          data-testid={`user-role-${u.id}`}
-          variant="default"
-          w={150}
-        />
-      </Table.Td>
-      <Table.Td>
-        {canManageUsers && (
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            disabled={u.user_id === user?.id}
-            onClick={() => setToRemove(u)}
-            data-testid={`user-remove-${u.id}`}
-          >
-            {t.common.delete}
-          </Button>
-        )}
-      </Table.Td>
+      <Table.Td>{roleSelect(u)}</Table.Td>
+      <Table.Td>{deleteAction(u)}</Table.Td>
     </Table.Tr>
+  ));
+
+  const mobileCards = users.map((u) => (
+    <MobileItemCard
+      key={u.id}
+      testId={`user-mobile-${u.id}`}
+      media={
+        <ThemeIcon color="blue" variant="light" radius="md" size="lg">
+          <IconUserShield size={20} />
+        </ThemeIcon>
+      }
+      actions={deleteAction(u)}
+    >
+      <Stack gap={4}>
+        <Text fw={600}>
+          {u.user_name}
+          {u.user_id === user?.id && (
+            <Badge ml={4} size="xs" variant="light" color="blue">
+              {t.usersPage.self}
+            </Badge>
+          )}
+        </Text>
+        <Text size="sm" c="dimmed" truncate>
+          {u.user_email}
+        </Text>
+        {roleSelect(u)}
+      </Stack>
+    </MobileItemCard>
   ));
 
   return (
@@ -255,17 +288,24 @@ export default function UsersPage() {
               <Text c="dimmed">{t.usersPage.empty}</Text>
             </Stack>
           ) : (
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.common.name}</Table.Th>
-                  <Table.Th>{t.email}</Table.Th>
-                  <Table.Th>{t.usersPage.userRole}</Table.Th>
-                  <Table.Th>{t.common.actions}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
+            <>
+              <Box visibleFrom="sm">
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>{t.common.name}</Table.Th>
+                      <Table.Th>{t.email}</Table.Th>
+                      <Table.Th>{t.usersPage.userRole}</Table.Th>
+                      <Table.Th>{t.common.actions}</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>{rows}</Table.Tbody>
+                </Table>
+              </Box>
+              <Stack hiddenFrom="sm" gap="xs" p="sm">
+                {mobileCards}
+              </Stack>
+            </>
           )}
         </Card>
 

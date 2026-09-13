@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Avatar,
   Card,
   Group,
   Text,
@@ -30,6 +31,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MinistryArea } from '../types';
@@ -247,42 +249,84 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
                 {list.length} {t.memberReports.inArea}
               </Badge>
             </Group>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.membersPage.name}</Table.Th>
-                  <Table.Th>{t.membersPage.phone}</Table.Th>
-                  <Table.Th>{t.membersPage.status}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {list.map((m) => (
-                  <Table.Tr key={m.id}>
-                    <Table.Td>
-                      <Group gap="sm" wrap="nowrap">
-                        <Text fw={500} truncate maw={260}>
-                          {m.name}
-                        </Text>
-                        {m.card_number && (
-                          <Text size="xs" c="dimmed">
-                            #{m.card_number}
-                          </Text>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{m.phone || '—'}</Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                        variant="light"
-                      >
-                        {m.status_display}
-                      </Badge>
-                    </Table.Td>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.membersPage.name}</Table.Th>
+                    <Table.Th>{t.membersPage.phone}</Table.Th>
+                    <Table.Th>{t.membersPage.status}</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {list.map((m) => (
+                    <Table.Tr key={m.id}>
+                      <Table.Td>
+                        <Group gap="sm" wrap="nowrap">
+                          <Text fw={500} truncate maw={260}>
+                            {m.name}
+                          </Text>
+                          {m.card_number && (
+                            <Text size="xs" c="dimmed">
+                              #{m.card_number}
+                            </Text>
+                          )}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>{m.phone || '—'}</Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                          variant="light"
+                        >
+                          {m.status_display}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {list.map((m) => (
+                <MobileItemCard
+                  key={m.id}
+                  testId={`member-area-mobile-${m.id}`}
+                  media={
+                    <Avatar
+                      src={m.photo || null}
+                      radius="xl"
+                      size={48}
+                      data-testid={`member-area-mobile-avatar-${m.id}`}
+                    >
+                      {m.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  }
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {m.name}
+                    </Text>
+                    {m.card_number && (
+                      <Text size="xs" c="dimmed" truncate>
+                        #{m.card_number}
+                      </Text>
+                    )}
+                    <Text size="sm" c="dimmed" truncate>
+                      {m.phone || '—'}
+                    </Text>
+                    <Badge
+                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                      variant="light"
+                      size="sm"
+                      style={{ width: 'fit-content' }}
+                    >
+                      {m.status_display}
+                    </Badge>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
           </Card>
         ))}
     </Stack>
@@ -312,58 +356,113 @@ function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExp
             <Text c="dimmed">{t.memberReports.empty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.membersPage.name}</Table.Th>
-                <Table.Th>{t.membersPage.phone}</Table.Th>
-                <Table.Th>{t.membersPage.email}</Table.Th>
-                <Table.Th>{t.membersPage.bornInCity}</Table.Th>
-                <Table.Th>{t.membersPage.educationLevel}</Table.Th>
-                <Table.Th>{t.membersPage.maritalStatus}</Table.Th>
-                <Table.Th>{t.membersPage.churchEntry}</Table.Th>
-                <Table.Th>{t.membersPage.ministryAreas}</Table.Th>
-                <Table.Th>{t.membersPage.status}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {members.map((m) => (
-                <Table.Tr key={m.id}>
-                  <Table.Td>
-                    <Group gap="sm" wrap="nowrap">
-                      <Text fw={500} truncate maw={200}>
-                        {m.name}
-                      </Text>
-                      {m.card_number && (
-                        <Text size="xs" c="dimmed">
-                          #{m.card_number}
-                        </Text>
-                      )}
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>{m.phone || '—'}</Table.Td>
-                  <Table.Td>{m.email || '—'}</Table.Td>
-                  <Table.Td>{m.born_in_city || '—'}</Table.Td>
-                  <Table.Td>{m.education_level_display || '—'}</Table.Td>
-                  <Table.Td>{m.marital_status_display || '—'}</Table.Td>
-                  <Table.Td>{m.church_entry_display || '—'}</Table.Td>
-                  <Table.Td>
-                    {m.ministry_areas_display.length
-                      ? m.ministry_areas_display.map((a) => a.name).join(', ')
-                      : '—'}
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                      variant="light"
-                    >
-                      {m.status_display}
-                    </Badge>
-                  </Table.Td>
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.membersPage.name}</Table.Th>
+                    <Table.Th>{t.membersPage.phone}</Table.Th>
+                    <Table.Th>{t.membersPage.email}</Table.Th>
+                    <Table.Th>{t.membersPage.bornInCity}</Table.Th>
+                    <Table.Th>{t.membersPage.educationLevel}</Table.Th>
+                  <Table.Th>{t.membersPage.maritalStatus}</Table.Th>
+                  <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                  <Table.Th>{t.membersPage.ministryAreas}</Table.Th>
+                  <Table.Th>{t.membersPage.status}</Table.Th>
                 </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {members.map((m) => (
+                  <Table.Tr key={m.id}>
+                    <Table.Td>
+                      <Group gap="sm" wrap="nowrap">
+                        <Text fw={500} truncate maw={200}>
+                          {m.name}
+                        </Text>
+                        {m.card_number && (
+                          <Text size="xs" c="dimmed">
+                            #{m.card_number}
+                          </Text>
+                        )}
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>{m.phone || '—'}</Table.Td>
+                    <Table.Td>{m.email || '—'}</Table.Td>
+                    <Table.Td>{m.born_in_city || '—'}</Table.Td>
+                    <Table.Td>{m.education_level_display || '—'}</Table.Td>
+                    <Table.Td>{m.marital_status_display || '—'}</Table.Td>
+                    <Table.Td>{m.church_entry_display || '—'}</Table.Td>
+                    <Table.Td>
+                      {m.ministry_areas_display.length
+                        ? m.ministry_areas_display.map((a) => a.name).join(', ')
+                        : '—'}
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                        variant="light"
+                      >
+                        {m.status_display}
+                      </Badge>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Box>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {members.map((m) => (
+              <MobileItemCard
+                key={m.id}
+                testId={`member-listing-mobile-${m.id}`}
+                media={
+                  <Avatar
+                    src={m.photo || null}
+                    radius="xl"
+                    size={48}
+                    data-testid={`member-listing-mobile-avatar-${m.id}`}
+                  >
+                    {m.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                }
+              >
+                <Stack gap={4}>
+                  <Text fw={600} truncate>
+                    {m.name}
+                  </Text>
+                  {m.card_number && (
+                    <Text size="xs" c="dimmed" truncate>
+                      #{m.card_number}
+                    </Text>
+                  )}
+                  <Text size="sm" truncate>
+                    {m.phone || '—'}
+                  </Text>
+                  <Text size="sm" c="dimmed" truncate>
+                    {m.email || '—'}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {m.born_in_city || '—'}
+                  </Text>
+                  {m.ministry_areas_display.length > 0 && (
+                    <Text size="xs" c="dimmed" truncate>
+                      {m.ministry_areas_display.map((a) => a.name).join(', ')}
+                    </Text>
+                  )}
+                  <Badge
+                    color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                    variant="light"
+                    size="sm"
+                    style={{ width: 'fit-content' }}
+                  >
+                    {m.status_display}
+                  </Badge>
+                </Stack>
+              </MobileItemCard>
+            ))}
+          </Stack>
+          </>
         )}
       </Card>
     </Stack>
@@ -500,57 +599,115 @@ function BirthdaysTab({
             <Text c="dimmed">{t.birthdays.none}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.birthdays.day}</Table.Th>
-                <Table.Th>{t.membersPage.name}</Table.Th>
-                <Table.Th>{t.birthdays.age}</Table.Th>
-                <Table.Th>{t.membersPage.phone}</Table.Th>
-                <Table.Th>{t.membersPage.email}</Table.Th>
-                <Table.Th>{t.membersPage.status}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {list.map((m) => {
-                const age = exactAge(m.birth_date);
-                return (
-                  <Table.Tr key={m.id}>
-                    <Table.Td>
-                      <Badge color="grape" variant="light" radius="xl">
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.birthdays.day}</Table.Th>
+                  <Table.Th>{t.membersPage.name}</Table.Th>
+                  <Table.Th>{t.birthdays.age}</Table.Th>
+                  <Table.Th>{t.membersPage.phone}</Table.Th>
+                  <Table.Th>{t.membersPage.email}</Table.Th>
+                  <Table.Th>{t.membersPage.status}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {list.map((m) => {
+                  const age = exactAge(m.birth_date);
+                  return (
+                    <Table.Tr key={m.id}>
+                      <Table.Td>
+                        <Badge color="grape" variant="light" radius="xl">
+                          {new Date(`${m.birth_date}T00:00:00`).getDate()}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="sm" wrap="nowrap">
+                          <Text fw={500} truncate maw={260}>
+                            {m.name}
+                          </Text>
+                          {m.card_number && (
+                            <Text size="xs" c="dimmed">
+                              #{m.card_number}
+                            </Text>
+                          )}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
+                      </Table.Td>
+                      <Table.Td>{m.phone || '—'}</Table.Td>
+                      <Table.Td>{m.email || '—'}</Table.Td>
+                      <Table.Td>
+                        <Badge
+                          color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                          variant="light"
+                        >
+                          {m.status_display}
+                        </Badge>
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+          </Box>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {list.map((m) => {
+              const age = exactAge(m.birth_date);
+              return (
+                <MobileItemCard
+                  key={m.id}
+                  testId={`member-birthday-mobile-${m.id}`}
+                  media={
+                    <Avatar
+                      src={m.photo || null}
+                      radius="xl"
+                      size={48}
+                      data-testid={`member-birthday-mobile-avatar-${m.id}`}
+                    >
+                      {m.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  }
+                >
+                  <Stack gap={4}>
+                    <Group gap={6} wrap="nowrap" align="center">
+                      <Badge color="grape" variant="light" radius="xl" size="sm">
                         {new Date(`${m.birth_date}T00:00:00`).getDate()}
                       </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap="sm" wrap="nowrap">
-                        <Text fw={500} truncate maw={260}>
-                          {m.name}
-                        </Text>
-                        {m.card_number && (
-                          <Text size="xs" c="dimmed">
-                            #{m.card_number}
-                          </Text>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
+                      <Text fw={600} truncate>
+                        {m.name}
+                      </Text>
+                    </Group>
+                    {m.card_number && (
+                      <Text size="xs" c="dimmed" truncate>
+                        #{m.card_number}
+                      </Text>
+                    )}
+                    <Text size="sm" c="dimmed" truncate>
                       {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
-                    </Table.Td>
-                    <Table.Td>{m.phone || '—'}</Table.Td>
-                    <Table.Td>{m.email || '—'}</Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                        variant="light"
-                      >
-                        {m.status_display}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                );
-              })}
-            </Table.Tbody>
-          </Table>
+                    </Text>
+                    <Text size="sm" c="dimmed" truncate>
+                      {m.phone || '—'}
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate>
+                      {m.email || '—'}
+                    </Text>
+                    <Badge
+                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                      variant="light"
+                      size="sm"
+                      style={{ width: 'fit-content' }}
+                    >
+                      {m.status_display}
+                    </Badge>
+                  </Stack>
+                </MobileItemCard>
+              );
+            })}
+          </Stack>
+          </>
         )}
       </Card>
     </Stack>

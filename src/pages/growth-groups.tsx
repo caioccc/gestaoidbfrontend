@@ -22,6 +22,7 @@ import {
   IconAlertTriangle,
   IconCalendarEvent,
   IconHomeHeart,
+  IconLink,
   IconMapPin,
   IconPlus,
   IconUsersGroup,
@@ -32,9 +33,10 @@ import Layout from '../components/Layout';
 import GrowthGroupsMap, { type SimulationPoint } from '../components/GrowthGroupsMap';
 import GrowthGroupsTable from '../components/GrowthGroupsTable';
 import GrowthGroupFormModal from '../components/GrowthGroupFormModal';
-import { accountsApi, growthGroupsApi } from '../api/accounts';
+import { accountsApi, churchLinksApi, growthGroupsApi } from '../api/accounts';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n';
+import { absoluteUrl, copyToClipboard } from '../utils/share';
 import { nearestGroup, haversineMeters } from '../utils/geo';
 import type {
   GrowthGroup,
@@ -175,6 +177,18 @@ export default function GrowthGroupsPage() {
       .finally(() => setSaving(false));
   };
 
+  const copyPublicLink = async () => {
+    let path = '/gc';
+    try {
+      const config = await churchLinksApi.config();
+      if (config.slug) path = `/gc/${config.slug}`;
+    } catch {
+      // slug indisponível: copia o caminho relativo
+    }
+    await copyToClipboard(absoluteUrl(path));
+    notifications.show({ color: 'green', message: t.growthGroups.publicLinkCopied });
+  };
+
   const confirmDelete = () => {
     if (!toDelete) return;
     setDeleting(true);
@@ -229,13 +243,23 @@ export default function GrowthGroupsPage() {
           description={t.growthGroups.subtitle}
         >
           {canEdit && (
-            <Button
-              leftSection={<IconPlus size={18} />}
-              onClick={openCreate}
-              data-testid="add-gc"
-            >
-              {t.growthGroups.newGroup}
-            </Button>
+            <Group gap="sm">
+              <Button
+                variant="default"
+                leftSection={<IconLink size={18} />}
+                onClick={copyPublicLink}
+                data-testid="gc-copy-public-link"
+              >
+                {t.growthGroups.copyPublicLink}
+              </Button>
+              <Button
+                leftSection={<IconPlus size={18} />}
+                onClick={openCreate}
+                data-testid="add-gc"
+              >
+                {t.growthGroups.newGroup}
+              </Button>
+            </Group>
           )}
         </PageHeader>
 

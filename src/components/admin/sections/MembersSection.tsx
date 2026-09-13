@@ -1,17 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Card,
-  Group,
-  Text,
-  Stack,
-  Badge,
-  Button,
-  ThemeIcon,
-  Modal,
-  Table,
-  Center,
-  Loader,
+  ActionIcon,
   Avatar,
+  Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Checkbox,
+  Group,
+  Loader,
+  Menu,
+  Modal,
+  Stack,
+  Table,
+  Text,
+  ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -21,8 +25,10 @@ import {
   IconPencil,
   IconRefresh,
   IconId,
+  IconDotsVertical,
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
+import MobileItemCard from '../../../components/MobileItemCard';
 import MemberFormModal from '../../../components/MemberFormModal';
 import MemberCardModal from '../../../components/MemberCardModal';
 import { useLanguage } from '../../../i18n';
@@ -54,6 +60,7 @@ export default function MembersSection({
   const [cardMember, setCardMember] = useState<Member | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -64,6 +71,7 @@ export default function MembersSection({
       .then(([membersData, areasData]) => {
         setMembers(membersData);
         setAreas(areasData);
+        setSelected(new Set());
       })
       .catch(() => {
         setMembers([]);
@@ -112,8 +120,58 @@ export default function MembersSection({
     }
   };
 
+  const allSelected =
+    members.length > 0 && members.every((m) => selected.has(m.id));
+
+  const toggleAll = () =>
+    setSelected(allSelected ? new Set() : new Set(members.map((m) => m.id)));
+
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const memberActions = (m: Member) => (
+    <>
+      <Menu.Item
+        leftSection={<IconId size={14} />}
+        onClick={() => setCardMember(m)}
+        data-testid={`member-card-${m.id}`}
+      >
+        {t.membersPage.viewCard}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(m)}
+        data-testid={`member-edit-${m.id}`}
+      >
+        {t.common.edit}
+      </Menu.Item>
+      <Menu.Divider />
+      <Menu.Item
+        leftSection={<IconTrash size={14} />}
+        color="red"
+        onClick={() => setToDelete(m)}
+        data-testid={`member-delete-${m.id}`}
+      >
+        {t.common.delete}
+      </Menu.Item>
+    </>
+  );
+
   const rows = members.map((m) => (
     <Table.Tr key={m.id} data-testid={`member-row-${m.id}`}>
+      <Table.Td>
+        <Checkbox
+          checked={selected.has(m.id)}
+          onChange={() => toggle(m.id)}
+          aria-label={m.name}
+          data-testid={`member-select-${m.id}`}
+        />
+      </Table.Td>
       <Table.Td>
         <Group gap="sm" wrap="nowrap">
           <Avatar
@@ -139,7 +197,6 @@ export default function MembersSection({
       <Table.Td>{m.phone || '—'}</Table.Td>
       <Table.Td>{m.email || '—'}</Table.Td>
       <Table.Td>{m.church_entry_display || '—'}</Table.Td>
-      <Table.Td hiddenFrom="sm" />
       <Table.Td>
         <Badge color={m.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
           {m.status === 'ACTIVE' ? t.membersPage.active : t.membersPage.inactive}
@@ -147,34 +204,14 @@ export default function MembersSection({
       </Table.Td>
       <Table.Td>
         <Group gap={4} justify="flex-end">
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconId size={14} />}
-            onClick={() => setCardMember(m)}
-            data-testid={`member-card-${m.id}`}
-          >
-            {t.membersPage.viewCard}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconPencil size={14} />}
-            onClick={() => openEdit(m)}
-            data-testid={`member-edit-${m.id}`}
-          >
-            {t.common.edit}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            onClick={() => setToDelete(m)}
-            data-testid={`member-delete-${m.id}`}
-          >
-            {t.common.delete}
-          </Button>
+          <Menu shadow="md" width={200} position="bottom-end">
+            <Menu.Target>
+              <ActionIcon variant="subtle" data-testid={`member-menu-${m.id}`}>
+                <IconDotsVertical size={16} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>{memberActions(m)}</Menu.Dropdown>
+          </Menu>
         </Group>
       </Table.Td>
     </Table.Tr>
@@ -214,19 +251,91 @@ export default function MembersSection({
             <Text c="dimmed">{t.membersPage.empty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.membersPage.name}</Table.Th>
-                <Table.Th>{t.membersPage.phone}</Table.Th>
-                <Table.Th>{t.membersPage.email}</Table.Th>
-                <Table.Th>{t.membersPage.churchEntry}</Table.Th>
-                <Table.Th>{t.membersPage.status}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={36}>
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={selected.size > 0 && !allSelected}
+                        onChange={toggleAll}
+                        aria-label={t.membersPage.selectAll}
+                        data-testid="members-select-all"
+                      />
+                    </Table.Th>
+                    <Table.Th>{t.membersPage.name}</Table.Th>
+                    <Table.Th>{t.membersPage.phone}</Table.Th>
+                    <Table.Th>{t.membersPage.email}</Table.Th>
+                    <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                    <Table.Th>{t.membersPage.status}</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{rows}</Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {members.map((m) => (
+                <Group key={m.id} gap="sm" align="flex-start" wrap="nowrap">
+                  <Checkbox
+                    checked={selected.has(m.id)}
+                    onChange={() => toggle(m.id)}
+                    aria-label={m.name}
+                    mt={6}
+                    data-testid={`member-mobile-select-${m.id}`}
+                  />
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <MobileItemCard
+                      testId={`member-listing-mobile-${m.id}`}
+                      media={
+                        <Avatar
+                          src={m.photo || null}
+                          radius="xl"
+                          size={48}
+                          data-testid={`member-listing-mobile-avatar-${m.id}`}
+                        >
+                          {m.name?.charAt(0)?.toUpperCase()}
+                        </Avatar>
+                      }
+                      actions={memberActions(m)}
+                    >
+                      <Stack gap={4}>
+                        <Text fw={600} truncate>
+                          {m.name}
+                        </Text>
+                        {m.card_number && (
+                          <Text size="xs" c="dimmed" truncate>
+                            #{m.card_number}
+                          </Text>
+                        )}
+                        <Text size="sm" c="dimmed" truncate>
+                          {m.phone || '—'}
+                        </Text>
+                        <Text size="sm" c="dimmed" truncate>
+                          {m.email || '—'}
+                        </Text>
+                        <Text size="xs" c="dimmed" truncate>
+                          {m.church_entry_display || '—'}
+                        </Text>
+                        <Badge
+                          color={m.status === 'ACTIVE' ? 'green' : 'gray'}
+                          variant="light"
+                          size="sm"
+                          style={{ width: 'fit-content' }}
+                        >
+                          {m.status === 'ACTIVE'
+                            ? t.membersPage.active
+                            : t.membersPage.inactive}
+                        </Badge>
+                      </Stack>
+                    </MobileItemCard>
+                  </Box>
+                </Group>
+              ))}
+            </Stack>
+          </>
         )}
       </Card>
 

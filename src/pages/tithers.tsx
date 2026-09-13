@@ -15,9 +15,9 @@ import {
   ThemeIcon,
   Button,
   Modal,
+  Menu,
   TextInput,
   ActionIcon,
-  Tooltip,
   Switch,
   Box,
   Divider,
@@ -33,9 +33,11 @@ import {
   IconTrash,
   IconCoins,
   IconRepeat,
+  IconDotsVertical,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import MoneyInput from '../components/MoneyInput';
+import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
 import { TitherMatrix, TitherMatrixMember, Reconciliation, Tither, TitherRepeatAudit } from '../types';
 import { financeApi } from '../api/finance';
@@ -235,6 +237,36 @@ export default function TithersPage() {
     );
   };
 
+  const titherMenuItems = (member: Tither) => (
+    <>
+      <Menu.Item
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(member)}
+        data-testid={`tither-edit-${member.id}`}
+      >
+        {t.common.edit}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconTrash size={14} />}
+        color="red"
+        onClick={() => setDeleteTarget(member)}
+        data-testid={`tither-delete-${member.id}`}
+      >
+        {t.common.delete}
+      </Menu.Item>
+    </>
+  );
+
+  const reconcileMenuItems = (member: TitherMatrixMember) => (
+    <Menu.Item
+      leftSection={<IconCoins size={14} />}
+      onClick={() => openEditTithes(member)}
+      data-testid={`tither-reconcile-${member.id}`}
+    >
+      {t.tithersPage.editTithes}
+    </Menu.Item>
+  );
+
   const saveTithes = async () => {
     if (!tithesTarget) return;
     setTithesSaving(true);
@@ -425,47 +457,81 @@ export default function TithersPage() {
             {t.common.noData}
           </Text>
         ) : (
-          <ScrollArea>
-            <Table striped withTableBorder highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.common.name}</Table.Th>
-                  <Table.Th>{t.common.type}</Table.Th>
-                  <Table.Th ta="right">{t.common.actions}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {members.map((member) => (
-                  <Table.Tr key={member.id}>
-                    <Table.Td>{member.name}</Table.Td>
-                    <Table.Td>
-                      {member.is_anonymous ? (
-                        <Badge variant="light" color="gray">
-                          {t.tithersPage.anonymous}
-                        </Badge>
-                      ) : (
-                        <Text c="dimmed">—</Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td ta="right">
-                      <Group gap={4} justify="flex-end" wrap="nowrap">
-                        <Tooltip label={t.common.edit}>
-                          <ActionIcon color="blue" variant="subtle" onClick={() => openEdit(member)}>
-                            <IconPencil size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label={t.common.delete}>
-                          <ActionIcon color="red" variant="subtle" onClick={() => setDeleteTarget(member)}>
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Tooltip>
-                      </Group>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
+          <>
+            <Box visibleFrom="sm">
+              <ScrollArea>
+                <Table striped withTableBorder highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>{t.common.name}</Table.Th>
+                      <Table.Th>{t.common.type}</Table.Th>
+                      <Table.Th ta="right">{t.common.actions}</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {members.map((member) => (
+                      <Table.Tr key={member.id}>
+                        <Table.Td>{member.name}</Table.Td>
+                        <Table.Td>
+                          {member.is_anonymous ? (
+                            <Badge variant="light" color="gray">
+                              {t.tithersPage.anonymous}
+                            </Badge>
+                          ) : (
+                            <Text c="dimmed">—</Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          <Menu shadow="md" width={200} position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                variant="subtle"
+                                aria-label={t.common.actions}
+                                data-testid={`tither-menu-${member.id}`}
+                              >
+                                <IconDotsVertical size={16} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>{titherMenuItems(member)}</Menu.Dropdown>
+                          </Menu>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {members.map((member) => (
+                <MobileItemCard
+                  key={member.id}
+                  testId={`tither-mobile-${member.id}`}
+                  media={
+                    <ThemeIcon color="teal" variant="light" radius="md" size="lg">
+                      <IconUsers size={20} />
+                    </ThemeIcon>
+                  }
+                  actions={titherMenuItems(member)}
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {member.name}
+                    </Text>
+                    {member.is_anonymous && (
+                      <Badge
+                        variant="light"
+                        color="gray"
+                        size="sm"
+                        style={{ width: 'fit-content' }}
+                      >
+                        {t.tithersPage.anonymous}
+                      </Badge>
+                    )}
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
+          </>
         )}
       </Paper>
 
@@ -489,63 +555,126 @@ export default function TithersPage() {
             {t.common.noData}
           </Text>
         ) : (
-          <ScrollArea>
-            <Table striped withTableBorder highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th />
-                  <Table.Th>{t.common.name}</Table.Th>
-                  {t.months.map((m, i) => (
-                    <Table.Th key={i} ta="right">
-                      {m.slice(0, 3)}
-                    </Table.Th>
-                  ))}
-                  <Table.Th ta="right">{t.common.total}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {matrix.members.map((member) => (
-                  <Table.Tr key={member.id}>
-                    <Table.Td>
-                      <Tooltip label={t.tithersPage.editTithes}>
-                        <ActionIcon color="teal" variant="subtle" onClick={() => openEditTithes(member)}>
-                          <IconCoins size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
-                    <Table.Td c={member.is_anonymous ? 'dimmed' : undefined}>
-                      {member.name}
-                    </Table.Td>
-                    {member.months.map((val, i) => (
-                      <Table.Td key={i} ta="right">
-                        {val ? formatBRL(val) : '—'}
-                      </Table.Td>
+          <>
+            <Box visibleFrom="sm">
+              <ScrollArea>
+                <Table striped withTableBorder highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th />
+                      <Table.Th>{t.common.name}</Table.Th>
+                      {t.months.map((m, i) => (
+                        <Table.Th key={i} ta="right">
+                          {m.slice(0, 3)}
+                        </Table.Th>
+                      ))}
+                      <Table.Th ta="right">{t.common.total}</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {matrix.members.map((member) => (
+                      <Table.Tr key={member.id}>
+                        <Table.Td>
+                          <Menu shadow="md" width={200} position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                color="teal"
+                                variant="subtle"
+                                aria-label={t.tithersPage.editTithes}
+                                data-testid={`tither-reconcile-menu-${member.id}`}
+                              >
+                                <IconCoins size={16} />
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>{reconcileMenuItems(member)}</Menu.Dropdown>
+                          </Menu>
+                        </Table.Td>
+                        <Table.Td c={member.is_anonymous ? 'dimmed' : undefined}>
+                          {member.name}
+                        </Table.Td>
+                        {member.months.map((val, i) => (
+                          <Table.Td key={i} ta="right">
+                            {val ? formatBRL(val) : '—'}
+                          </Table.Td>
+                        ))}
+                        <Table.Td ta="right" fw={700}>
+                          {formatBRL(member.total)}
+                        </Table.Td>
+                      </Table.Tr>
                     ))}
-                    <Table.Td ta="right" fw={700}>
-                      {formatBRL(member.total)}
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-                <Table.Tr
-                  style={{
-                    background: 'var(--mantine-color-default-hover)',
-                    borderTop: '2px solid var(--mantine-color-default-border)',
-                  }}
+                    <Table.Tr
+                      style={{
+                        background: 'var(--mantine-color-default-hover)',
+                        borderTop: '2px solid var(--mantine-color-default-border)',
+                      }}
+                    >
+                      <Table.Td />
+                      <Table.Td fw={700}>{t.common.total}</Table.Td>
+                      {matrix.month_totals.map((val, i) => (
+                        <Table.Td key={i} ta="right" fw={600}>
+                          {val ? formatBRL(val) : '—'}
+                        </Table.Td>
+                      ))}
+                      <Table.Td ta="right" fw={800}>
+                        {formatBRL(matrix.grand_total)}
+                      </Table.Td>
+                    </Table.Tr>
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {matrix.members.map((member) => (
+                <MobileItemCard
+                  key={member.id}
+                  testId={`tither-matrix-mobile-${member.id}`}
+                  media={
+                    <ThemeIcon color="teal" variant="light" radius="md" size="lg">
+                      <IconUsers size={20} />
+                    </ThemeIcon>
+                  }
+                  actions={reconcileMenuItems(member)}
                 >
-                  <Table.Td />
-                  <Table.Td fw={700}>{t.common.total}</Table.Td>
-                  {matrix.month_totals.map((val, i) => (
-                    <Table.Td key={i} ta="right" fw={600}>
-                      {val ? formatBRL(val) : '—'}
-                    </Table.Td>
-                  ))}
-                  <Table.Td ta="right" fw={800}>
-                    {formatBRL(matrix.grand_total)}
-                  </Table.Td>
-                </Table.Tr>
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
+                  <Stack gap={6}>
+                    <Text fw={600} truncate>
+                      {member.name}
+                      {member.is_anonymous && (
+                        <Badge ml={4} size="xs" variant="light" color="gray">
+                          {t.tithersPage.anonymous}
+                        </Badge>
+                      )}
+                    </Text>
+                    <SimpleGrid cols={6} spacing="xs" verticalSpacing={6}>
+                      {t.months.map((m, i) => (
+                        <Stack key={i} gap={2} align="center">
+                          <Text fz={10} c="dimmed" fw={500}>
+                            {m.slice(0, 3)}
+                          </Text>
+                          {member.months[i] ? (
+                            <Text size="xs" fw={600} ta="center">
+                              {formatBRL(member.months[i])}
+                            </Text>
+                          ) : (
+                            <Text size="xs" c="dimmed" ta="center">
+                              —
+                            </Text>
+                          )}
+                        </Stack>
+                      ))}
+                    </SimpleGrid>
+                    <Group justify="space-between" align="center" mt={4}>
+                      <Text size="sm" fw={600} c="dimmed">
+                        {t.common.total}
+                      </Text>
+                      <Text size="sm" fw={700}>
+                        {formatBRL(member.total)}
+                      </Text>
+                    </Group>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
+          </>
         )}
       </Paper>
 

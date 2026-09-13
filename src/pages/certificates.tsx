@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import {
   ActionIcon,
   Badge,
+  Box,
   Button,
   Card,
   Center,
@@ -32,6 +33,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import CertificateIssueModal from '../components/CertificateIssueModal';
 import CertificateTemplateModal from '../components/CertificateTemplateModal';
 import { useLanguage } from '../i18n';
@@ -127,6 +129,29 @@ function IssuedTab() {
     { value: 'CUSTOM', label: t.certificates.typeCustom },
   ];
 
+  const certActions = (cert: EcclesiasticalCertificate) => (
+    <Group gap={4} justify="flex-end" wrap="nowrap">
+      <Tooltip label={t.certificates.reprint}>
+        <ActionIcon
+          variant="subtle"
+          color="blue"
+          onClick={() => handleDownload(cert)}
+          data-testid={`cert-download-${cert.id}`}
+        >
+          <IconDownload size={18} />
+        </ActionIcon>
+      </Tooltip>
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        onClick={() => setDeleting(cert)}
+        data-testid={`cert-delete-${cert.id}`}
+      >
+        <IconTrash size={17} />
+      </ActionIcon>
+    </Group>
+  );
+
   return (
     <Stack gap="md">
       <Group justify="space-between" align="flex-end">
@@ -176,77 +201,103 @@ function IssuedTab() {
         </Card>
       ) : (
         <Card withBorder padding={0}>
-          <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.certificates.templateType}</Table.Th>
-                <Table.Th>{t.certificates.recipient}</Table.Th>
-                <Table.Th>{t.certificates.eventDate}</Table.Th>
-                <Table.Th>{t.certificates.registry}</Table.Th>
-                <Table.Th ta="right">{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {certificates.map((cert) => (
-                <Table.Tr key={cert.id}>
-                  <Table.Td>
-                    <Badge color="teal" variant="light" size="sm">
-                      {cert.certificate_type_display}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text fw={500} size="sm">
-                      {cert.recipient_name}
-                    </Text>
-                    {cert.member_name ? (
-                      <Text size="xs" c="dimmed">
-                        {cert.member_name}
+          <Box visibleFrom="sm">
+            <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>{t.certificates.templateType}</Table.Th>
+                  <Table.Th>{t.certificates.recipient}</Table.Th>
+                  <Table.Th>{t.certificates.eventDate}</Table.Th>
+                  <Table.Th>{t.certificates.registry}</Table.Th>
+                  <Table.Th ta="right">{t.common.actions}</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {certificates.map((cert) => (
+                  <Table.Tr key={cert.id}>
+                    <Table.Td>
+                      <Badge color="teal" variant="light" size="sm">
+                        {cert.certificate_type_display}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text fw={500} size="sm">
+                        {cert.recipient_name}
                       </Text>
-                    ) : null}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{formatPtDate(cert.event_date)}</Text>
+                      {cert.member_name ? (
+                        <Text size="xs" c="dimmed">
+                          {cert.member_name}
+                        </Text>
+                      ) : null}
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{formatPtDate(cert.event_date)}</Text>
+                      {cert.officiant_name ? (
+                        <Text size="xs" c="dimmed">
+                          {cert.officiant_name}
+                        </Text>
+                      ) : null}
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs">
+                        {[cert.registry_number && `${t.certificates.term} ${cert.registry_number}`,
+                          cert.registry_page && `${t.certificates.page} ${cert.registry_page}`,
+                          cert.registry_book && `${t.certificates.book} ${cert.registry_book}`]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>{certActions(cert)}</Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Box>
+          <Stack hiddenFrom="sm" gap="xs" p="sm">
+            {certificates.map((cert) => (
+              <MobileItemCard
+                key={cert.id}
+                testId={`cert-mobile-${cert.id}`}
+                media={
+                  <ThemeIcon color="grape" variant="light" radius="md" size="lg">
+                    <IconCertificate size={20} />
+                  </ThemeIcon>
+                }
+                actions={certActions(cert)}
+              >
+                <Stack gap={4}>
+                  <Badge color="teal" variant="light" size="sm" style={{ width: 'fit-content' }}>
+                    {cert.certificate_type_display}
+                  </Badge>
+                  <Text fw={600} truncate>
+                    {cert.recipient_name}
+                  </Text>
+                  {cert.member_name ? (
+                    <Text size="xs" c="dimmed" truncate>
+                      {cert.member_name}
+                    </Text>
+                  ) : null}
+                  <Group gap={4} wrap="nowrap" align="center">
+                    <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+                      {formatPtDate(cert.event_date)}
+                    </Text>
                     {cert.officiant_name ? (
-                      <Text size="xs" c="dimmed">
+                      <Text size="xs" c="dimmed" truncate style={{ flex: 1, minWidth: 0 }}>
                         {cert.officiant_name}
                       </Text>
                     ) : null}
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="xs">
-                      {[cert.registry_number && `${t.certificates.term} ${cert.registry_number}`,
-                        cert.registry_page && `${t.certificates.page} ${cert.registry_page}`,
-                        cert.registry_book && `${t.certificates.book} ${cert.registry_book}`]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group justify="flex-end" gap={4}>
-                      <Tooltip label={t.certificates.reprint}>
-                        <ActionIcon
-                          variant="subtle"
-                          color="blue"
-                          onClick={() => handleDownload(cert)}
-                          data-testid="cert-download"
-                        >
-                          <IconDownload size={18} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        onClick={() => setDeleting(cert)}
-                        data-testid="cert-delete"
-                      >
-                        <IconTrash size={17} />
-                      </ActionIcon>
-                    </Group>
-                  </Table.Td>
-                </Table.Tr>
-              ))}
-            </Table.Tbody>
-          </Table>
+                  </Group>
+                  <Text size="xs" c="dimmed" truncate>
+                    {[cert.registry_number && `${t.certificates.term} ${cert.registry_number}`,
+                      cert.registry_page && `${t.certificates.page} ${cert.registry_page}`,
+                      cert.registry_book && `${t.certificates.book} ${cert.registry_book}`]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                </Stack>
+              </MobileItemCard>
+            ))}
+          </Stack>
         </Card>
       )}
 
@@ -312,6 +363,30 @@ function TemplatesTab() {
     load();
   }, [load]);
 
+  const templateActions = (tmpl: CertificateTemplate) => (
+    <Group gap={4} justify="flex-end" wrap="nowrap">
+      <ActionIcon
+        variant="subtle"
+        color="blue"
+        onClick={() => {
+          setEditing(tmpl);
+          setModalOpen(true);
+        }}
+        data-testid={`template-edit-${tmpl.id}`}
+      >
+        <IconPencil size={17} />
+      </ActionIcon>
+      <ActionIcon
+        variant="subtle"
+        color="red"
+        onClick={() => setDeleting(tmpl)}
+        data-testid={`template-delete-${tmpl.id}`}
+      >
+        <IconTrash size={17} />
+      </ActionIcon>
+    </Group>
+  );
+
   return (
     <Stack gap="md">
       <Group justify="flex-end">
@@ -338,80 +413,104 @@ function TemplatesTab() {
           </Center>
         </Card>
       ) : (
-        <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t.certificates.templateName}</Table.Th>
-              <Table.Th>{t.certificates.templateType}</Table.Th>
-              <Table.Th>{t.certificates.layoutMode}</Table.Th>
-              <Table.Th>{t.common.status}</Table.Th>
-              <Table.Th ta="right">{t.common.actions}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {templates.map((tmpl) => (
-              <Table.Tr key={tmpl.id}>
-                <Table.Td>
-                  <Group gap="sm" wrap="nowrap">
-                    <ThemeIcon
-                      radius="md"
-                      size={34}
-                      variant="light"
-                      color={tmpl.layout_mode === 'CUSTOM_IMAGE' ? 'grape' : 'blue'}
-                    >
-                      {tmpl.layout_mode === 'CUSTOM_IMAGE' ? (
-                        <IconPhoto size={18} />
-                      ) : tmpl.layout_mode === 'BASE_PDF' ? (
-                        <IconFileTypePdf size={18} />
-                      ) : (
-                        <IconCertificate size={18} />
-                      )}
-                    </ThemeIcon>
-                    <Text fw={500} size="sm">
-                      {tmpl.name}
-                    </Text>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Badge color="teal" variant="light" size="sm">
-                    {tmpl.certificate_type_display}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{tmpl.layout_mode_display}</Text>
-                </Table.Td>
-                <Table.Td>
+        <>
+          <Box visibleFrom="sm">
+            <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t.certificates.templateName}</Table.Th>
+                <Table.Th>{t.certificates.templateType}</Table.Th>
+                <Table.Th>{t.certificates.layoutMode}</Table.Th>
+                <Table.Th>{t.common.status}</Table.Th>
+                <Table.Th ta="right">{t.common.actions}</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {templates.map((tmpl) => (
+                <Table.Tr key={tmpl.id}>
+                  <Table.Td>
+                    <Group gap="sm" wrap="nowrap">
+                      <ThemeIcon
+                        radius="md"
+                        size={34}
+                        variant="light"
+                        color={tmpl.layout_mode === 'CUSTOM_IMAGE' ? 'grape' : 'blue'}
+                      >
+                        {tmpl.layout_mode === 'CUSTOM_IMAGE' ? (
+                          <IconPhoto size={18} />
+                        ) : tmpl.layout_mode === 'BASE_PDF' ? (
+                          <IconFileTypePdf size={18} />
+                        ) : (
+                          <IconCertificate size={18} />
+                        )}
+                      </ThemeIcon>
+                      <Text fw={500} size="sm">
+                        {tmpl.name}
+                      </Text>
+                    </Group>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color="teal" variant="light" size="sm">
+                      {tmpl.certificate_type_display}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>
+                    <Text size="sm">{tmpl.layout_mode_display}</Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <Badge color={tmpl.is_active ? 'green' : 'gray'} variant="light" size="sm">
+                      {tmpl.is_active ? t.certificates.active : t.certificates.inactive}
+                    </Badge>
+                  </Table.Td>
+                  <Table.Td>{templateActions(tmpl)}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        </Box>
+        <Stack hiddenFrom="sm" gap="xs">
+          {templates.map((tmpl) => (
+            <MobileItemCard
+              key={tmpl.id}
+              testId={`template-mobile-${tmpl.id}`}
+              media={
+                <ThemeIcon
+                  radius="md"
+                  size="lg"
+                  variant="light"
+                  color={tmpl.layout_mode === 'CUSTOM_IMAGE' ? 'grape' : 'blue'}
+                >
+                  {tmpl.layout_mode === 'CUSTOM_IMAGE' ? (
+                    <IconPhoto size={20} />
+                  ) : tmpl.layout_mode === 'BASE_PDF' ? (
+                    <IconFileTypePdf size={20} />
+                  ) : (
+                    <IconCertificate size={20} />
+                  )}
+                </ThemeIcon>
+              }
+              actions={templateActions(tmpl)}
+            >
+              <Stack gap={4}>
+                <Text fw={600} truncate>
+                  {tmpl.name}
+                </Text>
+                <Badge color="teal" variant="light" size="sm" style={{ width: 'fit-content' }}>
+                  {tmpl.certificate_type_display}
+                </Badge>
+                <Group gap={4} wrap="nowrap" align="center">
+                  <Text size="sm" c="dimmed">
+                    {tmpl.layout_mode_display}
+                  </Text>
                   <Badge color={tmpl.is_active ? 'green' : 'gray'} variant="light" size="sm">
                     {tmpl.is_active ? t.certificates.active : t.certificates.inactive}
                   </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Group justify="flex-end" gap={4}>
-                    <ActionIcon
-                      variant="subtle"
-                      color="blue"
-                      onClick={() => {
-                        setEditing(tmpl);
-                        setModalOpen(true);
-                      }}
-                      data-testid="template-edit"
-                    >
-                      <IconPencil size={17} />
-                    </ActionIcon>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => setDeleting(tmpl)}
-                      data-testid="template-delete"
-                    >
-                      <IconTrash size={17} />
-                    </ActionIcon>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
+                </Group>
+              </Stack>
+</MobileItemCard>
             ))}
-          </Table.Tbody>
-        </Table>
+          </Stack>
+        </>
       )}
 
       <CertificateTemplateModal

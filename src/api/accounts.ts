@@ -11,6 +11,8 @@ import {
   ChurchMembership,
   ChurchMinutes,
   EcclesiasticalCertificate,
+  CertificateFieldKey,
+  CertificateFieldLayout,
   Loan,
   LoginResponse,
   MaterialItem,
@@ -27,6 +29,7 @@ import {
   PublicCardPayload,
   PublicFormMeta,
   PublicMinutesPayload,
+  PublicMemberProfile,
   PublicSubmissionResult,
   ResponsibleUserPayload,
   Role,
@@ -65,6 +68,7 @@ export interface CertificateTemplatePayload {
   base_pdf?: File | null;
   remove_background_image?: boolean;
   remove_base_pdf?: boolean;
+  fields_layout?: Record<CertificateFieldKey, CertificateFieldLayout> | null;
 }
 
 export interface WorshipServicePayload {
@@ -691,6 +695,7 @@ function certificateTemplateFormData(payload: CertificateTemplatePayload): FormD
   if (basePdf) fd.append('base_pdf', basePdf);
   if (payload.remove_background_image) fd.append('remove_background_image', 'true');
   if (payload.remove_base_pdf) fd.append('remove_base_pdf', 'true');
+  if (payload.fields_layout) fd.append('fields_layout', JSON.stringify(payload.fields_layout));
   return fd;
 }
 
@@ -744,6 +749,13 @@ export const publicCardApi = {
       .then((r) => r.data),
 };
 
+export const publicMemberProfileApi = {
+  get: (hash: string): Promise<PublicMemberProfile> =>
+    apiClient
+      .get(`/api/accounts/public/profile/${hash}/`)
+      .then((r) => r.data),
+};
+
 export const publicFormApi = {
   get: (hash: string): Promise<PublicFormMeta> =>
     apiClient
@@ -788,6 +800,50 @@ export const publicLinksApi = {
   click: (id: number): Promise<void> =>
     apiClient
       .post(`/api/accounts/public/links/${id}/click/`)
+      .then((r) => r.data),
+};
+
+export interface PublicGrowthGroupChurch {
+  name: string;
+  city: string;
+  neighborhood?: string | null;
+  state: string;
+  theme_color: string;
+  logo?: string | null;
+}
+
+export interface PublicGrowthGroup {
+  id: number;
+  name: string;
+  category: string;
+  category_display: string;
+  weekday: GrowthGroupWeekday;
+  weekday_display: string;
+  time: string | null;
+  leader_name: string;
+  host_name: string | null;
+  leader_phone: string | null;
+  neighborhood: string | null;
+  city: string;
+  state: string;
+  full_address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  radius_meters: number | null;
+  is_full: boolean;
+  whatsapp_url: string | null;
+  maps_url: string | null;
+}
+
+export interface PublicGrowthGroupsPayload {
+  church: PublicGrowthGroupChurch;
+  growth_groups: PublicGrowthGroup[];
+}
+
+export const publicGrowthGroupsApi = {
+  get: (slug: string): Promise<PublicGrowthGroupsPayload> =>
+    apiClient
+      .get(`/api/accounts/public/churches/${slug}/growth-groups/`)
       .then((r) => r.data),
 };
 

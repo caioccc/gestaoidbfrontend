@@ -16,7 +16,7 @@ import {
   Title,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconCopy, IconBuildingChurch } from '@tabler/icons-react';
+import { IconCopy, IconBuildingChurch, IconExternalLink } from '@tabler/icons-react';
 import { publicLinksApi } from '../../api/accounts';
 import { useLanguage } from '../../i18n';
 import { LinkTypeIcon } from '../../components/linkIcons';
@@ -40,6 +40,7 @@ export default function PublicLinksPage() {
   const [pixLink, setPixLink] = useState<PublicChurchLink | null>(null);
   const [pixAmount, setPixAmount] = useState<string>('');
   const [pixGridSel, setPixGridSel] = useState(0);
+  const [mapsLink, setMapsLink] = useState<PublicChurchLink | null>(null);
 
   useEffect(() => {
     if (!slug) return;
@@ -69,24 +70,56 @@ export default function PublicLinksPage() {
     publicLinksApi.click(link.id).catch(() => undefined);
   };
 
+  const openMaps = (link: PublicChurchLink) => {
+    setMapsLink(link);
+    publicLinksApi.click(link.id).catch(() => undefined);
+  };
+
   const renderRow = (
     link: PublicChurchLink | PublicChurchLinkSystem,
     color: string
   ) => {
     const isPix = link.link_type === 'PIX';
+    const isMaps = link.link_type === 'MAPS';
     const isSystem = !('id' in link);
 
     const content = (
       <Group gap="md" style={{ width: '100%' }}>
-        <Avatar radius="xl" size={44} color={color}>
-          <LinkTypeIcon iconKey={link.icon_key} size={20} color="#fff" />
+        <Avatar
+          radius="xl"
+          size={44}
+          color={link.highlight ? '#fff' : color}
+          styles={{
+            placeholder: link.highlight
+              ? { backgroundColor: '#fff', border: `2px solid ${color}` }
+              : undefined,
+          }}
+        >
+          <LinkTypeIcon
+            iconKey={link.icon_key}
+            size={link.highlight ? 24 : 20}
+            color={link.highlight ? color : '#fff'}
+          />
         </Avatar>
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text fw={600} size="sm" lineClamp={1}>
+          <Text fw={600} size="sm" lineClamp={1} c={link.highlight ? '#fff' : undefined}>
             {link.title}
           </Text>
+          {isMaps && 'address' in link && link.address ? (
+            <Text
+              size="xs"
+              c={link.highlight ? 'rgba(255,255,255,0.85)' : 'dimmed'}
+              lineClamp={1}
+            >
+              {link.address}
+            </Text>
+          ) : null}
           {'description' in link && link.description ? (
-            <Text size="xs" c="dimmed" lineClamp={1}>
+            <Text
+              size="xs"
+              c={link.highlight ? 'rgba(255,255,255,0.85)' : 'dimmed'}
+              lineClamp={1}
+            >
               {link.description}
             </Text>
           ) : null}
@@ -96,15 +129,14 @@ export default function PublicLinksPage() {
 
     const buttonStyles = {
       borderRadius: 14,
-      backgroundColor: link.highlight ? '#fff' : `${color}14`,
-      border: link.highlight
-        ? `1.5px solid ${color}`
-        : `1px solid ${color}33`,
+      backgroundColor: link.highlight ? color : `${color}14`,
+      border: link.highlight ? `2px solid ${color}` : `1px solid ${color}33`,
+      boxShadow: link.highlight ? `0 4px 16px ${color}55` : undefined,
       padding: 12,
     };
 
     const buttonProps =
-      isSystem || isPix
+      isSystem || isPix || isMaps
         ? {}
         : {
             onClick: (e: React.MouseEvent) => {
@@ -119,14 +151,16 @@ export default function PublicLinksPage() {
       <Button
         key={`${isSystem ? 'sys' : 'lnk'}-${link.title}-${(link as { id?: number }).id ?? ''}`}
         variant="subtle"
-        color={color}
+        color={link.highlight ? '#fff' : color}
         h="auto"
         style={buttonStyles}
         {...(isSystem
           ? { onClick: () => openSystemLink(link as PublicChurchLinkSystem) }
           : isPix
             ? { onClick: () => openPix(link as PublicChurchLink) }
-            : buttonProps)}
+            : isMaps
+              ? { onClick: () => openMaps(link as PublicChurchLink) }
+              : buttonProps)}
       >
         {content}
       </Button>
@@ -349,6 +383,65 @@ export default function PublicLinksPage() {
                   onClick={copyPayload}
                 >
                   {t.linksPage.copyPixPayload}
+                </Button>
+              </Stack>
+            );
+          })()}
+        </Modal>
+
+        <Modal
+          opened={!!mapsLink}
+          onClose={() => setMapsLink(null)}
+          title={mapsLink?.title}
+          centered
+          size="md"
+        >
+          {mapsLink && (() => {
+            let query: string | null = null;
+            try {
+              query = mapsLink.url
+                ? new URL(mapsLink.url).searchParams.get('query')
+                : null;
+            } catch {
+              query = null;
+            }
+            const embedUrl = query
+              ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`
+              : null;
+            return (
+              <Stack gap="md" py="md" align="stretch">
+                {mapsLink.address ? (
+                  <Text size="sm" c="dimmed" ta="center">
+                    {mapsLink.address}
+                  </Text>
+                ) : null}
+                {embedUrl ? (
+                  <Box style={{ height: 260, borderRadius: 8, overflow: 'hidden' }}>
+                    <iframe
+                      title="mapa"
+                      src={embedUrl}
+                      style={{ border: 0, width: '100%', height: '100%' }}
+                      loading="lazy"
+                      allowFullScreen
+                    />
+                  </Box>
+                ) : (
+                  <Text size="xs" c="dimmed" ta="center">
+                    {t.publicLinks.mapUnavailable}
+                  </Text>
+                )}
+                <Button
+                  fullWidth
+                  leftSection={<IconExternalLink size={16} />}
+                  component="a"
+                  href={mapsLink.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() =>
+                    publicLinksApi.click(mapsLink.id).catch(() => undefined)
+                  }
+                >
+                  {t.publicLinks.openInGoogleMaps}
                 </Button>
               </Stack>
             );

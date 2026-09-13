@@ -1,23 +1,168 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
+  Card,
   Checkbox,
+  ColorInput,
+  Grid,
   Group,
   Image,
   Modal,
+  NumberInput,
   Select,
   Stack,
+  Switch,
   Text,
   TextInput,
   Textarea,
 } from '@mantine/core';
 import { Dropzone, PDF_MIME_TYPE, IMAGE_MIME_TYPE } from '@mantine/dropzone';
 import { notifications } from '@mantine/notifications';
-import { IconUpload, IconX, IconTrash } from '@tabler/icons-react';
+import { IconArrowsMove, IconUpload, IconX, IconTrash } from '@tabler/icons-react';
 import { accountsApi, CertificateTemplatePayload } from '../api/accounts';
 import { useLanguage } from '../i18n';
-import type { CertificateTemplate, CertificateType } from '../types';
+import { CERT_A4_H_MM, CERT_A4_W_MM } from '../utils/certificate';
+import type {
+  CertificateFieldKey,
+  CertificateFieldLayout,
+  CertificateTemplate,
+  CertificateType,
+} from '../types';
+
+const FIELD_KEYS: CertificateFieldKey[] = [
+  'recipient_name',
+  'event_date',
+  'church_name',
+  'officiant_name',
+  'parents_names',
+  'scripture_verse',
+  'custom_text',
+  'registry_info',
+  'certificate_number',
+];
+
+const FIELD_DEFAULT: CertificateFieldLayout = {
+  enabled: false,
+  x: 50,
+  y: 50,
+  font_size: 16,
+  font_weight: '700',
+  align: 'center',
+  color: '#1a1a1a',
+};
+
+const WEIGHT_OPTIONS: { value: CertificateFieldLayout['font_weight']; label: string }[] = [
+  { value: '400', label: '400' },
+  { value: '600', label: '600' },
+  { value: '700', label: '700' },
+];
+
+const ALIGN_OPTIONS: { value: CertificateFieldLayout['align']; label: string }[] = [
+  { value: 'left', label: 'left' },
+  { value: 'center', label: 'center' },
+  { value: 'right', label: 'right' },
+];
+
+function fieldLabel(key: CertificateFieldKey, t: ReturnType<typeof useLanguage>['t']): string {
+  switch (key) {
+    case 'recipient_name':
+      return t.certificateTemplates.fieldRecipientName;
+    case 'event_date':
+      return t.certificateTemplates.fieldEventDate;
+    case 'church_name':
+      return t.certificateTemplates.fieldChurchName;
+    case 'officiant_name':
+      return t.certificateTemplates.fieldOfficiantName;
+    case 'parents_names':
+      return t.certificateTemplates.fieldParentsNames;
+    case 'scripture_verse':
+      return t.certificateTemplates.fieldScriptureVerse;
+    case 'custom_text':
+      return t.certificateTemplates.fieldCustomText;
+    case 'registry_info':
+      return t.certificateTemplates.fieldRegistryInfo;
+    case 'certificate_number':
+      return t.certificateTemplates.fieldCertificateNumber;
+    default:
+      return key;
+  }
+}
+
+function fieldPlaceholder(key: CertificateFieldKey, label: string): string {
+  if (key === 'event_date') return '[13/09/2026]';
+  return `[${label}]`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function normalizeFields(
+  src?: Record<CertificateFieldKey, CertificateFieldLayout> | null,
+): Record<CertificateFieldKey, CertificateFieldLayout> {
+  const out = {} as Record<CertificateFieldKey, CertificateFieldLayout>;
+  for (const key of FIELD_KEYS) {
+    out[key] = { ...FIELD_DEFAULT, ...(src?.[key] ?? {}) };
+  }
+  return out;
+}
+
+interface DraggableFieldBoxProps {
+  fieldKey: CertificateFieldKey;
+  field: CertificateFieldLayout;
+  placeholder: string;
+  dragHint: string;
+  onDown: (k: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => void;
+  onMove: (k: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => void;
+  onUp: (k: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => void;
+}
+
+const DraggableFieldBox = React.memo(function DraggableFieldBox({
+  fieldKey,
+  field,
+  placeholder,
+  dragHint,
+  onDown,
+  onMove,
+  onUp,
+}: DraggableFieldBoxProps) {
+  return (
+    <div
+      data-testid={`cert-field-${fieldKey}`}
+      title={dragHint}
+      onPointerDown={onDown(fieldKey)}
+      onPointerMove={onMove(fieldKey)}
+      onPointerUp={onUp(fieldKey)}
+      style={{
+        position: 'absolute',
+        left: `${field.x}%`,
+        top: `${field.y}%`,
+        transform: 'translate(-50%, -50%)',
+        fontSize: field.font_size,
+        fontWeight: Number(field.font_weight),
+        color: field.color,
+        textAlign: field.align,
+        cursor: 'grab',
+        whiteSpace: 'nowrap',
+        lineHeight: 1.2,
+        padding: '2px 6px',
+        borderRadius: 4,
+        border: '1px dashed rgba(0,0,0,0.3)',
+        background: 'rgba(255,255,255,0.45)',
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
+    >
+      <span>{placeholder}</span>
+      <span
+        style={{ marginLeft: 6, display: 'inline-flex', verticalAlign: 'middle', pointerEvents: 'none' }}
+      >
+        <IconArrowsMove size={12} />
+      </span>
+    </div>
+  );
+});
 
 interface CertificateTemplateModalProps {
   opened: boolean;
@@ -45,6 +190,13 @@ export default function CertificateTemplateModal({
   const [removeBg, setRemoveBg] = useState(false);
   const [removeBasePdf, setRemoveBasePdf] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fieldLayouts, setFieldLayouts] = useState<
+    Record<CertificateFieldKey, CertificateFieldLayout>
+  >(() => normalizeFields(editing?.fields_layout));
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ key: CertificateFieldKey; offXPct: number; offYPct: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!opened) return;
@@ -57,8 +209,64 @@ export default function CertificateTemplateModal({
     setBasePdfFile(null);
     setRemoveBg(false);
     setRemoveBasePdf(false);
+    setFieldLayouts(normalizeFields(editing?.fields_layout));
+    dragRef.current = null;
     setSaving(false);
   }, [opened, editing]);
+
+  const updateField = (
+    key: CertificateFieldKey,
+    patch: Partial<CertificateFieldLayout>,
+  ) => {
+    setFieldLayouts((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  };
+
+  const startDrag = React.useCallback(
+    (key: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const canvas = editorRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const el = e.currentTarget.getBoundingClientRect();
+      dragRef.current = {
+        key,
+        offXPct: (e.clientX - (el.left + el.width / 2)) / (rect.width / 100),
+        offYPct: (e.clientY - (el.top + el.height / 2)) / (rect.height / 100),
+      };
+      if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [],
+  );
+
+  const moveDrag = React.useCallback(
+    (key: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      const canvas = editorRef.current;
+      if (!drag || drag.key !== key || !canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = clamp(((e.clientX - rect.left) / rect.width) * 100 - drag.offXPct, 0, 100);
+      const y = clamp(((e.clientY - rect.top) / rect.height) * 100 - drag.offYPct, 0, 100);
+      setFieldLayouts((prev) => {
+        const cur = prev[key];
+        if (!cur) return prev;
+        const nx = Math.round(x * 10) / 10;
+        const ny = Math.round(y * 10) / 10;
+        if (cur.x === nx && cur.y === ny) return prev;
+        return { ...prev, [key]: { ...cur, x: nx, y: ny } };
+      });
+    },
+    [],
+  );
+
+  const endDrag = React.useCallback(
+    (key: CertificateFieldKey) => (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.currentTarget.hasPointerCapture && e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+      dragRef.current = null;
+    },
+    [],
+  );
 
   const handleClose = () => {
     if (saving) return;
@@ -82,6 +290,7 @@ export default function CertificateTemplateModal({
         base_pdf: basePdfFile,
         remove_background_image: removeBg,
         remove_base_pdf: removeBasePdf,
+        fields_layout: fieldLayouts,
       };
       if (editing) {
         await accountsApi.updateCertificateTemplate(editing.id, payload);
@@ -116,12 +325,15 @@ export default function CertificateTemplateModal({
     { value: 'CUSTOM', label: t.certificates.typeCustom },
   ];
 
-  const currentBgPreview =
-    bgFile
-      ? URL.createObjectURL(bgFile)
-      : editing && !removeBg
-        ? editing.background_image_url
-        : null;
+  const currentBgPreview = useMemo(
+    () =>
+      bgFile
+        ? URL.createObjectURL(bgFile)
+        : editing && !removeBg
+          ? editing.background_image_url
+          : null,
+    [bgFile, editing, removeBg],
+  );
 
   return (
     <Modal
@@ -215,6 +427,131 @@ export default function CertificateTemplateModal({
               </Dropzone>
             )}
             {bgFile ? <Text size="xs" mt={4}>{bgFile.name}</Text> : null}
+
+            {currentBgPreview ? (
+              <Box mt="md">
+                <Text size="sm" fw={600} mb={2}>
+                  {t.certificateTemplates.editorTitle}
+                </Text>
+                <Text size="xs" c="dimmed" mb={8}>
+                  {t.certificateTemplates.editorHint}
+                </Text>
+                <Group align="flex-start" gap="md" wrap="wrap">
+                  <Box
+                    ref={editorRef}
+                    data-testid="cert-layout-editor"
+                    pos="relative"
+                    style={{
+                      width: '100%',
+                      maxWidth: 760,
+                      aspectRatio: `${CERT_A4_W_MM} / ${CERT_A4_H_MM}`,
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      boxShadow: 'var(--mantine-shadow-sm)',
+                      backgroundImage: `url("${currentBgPreview}")`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      touchAction: 'none',
+                      userSelect: 'none',
+                    }}
+                  >
+                    {FIELD_KEYS.filter((k) => fieldLayouts[k]?.enabled).map((k) => (
+                      <DraggableFieldBox
+                        key={k}
+                        fieldKey={k}
+                        field={fieldLayouts[k]}
+                        placeholder={fieldPlaceholder(k, fieldLabel(k, t))}
+                        dragHint={t.certificateTemplates.dragToPosition}
+                        onDown={startDrag}
+                        onMove={moveDrag}
+                        onUp={endDrag}
+                      />
+                    ))}
+                  </Box>
+
+                  <Box data-testid="cert-layout-fields" style={{ flex: 1, minWidth: 260 }}>
+                    <Text size="xs" fw={600} c="dimmed" mb={6}>
+                      {t.certificateTemplates.showFields}
+                    </Text>
+                    <Stack gap="xs">
+                      {FIELD_KEYS.map((k) => {
+                        const f = fieldLayouts[k];
+                        return (
+                          <Card key={k} withBorder padding="xs" radius="md">
+                            <Group justify="space-between" align="center" wrap="nowrap">
+                              <Text size="sm" fw={500}>
+                                {fieldLabel(k, t)}
+                              </Text>
+                              <Switch
+                                checked={f.enabled}
+                                onChange={(e) => updateField(k, { enabled: e.currentTarget.checked })}
+                                data-testid={`cert-field-switch-${k}`}
+                              />
+                            </Group>
+                            {f.enabled && (
+                              <Grid mt="xs" gap="xs">
+                                <Grid.Col span={6}>
+                                  <NumberInput
+                                    label={t.certificateTemplates.fontSize}
+                                    value={f.font_size}
+                                    min={1}
+                                    max={60}
+                                    onChange={(v) => {
+                                      const n = typeof v === 'number' ? v : Number(v);
+                                      if (Number.isFinite(n)) {
+                                        updateField(k, {
+                                          font_size: clamp(Math.round(n), 1, 60),
+                                        });
+                                      }
+                                    }}
+                                    data-testid={`cert-field-size-${k}`}
+                                  />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                  <Select
+                                    label={t.certificateTemplates.fontWeight}
+                                    data={WEIGHT_OPTIONS}
+                                    value={f.font_weight}
+                                    onChange={(v) =>
+                                      v && updateField(k, { font_weight: v as CertificateFieldLayout['font_weight'] })
+                                    }
+                                    data-testid={`cert-field-weight-${k}`}
+                                  />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                  <Select
+                                    label={t.certificateTemplates.align}
+                                    data={ALIGN_OPTIONS}
+                                    value={f.align}
+                                    onChange={(v) =>
+                                      v && updateField(k, { align: v as CertificateFieldLayout['align'] })
+                                    }
+                                    data-testid={`cert-field-align-${k}`}
+                                  />
+                                </Grid.Col>
+                                <Grid.Col span={6}>
+                                  <ColorInput
+                                    label={t.certificateTemplates.color}
+                                    format="hex"
+                                    value={f.color}
+                                    onChange={(c) => updateField(k, { color: c })}
+                                    data-testid={`cert-field-color-${k}`}
+                                  />
+                                </Grid.Col>
+                              </Grid>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </Stack>
+                  </Box>
+                </Group>
+              </Box>
+            ) : (
+              <Text size="sm" c="dimmed" data-testid="cert-layout-unavailable" mt="md">
+                {t.certificateTemplates.editorRequiresImage}
+              </Text>
+            )}
           </Box>
         )}
 

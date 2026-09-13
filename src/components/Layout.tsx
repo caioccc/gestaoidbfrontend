@@ -37,6 +37,7 @@ import {
   IconLogout,
   IconLanguage,
   IconChevronDown,
+  IconDotsVertical,
   IconBuildingChurch,
   IconUsersGroup,
   IconUserShield,
@@ -443,7 +444,9 @@ function ChurchSwitcher() {
               onClick={() => handleSwitch(church)}
               style={{ fontWeight: church.id === user.church?.id ? 700 : 400 }}
             >
-              {church.name}
+              <Text size="sm" truncate>
+                {church.name}
+              </Text>
             </Menu.Item>
           ))}
         </ScrollArea.Autosize>
@@ -462,37 +465,79 @@ function HeaderControls() {
   useEffect(() => setMounted(true), []);
   const isDark = mounted && colorScheme === 'dark';
   const roleLabel = user?.role_display || (user?.role ? ROLE_LABELS[user.role] : null);
+  const currentLocale = LOCALES.find((l) => l.value === locale);
+  const themeLabel = mounted ? (isDark ? t.nav.lightTheme : t.nav.darkTheme) : t.nav.darkTheme;
+  const cycleLocale = () => {
+    const idx = LOCALES.findIndex((l) => l.value === locale);
+    const next = LOCALES[(idx + 1) % LOCALES.length];
+    setLocale(next.value);
+  };
+  const themeIcon = mounted ? (isDark ? <IconSun size={14} /> : <IconMoon size={14} />) : <IconMoon size={14} />;
 
   return (
-    <Group gap="xs">
-      <ChurchSwitcher />
+    <Group gap="xs" wrap="nowrap">
+      <Box style={{ maxWidth: 140 }}>
+        <ChurchSwitcher />
+      </Box>
 
       <NotificationBell />
 
-      <Menu shadow="md" width={140}>
-        <Menu.Target>
-          <ActionIcon variant="subtle" aria-label="language" size="lg">
-            <IconLanguage size={18} />
-          </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {LOCALES.map((l) => (
-            <Menu.Item
-              key={l.value}
-              onClick={() => setLocale(l.value)}
-              style={{ fontWeight: locale === l.value ? 700 : 400 }}
-            >
-              {l.label}
-            </Menu.Item>
-          ))}
-        </Menu.Dropdown>
-      </Menu>
+      <Box visibleFrom="sm">
+        <Menu shadow="md" width={140}>
+          <Menu.Target>
+            <ActionIcon variant="subtle" aria-label="language" size="lg">
+              <IconLanguage size={18} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {LOCALES.map((l) => (
+              <Menu.Item
+                key={l.value}
+                onClick={() => setLocale(l.value)}
+                style={{ fontWeight: locale === l.value ? 700 : 400 }}
+              >
+                {l.label}
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
+      </Box>
 
-      <Tooltip label={mounted ? (isDark ? 'Light' : 'Dark') : 'Dark'}>
-        <ActionIcon variant="subtle" onClick={() => toggleColorScheme()} aria-label="toggle theme" size="lg">
-          {mounted ? (isDark ? <IconSun size={18} /> : <IconMoon size={18} />) : <IconMoon size={18} />}
-        </ActionIcon>
-      </Tooltip>
+      <Box visibleFrom="sm">
+        <Tooltip
+          label={mounted ? (isDark ? t.nav.lightTheme : t.nav.darkTheme) : t.nav.darkTheme}
+        >
+          <ActionIcon variant="subtle" onClick={() => toggleColorScheme()} aria-label="toggle theme" size="lg">
+            {mounted ? (isDark ? <IconSun size={18} /> : <IconMoon size={18} />) : <IconMoon size={18} />}
+          </ActionIcon>
+        </Tooltip>
+      </Box>
+
+      <Box hiddenFrom="sm">
+        <Menu shadow="md" width={220}>
+          <Menu.Target>
+            <ActionIcon variant="subtle" aria-label="more options" size="lg">
+              <IconDotsVertical size={18} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              leftSection={<IconLanguage size={14} />}
+              onClick={cycleLocale}
+              data-testid="mobile-language"
+            >
+              {t.nav.language}: {currentLocale?.label || locale}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={themeIcon}
+              onClick={() => toggleColorScheme()}
+              data-testid="mobile-theme"
+            >
+              {t.nav.theme}: {themeLabel}
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Box>
 
       {user && (
         <Menu shadow="md" width={220}>
@@ -570,8 +615,14 @@ export default function Layout({
       padding="md"
     >
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group gap="xs">
+        <Group
+          h="100%"
+          px="md"
+          justify="space-between"
+          wrap="nowrap"
+          style={{ overflow: 'hidden', width: '100%' }}
+        >
+          <Group gap="xs" wrap="nowrap">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Flex align="center" gap={8}>
               <ThemeIcon size="md" radius="md" color="blue" variant="filled">

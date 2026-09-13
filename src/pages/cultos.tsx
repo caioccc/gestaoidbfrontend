@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  Box,
   Button,
   Card,
   Center,
@@ -29,6 +30,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import MobileItemCard from '../components/MobileItemCard';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -192,6 +194,30 @@ export default function CultosPage() {
       .finally(() => setDeleting(false));
   };
 
+  const serviceActions = (s: WorshipService) => (
+    <>
+      <Button
+        variant="subtle"
+        size="compact-sm"
+        onClick={() => openEdit(s)}
+        aria-label={t.common.edit}
+        data-testid={`culto-edit-${s.id}`}
+      >
+        <IconPencil size={16} />
+      </Button>
+      <Button
+        variant="subtle"
+        size="compact-sm"
+        color="red"
+        onClick={() => setToDelete(s)}
+        aria-label={t.common.delete}
+        data-testid={`culto-delete-${s.id}`}
+      >
+        <IconTrash size={16} />
+      </Button>
+    </>
+  );
+
   return (
     <AuthGuard>
       <Layout>
@@ -214,89 +240,119 @@ export default function CultosPage() {
           </Card>
         ) : (
           <Card withBorder p={0}>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>{t.cultosPage.date}</Table.Th>
-                  <Table.Th>{t.cultosPage.type}</Table.Th>
-                  <Table.Th>{t.cultosPage.preacher}</Table.Th>
-                  <Table.Th>{t.cultosPage.theme}</Table.Th>
-                  <Table.Th>{t.cultosPage.attendees}</Table.Th>
-                  <Table.Th>{t.cultosPage.offering}</Table.Th>
-                  <Table.Th ta="right">{t.common.actions}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {services.map((s) => (
-                  <Table.Tr key={s.id}>
-                    <Table.Td>
-                      <Group gap="xs" wrap="nowrap">
-                        <IconCalendarEvent size={16} style={{ flexShrink: 0 }} />
-                        <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
-                          {formatISODate(s.date)}
-                        </Text>
-                        {s.time && (
-                          <Group gap={4} wrap="nowrap" c="dimmed">
-                            <IconClock size={14} style={{ flexShrink: 0 }} />
-                            <Text size="sm">{s.time.slice(0, 5)}</Text>
-                          </Group>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>{s.service_type_display}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{s.preacher || '—'}</Text>
-                      {s.presider && (
-                        <Text size="xs" c="dimmed">
-                          {t.cultosPage.presider}: {s.presider}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{s.theme || '—'}</Text>
-                      {s.scripture && (
-                        <Text size="xs" c="blue">
-                          {s.scripture}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">
-                        {s.attendees} <Text span c="dimmed">· {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}</Text>
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={600}>
-                        {s.offering ? formatBRL(Number(s.offering)) : '—'}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Group gap={4} justify="flex-end">
-                        <Button
-                          variant="subtle"
-                          size="compact-sm"
-                          onClick={() => openEdit(s)}
-                          aria-label={t.common.edit}
-                        >
-                          <IconPencil size={16} />
-                        </Button>
-                        <Button
-                          variant="subtle"
-                          size="compact-sm"
-                          color="red"
-                          onClick={() => setToDelete(s)}
-                          aria-label={t.common.delete}
-                        >
-                          <IconTrash size={16} />
-                        </Button>
-                      </Group>
-                    </Table.Td>
+            <Box visibleFrom="sm">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.cultosPage.date}</Table.Th>
+                    <Table.Th>{t.cultosPage.type}</Table.Th>
+                    <Table.Th>{t.cultosPage.preacher}</Table.Th>
+                    <Table.Th>{t.cultosPage.theme}</Table.Th>
+                    <Table.Th>{t.cultosPage.attendees}</Table.Th>
+                    <Table.Th>{t.cultosPage.offering}</Table.Th>
+                    <Table.Th ta="right">{t.common.actions}</Table.Th>
                   </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
+                </Table.Thead>
+                <Table.Tbody>
+                  {services.map((s) => (
+                    <Table.Tr key={s.id}>
+                      <Table.Td>
+                        <Group gap="xs" wrap="nowrap">
+                          <IconCalendarEvent size={16} style={{ flexShrink: 0 }} />
+                          <Text size="sm" style={{ whiteSpace: 'nowrap' }}>
+                            {formatISODate(s.date)}
+                          </Text>
+                          {s.time && (
+                            <Group gap={4} wrap="nowrap" c="dimmed">
+                              <IconClock size={14} style={{ flexShrink: 0 }} />
+                              <Text size="sm">{s.time.slice(0, 5)}</Text>
+                            </Group>
+                          )}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={500}>{s.service_type_display}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{s.preacher || '—'}</Text>
+                        {s.presider && (
+                          <Text size="xs" c="dimmed">
+                            {t.cultosPage.presider}: {s.presider}
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{s.theme || '—'}</Text>
+                        {s.scripture && (
+                          <Text size="xs" c="blue">
+                            {s.scripture}
+                          </Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">
+                          {s.attendees} <Text span c="dimmed">· {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}</Text>
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" fw={600}>
+                          {s.offering ? formatBRL(Number(s.offering)) : '—'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={4} justify="flex-end">
+                          {serviceActions(s)}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="sm" gap="xs" p="sm">
+              {services.map((s) => (
+                <MobileItemCard
+                  key={s.id}
+                  testId={`culto-mobile-${s.id}`}
+                  media={
+                    <ThemeIcon color="violet" variant="light" radius="md" size="lg">
+                      <IconBuildingChurch size={20} />
+                    </ThemeIcon>
+                  }
+                  actions={serviceActions(s)}
+                >
+                  <Stack gap={4}>
+                    <Text fw={600} truncate>
+                      {formatISODate(s.date)}
+                      {s.time ? ` — ${s.time.slice(0, 5)}` : ''}
+                    </Text>
+                    <Text size="sm" fw={500}>
+                      {s.service_type_display}
+                    </Text>
+                    <Text size="sm" truncate>
+                      {s.theme || '—'}
+                    </Text>
+                    {s.scripture && (
+                      <Text size="xs" c="dimmed" truncate>
+                        {s.scripture}
+                      </Text>
+                    )}
+                    <Text size="xs" c="dimmed" truncate>
+                      {s.preacher || '—'}
+                    </Text>
+                    {s.presider && (
+                      <Text size="xs" c="dimmed" truncate>
+                        {t.cultosPage.presider}: {s.presider}
+                      </Text>
+                    )}
+                    <Text size="xs" c="dimmed" truncate>
+                      {s.attendees} · {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}
+                    </Text>
+                    <Text fw={700}>{formatBRL(s.offering)}</Text>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
           </Card>
         )}
 

@@ -13,6 +13,9 @@ import {
   ActionIcon,
   Tooltip,
   Anchor,
+  Menu,
+  Pagination,
+  ThemeIcon,
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -24,10 +27,12 @@ import {
   IconTrash,
   IconPencil,
   IconDownload,
+  IconArrowDownRight,
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
 import ExportModal from '../../../components/ExportModal';
 import MoneyInput from '../../../components/MoneyInput';
+import MobileItemCard from '../../../components/MobileItemCard';
 import { useLanguage } from '../../../i18n';
 import { useCategories } from '../../../hooks/useCategories';
 import { FinancialExit } from '../../../types';
@@ -38,6 +43,8 @@ function yearRangeDefaults(): [string, string] {
   const year = new Date().getFullYear();
   return [`${year}-01-01`, `${year}-12-31`];
 }
+
+const PAGE_SIZE = 20;
 
 export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t, locale } = useLanguage();
@@ -230,6 +237,26 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
     },
   ];
 
+  const exitActions = (r: FinancialExit) => (
+    <>
+      <Menu.Item
+        leftSection={<IconPencil size={14} />}
+        onClick={() => openEdit(r)}
+        data-testid={`exit-mobile-edit-${r.id}`}
+      >
+        {t.common.edit}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconTrash size={14} />}
+        color="red"
+        onClick={() => setDeleteTarget(r)}
+        data-testid={`exit-mobile-delete-${r.id}`}
+      >
+        {t.common.delete}
+      </Menu.Item>
+    </>
+  );
+
   const visibleRecords = category
     ? records.filter((r) => r.category === category)
     : records;
@@ -284,21 +311,83 @@ export default function ExitsSection({ api, churchLabel }: { api: AdminFinanceAp
         </Group>
       </Stack>
 
-      <DataTable<FinancialExit>
-        withTableBorder
-        highlightOnHover
-        striped
-        minHeight={200}
-        fetching={loading}
-        columns={columns}
-        records={visibleRecords}
-        noRecordsText={t.common.noData}
-        totalRecords={total}
-        recordsPerPage={20}
-        page={page}
-        onPageChange={setPage}
-        idAccessor="id"
-      />
+      <Box visibleFrom="sm">
+        <DataTable<FinancialExit>
+          withTableBorder
+          highlightOnHover
+          striped
+          minHeight={200}
+          fetching={loading}
+          columns={columns}
+          records={visibleRecords}
+          noRecordsText={t.common.noData}
+          totalRecords={total}
+          recordsPerPage={PAGE_SIZE}
+          page={page}
+          onPageChange={setPage}
+          idAccessor="id"
+        />
+      </Box>
+
+      <Stack hiddenFrom="sm" gap="xs">
+        {visibleRecords.map((e) => (
+          <MobileItemCard
+            key={e.id}
+            testId={`exit-mobile-${e.id}`}
+            media={
+              <ThemeIcon color="red" variant="light" radius="md" size="lg">
+                <IconArrowDownRight size={20} />
+              </ThemeIcon>
+            }
+            actions={exitActions(e)}
+          >
+            <Stack gap={4}>
+              <Group gap={4} wrap="nowrap" align="center">
+                <Text fw={600} style={{ whiteSpace: 'nowrap' }}>
+                  {formatDate(e.date)}
+                </Text>
+                <Badge variant="light" color="orange" size="sm">
+                  {e.category_display || e.category}
+                </Badge>
+              </Group>
+              <Text size="sm" c="dimmed" truncate>
+                {e.description}
+              </Text>
+              {e.receipt ? (
+                <Anchor
+                  href={e.receipt}
+                  target="_blank"
+                  rel="noreferrer"
+                  size="xs"
+                  c="dimmed"
+                  truncate
+                  data-testid={`exit-mobile-receipt-${e.id}`}
+                >
+                  {e.receipt.split('/').pop()?.split('?')[0]?.slice(0, 30) || t.exitsPage.receipt}
+                </Anchor>
+              ) : (
+                <Text size="xs" c="dimmed">
+                  —
+                </Text>
+              )}
+              <Text fw={700} c="red">
+                -{formatBRL(e.amount)}
+              </Text>
+            </Stack>
+          </MobileItemCard>
+        ))}
+        {total > PAGE_SIZE && (
+          <Group justify="center" py="sm">
+            <Pagination
+              value={page}
+              onChange={setPage}
+              total={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+              size="sm"
+              data-testid="exits-pagination"
+            />
+          </Group>
+        )}
+      </Stack>
 
       <Modal
         opened={modalOpen}
