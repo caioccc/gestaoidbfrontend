@@ -28,7 +28,9 @@ import {
   IconPencil,
   IconDownload,
   IconArrowDownRight,
+  IconReceipt,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
 import MobileItemCard from '../components/MobileItemCard';
 import MoneyInput from '../components/MoneyInput';
@@ -47,6 +49,7 @@ function yearRangeDefaults(): [string, string] {
 export default function ExitsPage() {
   const { t, locale } = useLanguage();
   const { categories } = useCategories();
+  const router = useRouter();
 
   const [records, setRecords] = useState<FinancialExit[]>([]);
   const [total, setTotal] = useState(0);
@@ -218,9 +221,21 @@ export default function ExitsPage() {
     {
       accessor: 'actions',
       title: t.common.actions,
-      width: 100,
+      width: 130,
       render: (r) => (
         <Group gap={4} wrap="nowrap">
+          <Tooltip label={t.receiptsPage.newReceipt}>
+            <ActionIcon
+              color="orange"
+              variant="subtle"
+              data-testid={`exit-receipt-${r.id}`}
+              onClick={() =>
+                router.push(`/receipts?create=1&type=SAIDA&source=exit&id=${r.id}`)
+              }
+            >
+              <IconReceipt size={16} />
+            </ActionIcon>
+          </Tooltip>
           <Tooltip label={t.common.edit}>
             <ActionIcon color="blue" variant="subtle" onClick={() => openEdit(r)}>
               <IconPencil size={16} />
@@ -238,6 +253,15 @@ export default function ExitsPage() {
 
   const exitActions = (r: FinancialExit) => (
     <>
+      <Menu.Item
+        leftSection={<IconReceipt size={14} />}
+        onClick={() =>
+          router.push(`/receipts?create=1&type=SAIDA&source=exit&id=${r.id}`)
+        }
+        data-testid={`exit-mobile-receipt-${r.id}`}
+      >
+        {t.receiptsPage.newReceipt}
+      </Menu.Item>
       <Menu.Item
         leftSection={<IconPencil size={14} />}
         onClick={() => openEdit(r)}

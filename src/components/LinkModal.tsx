@@ -118,6 +118,7 @@ export default function LinkModal({
         if (
           values.link_type === 'CALENDAR' ||
           values.link_type === 'MEMBERSHIP' ||
+          values.link_type === 'PRAYER' ||
           values.link_type === 'WHATSAPP' ||
           values.link_type === 'MAPS'
         ) {
@@ -210,12 +211,14 @@ export default function LinkModal({
     linkType !== 'PIX' &&
     linkType !== 'CALENDAR' &&
     linkType !== 'MEMBERSHIP' &&
+    linkType !== 'PRAYER' &&
     linkType !== 'WHATSAPP' &&
     linkType !== 'MAPS';
   const showPix = linkType === 'PIX';
   const showWhatsapp = linkType === 'WHATSAPP';
   const showMaps = linkType === 'MAPS';
-  const isSystem = linkType === 'CALENDAR' || linkType === 'MEMBERSHIP';
+  const isSystem =
+    linkType === 'CALENDAR' || linkType === 'MEMBERSHIP' || linkType === 'PRAYER';
 
   const pixMode = form.values.pix_amount_mode;
   const previewAmount = ((): string | number | null => {
@@ -365,7 +368,7 @@ export default function LinkModal({
     onClose();
   });
 
-  const typeOptions = (['CUSTOM', 'PIX', 'WHATSAPP', 'YOUTUBE', 'MAPS', 'INSTAGRAM', 'CALENDAR', 'MEMBERSHIP'] as ChurchLinkType[]).map(
+  const typeOptions = (['CUSTOM', 'PIX', 'WHATSAPP', 'YOUTUBE', 'MAPS', 'INSTAGRAM', 'CALENDAR', 'MEMBERSHIP', 'PRAYER'] as ChurchLinkType[]).map(
     (type) => ({
       value: type,
       label: t.linkTypes[type] || type,

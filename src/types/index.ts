@@ -2,7 +2,7 @@
 // Refletem as respostas do backend Django/DRF
 
 export type ChurchType = 'INDEPENDENT' | 'CONGREGATION';
-export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO';
+export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO';
 
 export interface Church {
   id: number;
@@ -108,6 +108,57 @@ export interface FinancialExit {
   amount: string;
   receipt?: string | null;
   created_at: string;
+}
+
+export type FinancialReceiptType = 'SAIDA' | 'ENTRADA';
+
+export interface FinancialReceipt {
+  id: number;
+  church: number;
+  year: number;
+  number: number;
+  full_number: string;
+  receipt_type: FinancialReceiptType;
+  type_display: string;
+  date: string;
+  amount: string;
+  amount_extenso: string;
+  description: string;
+  category?: DepartmentCategory | '';
+  favored_name: string;
+  favored_document?: string;
+  favored_rg?: string;
+  favored_city?: string;
+  favored_state?: string;
+  pix?: string;
+  member?: number | null;
+  member_name?: string | null;
+  entry?: number | null;
+  exit?: number | null;
+  linked_description?: string;
+  auto_launched: boolean;
+  locked: boolean;
+  pdf_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialReceiptPayload {
+  receipt_type: FinancialReceiptType;
+  date: string;
+  amount: string | number;
+  description: string;
+  category?: DepartmentCategory | '';
+  favored_name: string;
+  favored_document?: string;
+  favored_rg?: string;
+  favored_city?: string;
+  favored_state?: string;
+  pix?: string;
+  member?: number | null;
+  entry?: number | null;
+  exit?: number | null;
+  auto_launch?: boolean;
 }
 
 export type CalendarEventCategory =
@@ -924,7 +975,8 @@ export type ChurchLinkType =
   | 'MAPS'
   | 'INSTAGRAM'
   | 'CALENDAR'
-  | 'MEMBERSHIP';
+  | 'MEMBERSHIP'
+  | 'PRAYER';
 
 export type ChurchPixAmountMode = 'OPEN' | 'FIXED' | 'GRID';
 
@@ -1075,6 +1127,174 @@ export interface GrowthGroupStats {
   overlap_ids: number[];
 }
 
+export type PastoralVisitType =
+  | 'ROUTINE'
+  | 'ILLNESS'
+  | 'BEREAVEMENT'
+  | 'NEW_CONVERT'
+  | 'SOCIAL_AID'
+  | 'SPECIAL';
+
+export type PastoralVisitStatus = 'PLANNED' | 'COMPLETED' | 'CANCELLED';
+
+export type PrayerRequestCategory =
+  | 'HEALTH'
+  | 'FAMILY'
+  | 'SPIRITUAL'
+  | 'FINANCIAL'
+  | 'GRIEF'
+  | 'THANKSGIVING'
+  | 'OTHER';
+
+export type PrayerRequestStatus =
+  | 'PENDING'
+  | 'PRAYING'
+  | 'VISIT_SCHEDULED'
+  | 'ANSWERED'
+  | 'ARCHIVED';
+
+export type PrayerRequestPreferredPeriod = 'ANY' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
+
+export interface PrayerRequest {
+  id: number;
+  church: number;
+  requester_name: string;
+  requester_phone: string;
+  is_anonymous: boolean;
+  category: PrayerRequestCategory;
+  category_display: string;
+  description: string;
+  wants_visit: boolean;
+  cep: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  preferred_period: PrayerRequestPreferredPeriod;
+  preferred_period_display: string;
+  status: PrayerRequestStatus;
+  status_display: string;
+  assigned_to: number | null;
+  assigned_to_name: string;
+  pastoral_notes: string;
+  whatsapp_url: string | null;
+  elapsed_days: number;
+  created_at: string;
+}
+
+export interface PrayerRequestPayload {
+  requester_name?: string;
+  requester_phone?: string;
+  is_anonymous?: boolean;
+  category: PrayerRequestCategory;
+  description: string;
+  wants_visit?: boolean;
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  preferred_period?: PrayerRequestPreferredPeriod;
+  status?: PrayerRequestStatus;
+  assigned_to?: number | null;
+  pastoral_notes?: string;
+}
+
+export interface PrayerRequestPublicPayload {
+  requester_name?: string;
+  requester_phone?: string;
+  is_anonymous?: boolean;
+  category: PrayerRequestCategory;
+  description: string;
+  wants_visit?: boolean;
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  preferred_period?: PrayerRequestPreferredPeriod;
+}
+
+export type PrayerVisitPreparedPayload = { id: number; url: string; phone: string };
+
+export interface PastoralVisit {
+  id: number;
+  church: number;
+  member: number | null;
+  member_name: string;
+  member_phone: string;
+  member_whatsapp_url: string | null;
+  target_name: string;
+  target_phone: string;
+  visit_type: PastoralVisitType;
+  visit_type_display: string;
+  status: PastoralVisitStatus;
+  status_display: string;
+  competence_year: number;
+  competence_month: number;
+  scheduled_date: string;
+  completed_at: string | null;
+  visited_by: string;
+  notes: string;
+  needs_followup: boolean;
+  cep: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  full_address: string;
+  latitude: number | null;
+  longitude: number | null;
+  maps_url: string | null;
+  prayer_request: number | null;
+  prayer_request_requester_name: string;
+  created_by: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PastoralVisitPayload {
+  member?: number | null;
+  target_name?: string;
+  target_phone?: string;
+  visit_type: PastoralVisitType;
+  competence_year: number;
+  competence_month: number;
+  scheduled_date: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  needs_followup?: boolean;
+  prayer_request?: number | null;
+}
+
+export interface PastoralVisitCompletePayload {
+  completed_at?: string;
+  visited_by?: string;
+  notes?: string;
+  needs_followup?: boolean;
+}
+
+export interface PastoralVisitSummary {
+  year: number;
+  month: number;
+  total: number;
+  planned: number;
+  completed: number;
+  cancelled: number;
+  needs_followup: number;
+  top_neighborhoods: { neighborhood: string; count: number }[];
+}
+
 export type MessageTemplateCategory =
   | 'BIRTHDAY'
   | 'WELCOME'
@@ -1205,4 +1425,361 @@ export interface CertificateIssueData {
   registry_book?: string;
   registry_page?: string;
   registry_number?: string;
+}
+
+export type SundaySchoolCategory =
+  | 'CHILDREN'
+  | 'TEENS'
+  | 'YOUTH'
+  | 'ADULTS'
+  | 'COUPLES'
+  | 'DISCIPLESHIP';
+
+export interface SundaySchoolClass {
+  id: number;
+  church: number;
+  name: string;
+  category: SundaySchoolCategory;
+  category_display: string;
+  teacher_name: string;
+  co_teacher_name: string;
+  room_location: string;
+  is_active: boolean;
+  enrollment_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SundaySchoolClassPayload {
+  name: string;
+  category: SundaySchoolCategory;
+  teacher_name: string;
+  co_teacher_name?: string;
+  room_location?: string;
+  is_active?: boolean;
+}
+
+export interface SundaySchoolEnrollment {
+  id: number;
+  sunday_school_class: number;
+  member: number | null;
+  member_name: string;
+  student_name: string;
+  phone: string;
+  whatsapp_url: string | null;
+  is_active: boolean;
+  joined_at: string;
+}
+
+export interface SundaySchoolEnrollmentPayload {
+  student_name: string;
+  phone?: string;
+  member?: number | null;
+  is_active?: boolean;
+}
+
+export interface SundaySchoolAttendance {
+  id: number;
+  session: number;
+  enrollment: number;
+  student_name: string;
+  is_present: boolean;
+  brought_bible: boolean;
+  brought_magazine: boolean;
+  whatsapp_url: string | null;
+}
+
+export interface SundaySchoolSession {
+  id: number;
+  sunday_school_class: number;
+  class_name: string;
+  date: string;
+  topic: string;
+  bibles_count: number;
+  magazines_count: number;
+  visitors_count: number;
+  offering_amount: string;
+  notes: string;
+  registered_by: number | null;
+  registered_by_name: string;
+  present_count: number;
+  attendances: SundaySchoolAttendance[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SundaySchoolAttendanceInput {
+  enrollment_id: number;
+  is_present?: boolean;
+  brought_bible?: boolean;
+  brought_magazine?: boolean;
+}
+
+export interface SundaySchoolSessionPayload {
+  sunday_school_class: number;
+  date: string;
+  topic?: string;
+  bibles_count?: number;
+  magazines_count?: number;
+  visitors_count?: number;
+  offering_amount?: string | number;
+  notes?: string;
+  attendance?: SundaySchoolAttendanceInput[];
+}
+
+export interface SundaySchoolReportColumn {
+  date: string;
+  session_id: number | null;
+  topic: string;
+}
+
+export interface SundaySchoolReportStudent {
+  enrollment_id: number;
+  student_name: string;
+  phone: string;
+  whatsapp_url: string | null;
+  attendance: (boolean | null)[];
+  present_count: number;
+  total_sessions: number;
+  presence_percent: number;
+  consecutive_absences: number;
+  risk_evasion: boolean;
+}
+
+export interface SundaySchoolClassReport {
+  class_id: number;
+  class_name: string;
+  category_display: string;
+  teacher_name: string;
+  room_location: string;
+  columns: SundaySchoolReportColumn[];
+  students: SundaySchoolReportStudent[];
+  offering_total: string;
+  avg_bibles: number;
+  avg_magazines: number;
+  visitors_total: number;
+  session_count: number;
+}
+
+export interface SundaySchoolMonthlyReport {
+  year: number;
+  month: number;
+  month_name: string;
+  classes: SundaySchoolClassReport[];
+}
+
+export interface SundaySchoolWhatsAppRow {
+  enrollment_id: number;
+  student_name: string;
+  phone: string;
+  url: string;
+}
+
+// ---------------------------------------------------------------------------
+// Louvor & Música
+// ---------------------------------------------------------------------------
+
+export interface Ministry {
+  id: number;
+  church: number;
+  name: string;
+  color: string;
+  leader: number | null;
+  leader_name: string;
+  is_active: boolean;
+  roles: MinistryRole[];
+}
+
+export interface Band {
+  id: number;
+  church: number;
+  name: string;
+  color: string;
+  photo: string | null;
+  leader: number | null;
+  leader_name: string;
+  is_active: boolean;
+  song_count: number;
+}
+
+export interface MinistryRole {
+  id: number;
+  ministry: number;
+  name: string;
+  is_active: boolean;
+}
+
+export type RosterAssignmentStatus = 'PENDING' | 'CONFIRMED' | 'DECLINED';
+
+export interface RosterAssignment {
+  id: number;
+  roster: number;
+  ministry: number;
+  ministry_name: string;
+  ministry_color: string;
+  role: number;
+  role_name: string;
+  user: number;
+  user_name: string;
+  status: RosterAssignmentStatus;
+  status_display: string;
+  notes: string;
+}
+
+export interface VolunteerRoster {
+  id: number;
+  church: number;
+  date: string;
+  time: string | null;
+  theme: string;
+  notes: string;
+  is_published: boolean;
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  assignments: RosterAssignment[];
+  setlist: WorshipSetlist | null;
+}
+
+export interface RosterBoardRow {
+  user_name: string;
+  role_name: string;
+  status: RosterAssignmentStatus;
+  ministry_color: string;
+}
+
+export interface WorshipSetlist {
+  id: number;
+  roster: number;
+  items: SetlistItem[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SetlistItem {
+  id: number;
+  setlist: number;
+  song: number;
+  song_title: string;
+  song_artist: string;
+  order: number;
+  custom_key: string;
+  notes: string;
+}
+
+export interface ChordItem {
+  note: string;
+  note_fmt: string;
+  image: string;
+  start: number;
+  end: number;
+  tempo: number | null;
+  instrument: string;
+}
+
+export interface Song {
+  id: number;
+  church: number;
+  band: number | null;
+  band_name: string;
+  band_color: string;
+  title: string;
+  artist: string;
+  youtube_id: string;
+  youtube_title: string;
+  thumbnail_url: string;
+  duration_seconds: number | null;
+  original_key: string;
+  church_key: string;
+  bpm: number | null;
+  time_signature: string;
+  chords: string;
+  chords_json: ChordItem[];
+  lyrics: string;
+  tags: string;
+  times_played: number;
+  last_played: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface SongHistoryItem {
+  date: string;
+  roster_id: number;
+  theme: string;
+  custom_key: string;
+}
+
+export interface YouTubeSearchResult {
+  title: string;
+  youtube_id: string;
+  duration: string;
+  channel_name: string;
+  view_count: string;
+  thumbnail_url: string;
+}
+
+export interface YouTubeSearchResponse {
+  status: 'success' | 'unavailable';
+  source?: 'requests' | 'ytdlp' | 'selenium';
+  results: YouTubeSearchResult[];
+  message?: string;
+}
+
+export interface ChordifyData {
+  status?: 'success' | 'unavailable';
+  youtube_id: string;
+  chords_formatada: ChordItem[];
+  format_key: string;
+  derivedKey?: string;
+  derivedBpm?: number;
+  message?: string;
+  error?: string;
+}
+
+export interface BandSetlistItemPayload {
+  song: number;
+  order?: number;
+  custom_key?: string;
+  notes?: string;
+}
+
+export interface BandSetlistPayload {
+  band?: number | null;
+  date: string;
+  description: string;
+  theme?: string;
+  notes?: string;
+  items?: BandSetlistItemPayload[];
+}
+
+export interface BandSetlistItem {
+  id: number;
+  setlist: number;
+  song: number;
+  song_title: string;
+  song_artist: string;
+  song_church_key: string;
+  song_bpm: number | null;
+  order: number;
+  custom_key: string;
+  notes: string;
+}
+
+export interface BandSetlist {
+  id: number;
+  church: number;
+  band: number | null;
+  band_name: string;
+  band_color: string;
+  date: string;
+  description: string;
+  theme: string;
+  notes: string;
+  created_by: number;
+  created_by_name: string;
+  created_at: string;
+  updated_at: string;
+  items: BandSetlistItem[];
 }

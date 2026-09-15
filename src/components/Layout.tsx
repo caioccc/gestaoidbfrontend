@@ -48,6 +48,12 @@ import {
   IconLink,
   IconHomeHeart,
   IconCertificate,
+  IconReceipt,
+  IconMap,
+  IconPray,
+  IconSchool,
+  IconListCheck,
+  IconMusic,
 } from '@tabler/icons-react';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage, SupportedLocale } from '../i18n';
@@ -77,6 +83,9 @@ const ROLE_LABELS: Record<string, string> = {
   PASTOR: 'Pastor(a)',
   SECRETARIA: 'Secretaria',
   TESOUREIRO: 'Tesoureiro(a)',
+  INTERCESSAO: 'Intercessão & Visitação',
+  LOUVOR: 'Líder de Louvor & Música',
+  MUSICO: 'Músico / Voluntário',
 };
 
 function SidebarContent({
@@ -89,7 +98,8 @@ function SidebarContent({
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const { hasRole, canFinance, canApproveCongregations } = useRoleHelpers(user);
+  const { hasRole, canFinance, canApproveCongregations, canManageMusic, canViewMusic } =
+    useRoleHelpers(user);
 
   // Usar router.query.churchId (valor resolvido, ex.: "7") em vez de
   // fazer parse de router.pathname — que no Next.js contém o placeholder
@@ -145,7 +155,9 @@ function SidebarContent({
   // DRE, extratos e validação mensal). Tesoureiro(a) também acessa os módulos
   // de secretaria da igreja (membros, patrimônio, relatórios), mas não vê
   // Usuários nem Governança.
-  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO');
+  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO');
+  const canSeeVisitation = hasRole('PASTOR', 'SECRETARIA', 'INTERCESSAO');
+  const canSeePrayerRequests = hasRole('INTERCESSAO', 'PASTOR', 'SECRETARIA');
   const canSeeUsers = hasRole('PASTOR');
 
   // Congregações não possuem Relatório Regional: o menu é ocultado nos três
@@ -226,7 +238,7 @@ function SidebarContent({
           },
         ]
       : []),
-    ...(showChurchSections && canSeeMembers
+    ...(showChurchSections && (canSeeMembers || canSeeVisitation)
       ? [
           {
             title: t.section.secretaryMembership,
@@ -255,6 +267,36 @@ function SidebarContent({
                 href: '/growth-groups',
                 roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
               } as NavItem,
+              {
+                label: t.nav.visitation,
+                icon: <IconMap size={18} />,
+                href: '/visitation',
+                roles: ['PASTOR', 'SECRETARIA', 'INTERCESSAO'],
+              } as NavItem,
+              {
+                label: t.nav.prayerRequests,
+                icon: <IconPray size={18} />,
+                href: '/prayer-requests',
+                roles: ['INTERCESSAO', 'PASTOR', 'SECRETARIA'],
+              } as NavItem,
+              {
+                label: t.nav.sundaySchool,
+                icon: <IconSchool size={18} />,
+                href: '/sunday-school',
+                roles: ['PASTOR', 'SECRETARIA'],
+              } as NavItem,
+            ],
+          },
+        ]
+      : []),
+    ...(showChurchSections && (canManageMusic || canViewMusic)
+      ? [
+          {
+            title: t.section.music,
+            requiresChurch: true,
+            items: [
+              { label: t.music.songsTitle, icon: <IconMusic size={18} />, href: '/songs' },
+              { label: t.music.setlistsTitle, icon: <IconListCheck size={18} />, href: '/setlists' },
             ],
           },
         ]
@@ -268,6 +310,7 @@ function SidebarContent({
               { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
               { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
               { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
+              { label: t.nav.receipts, icon: <IconReceipt size={18} />, href: '/receipts' },
               { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
               { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
             ],

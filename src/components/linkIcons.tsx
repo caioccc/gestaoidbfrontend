@@ -8,6 +8,7 @@ import {
   IconBrandInstagram,
   IconCalendarEvent,
   IconUserPlus,
+  IconPray,
 } from '@tabler/icons-react';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
@@ -19,6 +20,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   'brand-instagram': IconBrandInstagram,
   calendar: IconCalendarEvent,
   'user-plus': IconUserPlus,
+  pray: IconPray,
 };
 
 export function LinkTypeIcon({

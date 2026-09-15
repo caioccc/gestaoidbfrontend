@@ -23,6 +23,7 @@ import { LinkTypeIcon } from '../../components/linkIcons';
 import { copyToClipboard } from '../../utils/share';
 import { buildPixPayload } from '../../utils/pix';
 import QrShareCard from '../../components/QrShareCard';
+import PrayerRequestPublicModal from '../../components/PrayerRequestPublicModal';
 import type {
   PublicChurchLink,
   PublicChurchLinkSystem,
@@ -41,6 +42,7 @@ export default function PublicLinksPage() {
   const [pixAmount, setPixAmount] = useState<string>('');
   const [pixGridSel, setPixGridSel] = useState(0);
   const [mapsLink, setMapsLink] = useState<PublicChurchLink | null>(null);
+  const [prayerOpen, setPrayerOpen] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -75,12 +77,20 @@ export default function PublicLinksPage() {
     publicLinksApi.click(link.id).catch(() => undefined);
   };
 
+  const openPrayer = (link?: PublicChurchLink) => {
+    if (link && link.id != null) {
+      publicLinksApi.click(link.id).catch(() => undefined);
+    }
+    setPrayerOpen(true);
+  };
+
   const renderRow = (
     link: PublicChurchLink | PublicChurchLinkSystem,
     color: string
   ) => {
     const isPix = link.link_type === 'PIX';
     const isMaps = link.link_type === 'MAPS';
+    const isPrayer = link.link_type === 'PRAYER';
     const isSystem = !('id' in link);
 
     const content = (
@@ -136,7 +146,7 @@ export default function PublicLinksPage() {
     };
 
     const buttonProps =
-      isSystem || isPix || isMaps
+      isSystem || isPix || isMaps || isPrayer
         ? {}
         : {
             onClick: (e: React.MouseEvent) => {
@@ -154,13 +164,15 @@ export default function PublicLinksPage() {
         color={link.highlight ? '#fff' : color}
         h="auto"
         style={buttonStyles}
-        {...(isSystem
-          ? { onClick: () => openSystemLink(link as PublicChurchLinkSystem) }
-          : isPix
-            ? { onClick: () => openPix(link as PublicChurchLink) }
-            : isMaps
-              ? { onClick: () => openMaps(link as PublicChurchLink) }
-              : buttonProps)}
+        {...(isPrayer
+          ? { onClick: () => openPrayer(link as PublicChurchLink) }
+          : isSystem
+            ? { onClick: () => openSystemLink(link as PublicChurchLinkSystem) }
+            : isPix
+              ? { onClick: () => openPix(link as PublicChurchLink) }
+              : isMaps
+                ? { onClick: () => openMaps(link as PublicChurchLink) }
+                : buttonProps)}
       >
         {content}
       </Button>
@@ -447,6 +459,12 @@ export default function PublicLinksPage() {
             );
           })()}
         </Modal>
+
+        <PrayerRequestPublicModal
+          opened={prayerOpen}
+          onClose={() => setPrayerOpen(false)}
+          slug={slug}
+        />
       </Box>
     </>
   );

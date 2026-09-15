@@ -8,6 +8,8 @@ import {
   ExistingMonthData,
   FinancialEntry,
   FinancialExit,
+  FinancialReceipt,
+  FinancialReceiptPayload,
   ImportResult,
   MonthlyClosingsResponse,
   MonthlyValidation,
@@ -38,6 +40,9 @@ export const financeApi = {
   }): Promise<Paginated<FinancialEntry>> =>
     apiClient.get('/api/finance/entries/', { params }).then((r) => r.data),
 
+  getEntry: (id: number): Promise<FinancialEntry> =>
+    apiClient.get(`/api/finance/entries/${id}/`).then((r) => r.data),
+
   createEntry: (payload: Partial<FinancialEntry>): Promise<FinancialEntry> =>
     apiClient.post('/api/finance/entries/', payload).then((r) => r.data),
 
@@ -54,6 +59,9 @@ export const financeApi = {
     end_date?: string;
   }): Promise<Paginated<FinancialExit>> =>
     apiClient.get('/api/finance/exits/', { params }).then((r) => r.data),
+
+  getExit: (id: number): Promise<FinancialExit> =>
+    apiClient.get(`/api/finance/exits/${id}/`).then((r) => r.data),
 
   createExit: (payload: FormData | Partial<FinancialExit>): Promise<FinancialExit> =>
     apiClient.post('/api/finance/exits/', payload).then((r) => r.data),
@@ -275,6 +283,41 @@ export const publicCalendarApi: PublicCalendarApi = {
     apiClient
       .get(`/api/finance/public/calendar/${hash}/`)
       .then((r) => r.data as PublicCalendarPayload),
+};
+
+// Recibos Financeiros (saída/pagamento e entrada/doação) — PDF A4 em 2 vias.
+export const receiptsApi = {
+  list: (params?: {
+    page?: number;
+    year?: number;
+    receipt_type?: 'SAIDA' | 'ENTRADA';
+    search?: string;
+  }): Promise<Paginated<FinancialReceipt>> =>
+    apiClient.get('/api/finance/receipts/', { params }).then((r) => r.data),
+
+  get: (id: number): Promise<FinancialReceipt> =>
+    apiClient.get(`/api/finance/receipts/${id}/`).then((r) => r.data),
+
+  create: (payload: FinancialReceiptPayload): Promise<FinancialReceipt> =>
+    apiClient.post('/api/finance/receipts/', payload).then((r) => r.data),
+
+  update: (
+    id: number,
+    payload: Partial<FinancialReceiptPayload>
+  ): Promise<FinancialReceipt> =>
+    apiClient.patch(`/api/finance/receipts/${id}/`, payload).then((r) => r.data),
+
+  delete: (id: number): Promise<void> =>
+    apiClient.delete(`/api/finance/receipts/${id}/`),
+
+  pdfUrl: (id: number): string =>
+    `/api/finance/receipts/${id}/pdf/`,
+
+  // Emite recibo e retorna o blob PDF para download imediato (stream).
+  downloadPdf: (id: number): Promise<Blob> =>
+    apiClient
+      .get(`/api/finance/receipts/${id}/pdf/`, { responseType: 'blob' })
+      .then((r) => r.data),
 };
 
 // Arquivos modelo oficiais servidos estaticamente pelo Next (/public/templates).

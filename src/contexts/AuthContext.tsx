@@ -22,7 +22,7 @@ export interface UserSession {
   is_staff: boolean;
   is_active: boolean;
   church?: UserSessionChurch | null;
-  role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | null;
+  role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | null;
   role_display?: string | null;
   can_manage_churches?: boolean;
   can_approve_congregations?: boolean;
@@ -30,6 +30,9 @@ export interface UserSession {
 
 const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'] as const;
 const SECRETARY_ROLES = ['SECRETARIA', 'PASTOR', 'ADMIN'] as const;
+const INTERCESSION_ROLES = ['INTERCESSAO', 'PASTOR', 'SECRETARIA'] as const;
+const MUSIC_MANAGER_ROLES = ['LOUVOR', 'PASTOR', 'SECRETARIA', 'ADMIN'] as const;
+const MUSIC_VIEW_ROLES = ['MUSICO', 'LOUVOR', 'PASTOR', 'SECRETARIA', 'ADMIN'] as const;
 
 interface AuthContextType {
   user: UserSession | null;
@@ -122,10 +125,24 @@ export function useRoleHelpers(user: UserSession | null) {
     isAdmin || (role !== null && (roles as string[]).includes(role));
   const canFinance = hasRole(...FINANCE_ROLES);
   const canSecretary = hasRole(...SECRETARY_ROLES);
+  const canIntercession = hasRole(...INTERCESSION_ROLES);
+  const canManageMusic = hasRole(...MUSIC_MANAGER_ROLES);
+  const canViewMusic = hasRole(...MUSIC_VIEW_ROLES);
   const canManageChurch =
     isAdmin ||
     !!user?.can_manage_churches ||
     (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
   const canApproveCongregations = isAdmin || !!user?.can_approve_congregations;
-  return { isAdmin, role, hasRole, canFinance, canSecretary, canManageChurch, canApproveCongregations };
+  return {
+    isAdmin,
+    role,
+    hasRole,
+    canFinance,
+    canSecretary,
+    canIntercession,
+    canManageMusic,
+    canViewMusic,
+    canManageChurch,
+    canApproveCongregations,
+  };
 }

@@ -48,6 +48,26 @@ import {
   MessageTemplate,
   PreparedWhatsApp,
   SecretaryActions,
+  PastoralVisit,
+  PastoralVisitPayload,
+  PastoralVisitCompletePayload,
+  PastoralVisitStatus,
+  PastoralVisitSummary,
+  PrayerRequest,
+  PrayerRequestPayload,
+  PrayerRequestStatus,
+  PrayerRequestCategory,
+  PrayerVisitPreparedPayload,
+  SundaySchoolAttendanceInput,
+  SundaySchoolCategory,
+  SundaySchoolClass,
+  SundaySchoolClassPayload,
+  SundaySchoolEnrollment,
+  SundaySchoolEnrollmentPayload,
+  SundaySchoolMonthlyReport,
+  SundaySchoolSession,
+  SundaySchoolSessionPayload,
+  SundaySchoolWhatsAppRow,
 } from '../types';
 
 export interface MaterialItemPayload {
@@ -298,6 +318,158 @@ export const accountsApi = {
 
   secretaryActions: (): Promise<SecretaryActions> =>
     apiClient.get('/api/accounts/secretary-actions/').then((r) => r.data),
+
+  pastoralVisits: (params?: {
+    year?: number;
+    month?: number;
+    status?: PastoralVisitStatus;
+    type?: string;
+  }): Promise<PastoralVisit[]> =>
+    apiClient.get('/api/accounts/pastoral-visits/', { params }).then((r) => r.data),
+
+  createPastoralVisit: (payload: PastoralVisitPayload): Promise<PastoralVisit> =>
+    apiClient.post('/api/accounts/pastoral-visits/', payload).then((r) => r.data),
+
+  deletePastoralVisit: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/pastoral-visits/${id}/`).then(() => undefined),
+
+  completePastoralVisit: (id: number, payload: PastoralVisitCompletePayload): Promise<PastoralVisit> =>
+    apiClient.post(`/api/accounts/pastoral-visits/${id}/complete/`, payload).then((r) => r.data),
+
+  cancelPastoralVisit: (id: number): Promise<PastoralVisit> =>
+    apiClient.post(`/api/accounts/pastoral-visits/${id}/cancel/`).then((r) => r.data),
+
+  pastoralVisitSummary: (year: number, month: number): Promise<PastoralVisitSummary> =>
+    apiClient
+      .get('/api/accounts/pastoral-visits/summary/', { params: { year, month } })
+      .then((r) => r.data),
+
+  pastoralVisitMemberSnapshot: (memberId: number): Promise<{
+    id: number;
+    name: string;
+    phone: string;
+    street: string;
+    number: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    cep: string;
+  }> =>
+    apiClient
+      .post('/api/accounts/pastoral-visits/snapshot-member/', { member: memberId })
+      .then((r) => r.data),
+
+  prayerRequests: (params?: {
+    status?: PrayerRequestStatus;
+    category?: PrayerRequestCategory;
+    wants_visit?: boolean;
+    q?: string;
+    paginate?: 0 | 1;
+    page?: number;
+  }): Promise<PrayerRequest[]> =>
+    apiClient.get('/api/accounts/prayer-requests/', { params }).then((r) => r.data),
+
+  prayerRequest: (id: number): Promise<PrayerRequest> =>
+    apiClient.get(`/api/accounts/prayer-requests/${id}/`).then((r) => r.data),
+
+  updatePrayerRequest: (id: number, payload: Partial<PrayerRequestPayload>): Promise<PrayerRequest> =>
+    apiClient.patch(`/api/accounts/prayer-requests/${id}/`, payload).then((r) => r.data),
+
+  preparePrayerWhatsApp: (id: number): Promise<PrayerVisitPreparedPayload> =>
+    apiClient.post(`/api/accounts/prayer-requests/${id}/prepare-whatsapp/`).then((r) => r.data),
+
+  printPrayerSheet: (): Promise<Blob> =>
+    apiClient
+      .get('/api/accounts/prayer-requests/print-sheet/', { responseType: 'blob' })
+      .then((r) => r.data),
+
+  publicCreatePrayerRequest: (slug: string, payload: PrayerRequestPayload): Promise<PrayerRequest> =>
+    apiClient
+      .post(`/api/accounts/public/churches/${slug}/prayer-requests/`, payload)
+      .then((r) => r.data),
+
+  sundaySchoolClasses: (): Promise<SundaySchoolClass[]> =>
+    apiClient.get('/api/accounts/sunday-school/classes/').then((r) => r.data),
+
+  createSundaySchoolClass: (payload: SundaySchoolClassPayload): Promise<SundaySchoolClass> =>
+    apiClient.post('/api/accounts/sunday-school/classes/', payload).then((r) => r.data),
+
+  updateSundaySchoolClass: (id: number, payload: Partial<SundaySchoolClassPayload>): Promise<SundaySchoolClass> =>
+    apiClient.patch(`/api/accounts/sunday-school/classes/${id}/`, payload).then((r) => r.data),
+
+  deleteSundaySchoolClass: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/sunday-school/classes/${id}/`).then(() => undefined),
+
+  sundaySchoolStudents: (classId: number, q?: string): Promise<SundaySchoolEnrollment[]> =>
+    apiClient
+      .get(`/api/accounts/sunday-school/classes/${classId}/students/`, {
+        params: q ? { q } : {},
+      })
+      .then((r) => r.data),
+
+  createSundaySchoolStudent: (
+    classId: number,
+    payload: SundaySchoolEnrollmentPayload,
+  ): Promise<SundaySchoolEnrollment> =>
+    apiClient
+      .post(`/api/accounts/sunday-school/classes/${classId}/students/`, payload)
+      .then((r) => r.data),
+
+  updateSundaySchoolStudent: (
+    classId: number,
+    enrollmentId: number,
+    payload: SundaySchoolEnrollmentPayload,
+  ): Promise<SundaySchoolEnrollment> =>
+    apiClient
+      .patch(`/api/accounts/sunday-school/classes/${classId}/students/`, {
+        enrollment_id: enrollmentId,
+        ...payload,
+      })
+      .then((r) => r.data),
+
+  deleteSundaySchoolStudent: (classId: number, enrollmentId: number): Promise<void> =>
+    apiClient
+      .delete(`/api/accounts/sunday-school/classes/${classId}/students/`, {
+        params: { enrollment_id: enrollmentId },
+      })
+      .then(() => undefined),
+
+  sundaySchoolSession: (classId: number, date: string): Promise<SundaySchoolSession> =>
+    apiClient
+      .get('/api/accounts/sunday-school/sessions/', {
+        params: { class_id: classId, date },
+      })
+      .then((r) => r.data),
+
+  saveSundaySchoolSession: (payload: SundaySchoolSessionPayload): Promise<SundaySchoolSession> =>
+    apiClient.post('/api/accounts/sunday-school/sessions/', payload).then((r) => r.data),
+
+  prepareSundaySchoolWhatsApp: (
+    classId: number,
+    payload: { kind?: string; topic?: string },
+  ): Promise<{ class_id: number; class_name: string; rows: SundaySchoolWhatsAppRow[] }> =>
+    apiClient
+      .post(`/api/accounts/sunday-school/classes/${classId}/prepare-whatsapp/`, payload)
+      .then((r) => r.data),
+
+  sundaySchoolMonthlyReport: (params: {
+    year: number;
+    month: number;
+    class_id?: number;
+  }): Promise<SundaySchoolMonthlyReport> =>
+    apiClient.get('/api/accounts/sunday-school/monthly-report/', { params }).then((r) => r.data),
+
+  printSundaySchoolReport: (params: {
+    year: number;
+    month: number;
+    class_id?: number;
+  }): Promise<Blob> =>
+    apiClient
+      .get('/api/accounts/sunday-school/monthly-report/pdf/', {
+        params,
+        responseType: 'blob',
+      })
+      .then((r) => r.data),
 
   storageLocations: (): Promise<StorageLocation[]> =>
     apiClient.get('/api/accounts/storage-locations/').then((r) => r.data),

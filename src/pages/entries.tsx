@@ -25,7 +25,9 @@ import {
   IconPencil,
   IconDownload,
   IconArrowUpRight,
+  IconReceipt,
 } from '@tabler/icons-react';
+import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
 import MobileItemCard from '../components/MobileItemCard';
 import MoneyInput from '../components/MoneyInput';
@@ -44,6 +46,7 @@ function yearRangeDefaults(): [string, string] {
 export default function EntriesPage() {
   const { t, locale } = useLanguage();
   const { categories } = useCategories();
+  const router = useRouter();
 
   const [records, setRecords] = useState<FinancialEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -175,6 +178,18 @@ export default function EntriesPage() {
 
   const entryActions = (r: FinancialEntry) => (
     <Group gap={4} wrap="nowrap">
+      <Tooltip label={t.receiptsPage.newReceipt}>
+        <ActionIcon
+          color="teal"
+          variant="subtle"
+          data-testid={`entry-receipt-${r.id}`}
+          onClick={() =>
+            router.push(`/receipts?create=1&type=ENTRADA&source=entry&id=${r.id}`)
+          }
+        >
+          <IconReceipt size={16} />
+        </ActionIcon>
+      </Tooltip>
       <Tooltip label={t.common.edit}>
         <ActionIcon color="blue" variant="subtle" onClick={() => openEdit(r)}>
           <IconPencil size={16} />
