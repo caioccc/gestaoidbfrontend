@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
-  ActionIcon,
   Badge,
   Box,
   Button,
@@ -20,10 +19,7 @@ import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconBrandYoutube,
-  IconMinus,
   IconPencil,
-  IconPlus,
-  IconRotate2,
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../../components/PageHeader';
@@ -31,10 +27,10 @@ import AuthGuard from '../../components/AuthGuard';
 import Layout from '../../components/Layout';
 import SongModal from '../../components/SongModal';
 import ChordSyncPlayer from '../../components/ChordSyncPlayer';
+import LyricsSheet from '../../components/LyricsSheet';
 import { useLanguage } from '../../i18n';
 import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
-import { transposeChordsJson, transposeKey } from '../../utils/chords';
 import type { Song, SongHistoryItem } from '../../types';
 
 type Tab = 'player' | 'lyrics' | 'history';
@@ -51,7 +47,7 @@ export default function SongDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('player');
-  const [transpose, setTranspose] = useState(0);
+  const [stageMode, setStageMode] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -68,11 +64,6 @@ export default function SongDetailPage() {
   }, [id]);
 
   useEffect(() => { void load(); }, [load]);
-
-  const transposedChords = useMemo(
-    () => (song ? transposeChordsJson(song.chords_json ?? [], transpose) : []),
-    [song, transpose],
-  );
 
   const removeSong = async () => {
     if (!song) return;
@@ -96,14 +87,9 @@ export default function SongDetailPage() {
     );
   }
 
-  const displayedKey = transposeKey(
-    song.original_key || song.church_key || '',
-    transpose,
-  );
-
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
-      <Layout>
+      <Layout expanded={stageMode}>
         <PageHeader title={song.title} description={song.artist}>
           <Group gap="sm">
             <Button variant="default" leftSection={<IconArrowLeft size={16} />} onClick={() => router.push('/songs')} size="sm">
@@ -172,43 +158,24 @@ export default function SongDetailPage() {
               { value: 'history', label: t.music.history },
             ]}
           />
-          <Group gap="xs" wrap="nowrap">
-            <Tooltip label={t.music.transposeDown}>
-              <ActionIcon variant="light" onClick={() => setTranspose((x) => Math.max(x - 1, -7))} disabled={transpose <= -7}>
-                <IconMinus size={16} />
-              </ActionIcon>
-            </Tooltip>
-            <Badge variant="light" color="grape" size="lg" tt="none">
-              {t.music.transposeLabel}: {displayedKey || '—'}
-              {transpose !== 0 ? ` (${transpose > 0 ? '+' : ''}${transpose} ${t.music.semitones})` : ''}
-            </Badge>
-            <Tooltip label={t.music.transposeUp}>
-              <ActionIcon variant="light" onClick={() => setTranspose((x) => Math.min(x + 1, 7))} disabled={transpose >= 7}>
-                <IconPlus size={16} />
-              </ActionIcon>
-            </Tooltip>
-            {transpose !== 0 ? (
-              <Tooltip label={t.music.transposeReset}>
-                <ActionIcon variant="subtle" color="gray" onClick={() => setTranspose(0)}>
-                  <IconRotate2 size={16} />
-                </ActionIcon>
-              </Tooltip>
-            ) : null}
-          </Group>
         </Group>
 
         {tab === 'player' ? (
-          <ChordSyncPlayer youtubeId={song.youtube_id} chords={transposedChords} title={song.title} />
+          <ChordSyncPlayer
+            youtubeId={song.youtube_id}
+            chords={song.chords_json ?? []}
+            title={song.title}
+            originalKey={song.original_key}
+            churchKey={song.church_key}
+            bpm={song.bpm}
+            timeSignature={song.time_signature}
+            stageMode={stageMode}
+            onToggleStageMode={() => setStageMode((s) => !s)}
+          />
         ) : null}
 
         {tab === 'lyrics' ? (
-          <Paper withBorder p="lg">
-            {song.lyrics ? (
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{song.lyrics}</Text>
-            ) : (
-              <Text c="dimmed">—</Text>
-            )}
-          </Paper>
+          <LyricsSheet lyrics={song.lyrics ?? ''} />
         ) : null}
 
         {tab === 'history' ? (

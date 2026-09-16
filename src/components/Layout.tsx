@@ -155,10 +155,12 @@ function SidebarContent({
   // DRE, extratos e validação mensal). Tesoureiro(a) também acessa os módulos
   // de secretaria da igreja (membros, patrimônio, relatórios), mas não vê
   // Usuários nem Governança.
-  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO');
+  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO');
   const canSeeVisitation = hasRole('PASTOR', 'SECRETARIA', 'INTERCESSAO');
   const canSeePrayerRequests = hasRole('INTERCESSAO', 'PASTOR', 'SECRETARIA');
   const canSeeUsers = hasRole('PASTOR');
+  const isMusicRole = user?.role === 'MUSICO' || user?.role === 'LOUVOR';
+  const hideDashboard = isMusicRole || user?.role === 'INTERCESSAO';
 
   // Congregações não possuem Relatório Regional: o menu é ocultado nos três
   // contextos possíveis (usuário de congregação, rota /churches/[id] e a
@@ -193,7 +195,9 @@ function SidebarContent({
       title: t.section.overview,
       requiresChurch: false,
       items: [
-        { label: dashboardLabel, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' },
+        ...(hideDashboard
+          ? []
+          : [{ label: dashboardLabel, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' }]),
         { label: t.nav.calendar, icon: <IconCalendarEvent size={18} />, href: '/calendar' },
       ],
     },
@@ -244,11 +248,40 @@ function SidebarContent({
             title: t.section.secretaryMembership,
             requiresChurch: true,
             items: [
-              { label: t.nav.members, icon: <IconUsersGroup size={18} />, href: '/members' },
-              { label: t.nav.minutes, icon: <IconFileText size={18} />, href: '/atas', fixed: true },
-              { label: t.nav.cultos, icon: <IconBuildingChurch size={18} />, href: '/cultos', fixed: true },
-              { label: t.nav.inventory, icon: <IconPackage size={18} />, href: '/inventory', fixed: true },
-              { label: t.nav.memberReports, icon: <IconChartPie size={18} />, href: '/members-reports', fixed: true },
+              {
+                label: t.nav.members,
+                icon: <IconUsersGroup size={18} />,
+                href: '/members',
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+              } as NavItem,
+              {
+                label: t.nav.minutes,
+                icon: <IconFileText size={18} />,
+                href: '/atas',
+                fixed: true,
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+              } as NavItem,
+              {
+                label: t.nav.cultos,
+                icon: <IconBuildingChurch size={18} />,
+                href: '/cultos',
+                fixed: true,
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+              } as NavItem,
+              {
+                label: t.nav.inventory,
+                icon: <IconPackage size={18} />,
+                href: '/inventory',
+                fixed: true,
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+              } as NavItem,
+              {
+                label: t.nav.memberReports,
+                icon: <IconChartPie size={18} />,
+                href: '/members-reports',
+                fixed: true,
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+              } as NavItem,
               {
                 label: t.nav.certificates,
                 icon: <IconCertificate size={18} />,
@@ -265,7 +298,7 @@ function SidebarContent({
                 label: t.nav.growthGroups,
                 icon: <IconHomeHeart size={18} />,
                 href: '/growth-groups',
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO'],
               } as NavItem,
               {
                 label: t.nav.visitation,
@@ -333,7 +366,7 @@ function SidebarContent({
           },
         ]
       : []),
-    ...(showChurchSections
+    ...(showChurchSections && !isMusicRole
       ? [
           {
             title: t.section.settings,
@@ -639,9 +672,11 @@ function HeaderControls() {
 export default function Layout({
   children,
   churchType,
+  expanded = false,
 }: {
   children: React.ReactNode;
   churchType?: ChurchType;
+  expanded?: boolean;
 }) {
   const [opened, { toggle, close }] = useDisclosure(false);
   const isMobile = useMediaQuery('(max-width: 60em)');
@@ -656,6 +691,7 @@ export default function Layout({
         collapsed: { mobile: !opened },
       }}
       padding="md"
+      disabled={expanded}
     >
       <AppShell.Header>
         <Group

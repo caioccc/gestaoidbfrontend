@@ -57,7 +57,6 @@ export default function LoginPage() {
         title: 'Bem-vindo!',
         message: 'Login realizado com sucesso.',
       });
-      router.push('/dashboard');
     } catch (err: any) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail;

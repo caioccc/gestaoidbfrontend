@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
+import { Center, Text } from '@mantine/core';
 import PageHeader from '../components/PageHeader';
 import ChurchProfileForm from '../components/ChurchProfileForm';
 import { useLanguage } from '../i18n';
@@ -9,12 +10,18 @@ import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 export default function SettingsPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { hasRole } = useRoleHelpers(user);
+  const { hasRole, isAdmin } = useRoleHelpers(user);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
 
+  const canEditProfile = isAdmin || !hasRole('MUSICO', 'LOUVOR');
+
   useEffect(() => {
+    if (!canEditProfile) {
+      setLoading(false);
+      return;
+    }
     accountsApi
       .getProfile()
       .then((data) => setProfile(data))
@@ -22,7 +29,7 @@ export default function SettingsPage() {
         notifications.show({ color: 'red', message: 'Não foi possível carregar o perfil.' });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [canEditProfile]);
 
   const handleSave = async (payload: Record<string, any>) => {
     setSaving(true);
@@ -48,6 +55,17 @@ export default function SettingsPage() {
     await accountsApi.resetPassword(newPassword);
   };
 
+  if (!canEditProfile) {
+    return (
+      <>
+        <PageHeader title={t.settingsPage.title} />
+        <Center py="xl">
+          <Text c="dimmed">Você não tem acesso a esta página.</Text>
+        </Center>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title={t.settingsPage.title} />
@@ -58,7 +76,7 @@ export default function SettingsPage() {
         onSave={handleSave}
         responsibleEmail={profile?.responsible_email}
         onResetPassword={handleResetPassword}
-        canResetPassword={!hasRole('SECRETARIA')}
+        canResetPassword={isAdmin || !hasRole('SECRETARIA')}
         showPrebenda={user?.church?.church_type !== 'CONGREGATION'}
       />
     </>

@@ -2,31 +2,36 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import {
+  ActionIcon,
+  Badge,
   Box,
   Button,
-  Container,
-  Group,
-  Text,
-  Title,
-  ThemeIcon,
-  SimpleGrid,
   Card,
-  Stack,
+  Container,
   Flex,
-  ActionIcon,
+  Group,
+  List,
   Menu,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
   useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconArrowRight,
-  IconFileSpreadsheet,
-  IconScale,
-  IconUpload,
-  IconReport,
-  IconSun,
-  IconMoon,
-  IconLanguage,
   IconBuildingChurch,
+  IconCashBanknote,
+  IconCheck,
+  IconDeviceMobile,
+  IconLanguage,
+  IconMoon,
+  IconMusic,
+  IconShieldCheck,
+  IconSun,
+  IconUsers,
 } from '@tabler/icons-react';
 import { useLanguage, SupportedLocale } from '../i18n';
 import { useAuth } from '../contexts/AuthContext';
@@ -37,7 +42,14 @@ const LOCALES: { value: SupportedLocale; label: string }[] = [
   { value: 'es', label: 'ES' },
 ];
 
-const FEATURE_ICONS = [IconFileSpreadsheet, IconUpload, IconScale, IconReport];
+const TRUST_ICONS = [IconShieldCheck, IconDeviceMobile, IconUsers] as const;
+const TRUST_COLORS = ['teal', 'blue', 'violet'] as const;
+
+const PILLARS = [
+  { key: 'secretariat' as const, icon: IconUsers, color: 'cyan' },
+  { key: 'ministry' as const, icon: IconMusic, color: 'grape' },
+  { key: 'finance' as const, icon: IconCashBanknote, color: 'teal' },
+];
 
 export default function LandingPage() {
   const { t, locale, setLocale } = useLanguage();
@@ -47,12 +59,6 @@ export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const isDark = mounted && colorScheme === 'dark';
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    // se já estiver logado, o acesso ao painel fica no CTA
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, router]);
 
   const handleDashboard = () => {
     if (!isAuthenticated) {
@@ -119,45 +125,97 @@ export default function LandingPage() {
 
         {/* Hero */}
         <Container size="xl" py={60}>
-          <Stack align="center" gap="md" maw={760} mx="auto" ta="center">
-            <Title order={1} fw={900} style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)' }}>
-              {t.landing.heroTitle}
+          <Stack align="center" gap="md" maw={900} mx="auto" ta="center">
+            <Badge size="lg" variant="light" color="blue" radius="xl" px="lg" py="sm">
+              {t.landingPage.badge}
+            </Badge>
+            <Title order={1} fw={900} style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)' }} maw={820}>
+              {t.landingPage.title}
             </Title>
-            <Text size="lg" c="dimmed" maw={640} mx="auto">
-              {t.landing.heroSubtitle}
+            <Text
+              variant="gradient"
+              gradient={{ from: 'blue', to: 'grape', deg: 135 }}
+              fw={800}
+              style={{ fontSize: 'clamp(1.15rem, 2.6vw, 1.6rem)' }}
+            >
+              {t.landingPage.titleHighlight}
             </Text>
-            <Group mt="md">
+            <Text size="lg" c="dimmed" maw={720} mx="auto">
+              {t.landingPage.subtitle}
+            </Text>
+            <Group mt="md" justify="center" wrap="wrap">
               <Button size="lg" rightSection={<IconArrowRight size={18} />} data-testid="index-dashboard" onClick={handleDashboard}>
-                {isAuthenticated ? t.accessDashboard : t.landing.ctaLogin}
+                {isAuthenticated ? t.accessDashboard : t.landingPage.ctaLogin}
               </Button>
               <Button
                 size="lg"
                 variant="default"
+                leftSection={<IconBuildingChurch size={18} />}
                 data-testid="index-register-cta"
                 onClick={() => router.push('/register')}
                 visibleFrom="sm"
               >
-                {t.landing.ctaRegister}
+                {t.landingPage.ctaRegister}
               </Button>
             </Group>
           </Stack>
 
-          {/* Features */}
-          <Stack mt={70} gap="md">
-            <Title order={3} ta="center">
-              {t.landing.featuresTitle}
-            </Title>
-            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="lg" mt="sm">
-              {t.landing.features.map((feature, i) => {
-                const Icon = FEATURE_ICONS[i] ?? IconFileSpreadsheet;
+          {/* Trust bar */}
+          <Paper withBorder radius="md" p="md" mt={70}>
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="lg">
+              {t.landingPage.trustBar.map((item, i) => {
+                const Icon = TRUST_ICONS[i] ?? IconShieldCheck;
+                const color = TRUST_COLORS[i] ?? 'teal';
                 return (
-                  <Card key={i} withBorder shadow="sm" padding="lg" radius="md">
-                    <Group wrap="nowrap" align="flex-start">
-                      <ThemeIcon size="lg" radius="md" color="blue" variant="light">
-                        <Icon size={22} />
+                  <Stack key={item.label} gap={4} align="center" ta="center" p="sm">
+                    <ThemeIcon size="lg" radius="xl" color={color} variant="light">
+                      <Icon size={20} />
+                    </ThemeIcon>
+                    <Text fw={700} size="sm">
+                      {item.label}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {item.description}
+                    </Text>
+                  </Stack>
+                );
+              })}
+            </SimpleGrid>
+          </Paper>
+
+          {/* Pillars */}
+          <Stack mt={80} gap="md">
+            <Title order={3} ta="center">
+              {t.landingPage.pillarsHeadline}
+            </Title>
+            <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg" mt="sm">
+              {PILLARS.map((p) => {
+                const data = t.landingPage.pillars[p.key];
+                const Icon = p.icon;
+                return (
+                  <Card key={p.key} withBorder shadow="sm" padding="xl" radius="md">
+                    <Stack gap="md">
+                      <ThemeIcon size="xl" radius="md" color={p.color} variant="light">
+                        <Icon size={28} />
                       </ThemeIcon>
-                      <Text>{feature}</Text>
-                    </Group>
+                      <Text fw={800} size="lg">
+                        {data.title}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        {data.description}
+                      </Text>
+                      <List
+                        spacing="sm"
+                        size="sm"
+                        icon={
+                          <IconCheck size={16} style={{ color: 'var(--mantine-color-teal-6)' }} />
+                        }
+                      >
+                        {data.items.map((it) => (
+                          <List.Item key={it}>{it}</List.Item>
+                        ))}
+                      </List>
+                    </Stack>
                   </Card>
                 );
               })}
@@ -174,7 +232,7 @@ export default function LandingPage() {
                 © {new Date().getFullYear()} Gestão IDB
               </Text>
               <Text size="sm" c="dimmed" ta="center">
-                {t.landing.footer}
+                {t.landingPage.footer}
               </Text>
             </Flex>
           </Container>

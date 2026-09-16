@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  BasePortalProps,
   Button,
   Grid,
   Group,
@@ -44,9 +45,10 @@ interface Props {
   opened: boolean;
   onClose: () => void;
   slug: string;
+  portalProps?: BasePortalProps;
 }
 
-export default function PrayerRequestPublicModal({ opened, onClose, slug }: Props) {
+export default function PrayerRequestPublicModal({ opened, onClose, slug, portalProps }: Props) {
   const { t } = useLanguage();
   const categoryData = PRAYER_CATEGORY_KEYS.map((k) => ({
     value: k,
@@ -210,6 +212,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug }: Prop
       title={t.prayerPublicModal.title}
       centered
       size="md"
+      portalProps={portalProps}
     >
       {submitted ? (
         <Stack align="center" gap="sm" py="xl">

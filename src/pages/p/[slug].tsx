@@ -14,6 +14,7 @@ import {
   Stack,
   Text,
   Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { IconCopy, IconBuildingChurch, IconExternalLink } from '@tabler/icons-react';
@@ -32,6 +33,7 @@ import type {
 
 export default function PublicLinksPage() {
   const { t } = useLanguage();
+  const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const slug = typeof router.query.slug === 'string' ? router.query.slug : '';
 
@@ -196,7 +198,9 @@ export default function PublicLinksPage() {
       <Box
         style={{
           minHeight: '100vh',
-          background: `linear-gradient(180deg, ${data?.church.theme_color || '#1c7ed6'} 0%, #f8f9fa 42%)`,
+          background: `linear-gradient(180deg, ${data?.church.theme_color || '#1c7ed6'} 0%, ${
+            colorScheme === 'dark' ? '#1A1B1E' : '#f8f9fa'
+          } 42%)`,
         }}
       >
         {loading && (
@@ -246,7 +250,7 @@ export default function PublicLinksPage() {
               p="sm"
               mt="lg"
               withBorder
-              style={{ width: '100%', borderColor: '#dee2e6' }}
+              style={{ width: '100%', borderColor: 'var(--mantine-color-default-border)' }}
             >
               <Text size="xs" c="dimmed" ta="center">
                 {t.publicLinks.footer}
@@ -260,6 +264,7 @@ export default function PublicLinksPage() {
           onClose={() => setPixLink(null)}
           title={pixLink?.title}
           centered
+          portalProps={{ target: '#public-root' }}
         >
           {pixLink && (() => {
             const mode = pixLink.pix_amount_mode || 'OPEN';
@@ -407,6 +412,7 @@ export default function PublicLinksPage() {
           title={mapsLink?.title}
           centered
           size="md"
+          portalProps={{ target: '#public-root' }}
         >
           {mapsLink && (() => {
             let query: string | null = null;
@@ -464,6 +470,7 @@ export default function PublicLinksPage() {
           opened={prayerOpen}
           onClose={() => setPrayerOpen(false)}
           slug={slug}
+          portalProps={{ target: '#public-root' }}
         />
       </Box>
     </>

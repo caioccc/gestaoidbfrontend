@@ -13,6 +13,7 @@ import {
   Stack,
   Text,
   Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import {
   IconBrandWhatsapp,
@@ -29,6 +30,7 @@ import { downloadVcf, memberPublicProfileUrl } from '../../utils/memberCard';
 
 export default function PublicMemberProfilePage() {
   const { t } = useLanguage();
+  const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const hash = typeof router.query.hash === 'string' ? router.query.hash : '';
 
@@ -87,7 +89,12 @@ export default function PublicMemberProfilePage() {
       </Head>
       <Box
         data-testid="perfil-page"
-        style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #0f1115 0%, #f8f9fa 36%)' }}
+        style={{
+          minHeight: '100vh',
+          background: `linear-gradient(180deg, #0f1115 0%, ${
+            colorScheme === 'dark' ? '#1A1B1E' : '#f8f9fa'
+          } 36%)`,
+        }}
       >
         {loading && (
           <Center h="60vh">

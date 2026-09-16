@@ -60,6 +60,18 @@ const FINANCE_ROUTES = [
 
 const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'];
 
+const PUBLIC_ROUTES = [
+  '/p/[slug]',
+  '/gc/[slug]',
+  '/perfil/[hash]',
+  '/cartao/[hash]',
+  '/calendario/[hash]',
+  '/formulario/[hash]',
+  '/ata/[hash]',
+];
+
+const PUBLIC_ROOT_ID = 'public-root';
+
 const ADMIN_ONLY: string[] = [];
 
 const DATE_LOCALE: Record<SupportedLocale, string> = {
@@ -84,10 +96,24 @@ function RouteGate({
 }) {
   const router = useRouter();
   const isAppRoute = APP_ROUTES.includes(router.pathname);
+  const isPublicRoute = PUBLIC_ROUTES.includes(router.pathname);
   const isAdminRoute = ADMIN_ONLY.includes(router.pathname);
   const isFinanceRoute = FINANCE_ROUTES.includes(router.pathname);
 
   if (!isAppRoute) {
+    if (isPublicRoute) {
+      return (
+        <MantineProvider
+          forceColorScheme="light"
+          getRootElement={() => document.getElementById(PUBLIC_ROOT_ID) ?? undefined}
+          cssVariablesSelector={`#${PUBLIC_ROOT_ID}`}
+        >
+          <div id={PUBLIC_ROOT_ID} data-mantine-color-scheme="light">
+            <Component {...pageProps} />
+          </div>
+        </MantineProvider>
+      );
+    }
     return <Component {...pageProps} />;
   }
 

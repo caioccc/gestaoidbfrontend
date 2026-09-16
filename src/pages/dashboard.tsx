@@ -42,6 +42,8 @@ export default function DashboardPage() {
     if (isLoading) return;
     if (user?.is_staff && !user.church) {
       router.replace('/admin/churches');
+    } else if (user?.role === 'MUSICO' || user?.role === 'LOUVOR' || user?.role === 'INTERCESSAO') {
+      router.replace('/calendar');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, user]);

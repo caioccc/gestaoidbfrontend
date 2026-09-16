@@ -9,6 +9,7 @@ import {
   Group,
   Loader,
   Modal,
+  MultiSelect,
   Paper,
   ScrollArea,
   SegmentedControl,
@@ -86,6 +87,7 @@ export default function VisitationPage() {
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [focusNonce, setFocusNonce] = useState(0);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<PastoralVisitStatus[]>([]);
   const [drawerVisit, setDrawerVisit] = useState<PastoralVisit | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -193,14 +195,16 @@ export default function VisitationPage() {
 
   const filteredVisits = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return visits;
-    return visits.filter(
-      (v) =>
+    return visits.filter((v) => {
+      if (statusFilter.length > 0 && !statusFilter.includes(v.status)) return false;
+      if (!q) return true;
+      return (
         (v.member_name || v.target_name || '').toLowerCase().includes(q) ||
         (v.neighborhood || '').toLowerCase().includes(q) ||
         (v.city || '').toLowerCase().includes(q)
-    );
-  }, [visits, search]);
+      );
+    });
+  }, [visits, search, statusFilter]);
 
   const moveMonth = (delta: number) => {
     let m = month + delta;
@@ -606,6 +610,13 @@ export default function VisitationPage() {
     label: t.visitationPage.visitType[type],
   }));
 
+  const statusOptions: { value: PastoralVisitStatus; label: string }[] = (
+    ['PLANNED', 'COMPLETED', 'CANCELLED'] as PastoralVisitStatus[]
+  ).map((status) => ({
+    value: status,
+    label: t.visitationPage.statusLabel[status],
+  }));
+
   const stats = [
     { key: 'total', label: t.visitationPage.total, value: summary?.total ?? 0, color: 'blue.6' },
     { key: 'planned', label: t.visitationPage.planned, value: summary?.planned ?? 0, color: 'orange.6' },
@@ -700,11 +711,11 @@ export default function VisitationPage() {
               <ActionIcon color="orange" variant="light" size="sm" title={t.visitationPage.actions.cancel} onClick={() => setCancelTarget(v)}>
                 <IconX size={15} />
               </ActionIcon>
-              <ActionIcon color="red" variant="light" size="sm" title={t.visitationPage.actions.delete} onClick={() => setDeleteTarget(v)}>
-                <IconTrash size={15} />
-              </ActionIcon>
             </>
           ) : null}
+          <ActionIcon color="red" variant="light" size="sm" title={t.visitationPage.actions.delete} onClick={() => setDeleteTarget(v)}>
+            <IconTrash size={15} />
+          </ActionIcon>
         </Group>
       </Stack>
     </Paper>
@@ -745,6 +756,16 @@ export default function VisitationPage() {
               <IconChevronRight size={16} />
             </ActionIcon>
           </Group>
+
+          <MultiSelect
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as PastoralVisitStatus[])}
+            data={statusOptions}
+            placeholder={t.visitationPage.statusFilterPlaceholder}
+            clearable
+            size="xs"
+            w={180}
+          />
 
           <Button leftSection={<IconPlus size={16} />} onClick={() => { resetForm(); setCreateOpen(true); }}>
             {t.visitationPage.newVisit}
@@ -972,31 +993,31 @@ export default function VisitationPage() {
                   </Button>
                 ) : null}
                 {drawerVisit.status === 'PLANNED' ? (
-                  <Group grow>
-                    <Button
-                      variant="light"
-                      color="orange"
-                      leftSection={<IconX size={16} />}
-                      onClick={() => {
-                        setDrawerVisit(null);
-                        setCancelTarget(drawerVisit);
-                      }}
-                    >
-                      {t.visitationPage.actions.cancel}
-                    </Button>
-                    <Button
-                      variant="subtle"
-                      color="red"
-                      leftSection={<IconTrash size={16} />}
-                      onClick={() => {
-                        setDrawerVisit(null);
-                        setDeleteTarget(drawerVisit);
-                      }}
-                    >
-                      {t.visitationPage.actions.delete}
-                    </Button>
-                  </Group>
+                  <Button
+                    variant="light"
+                    color="orange"
+                    leftSection={<IconX size={16} />}
+                    onClick={() => {
+                      setDrawerVisit(null);
+                      setCancelTarget(drawerVisit);
+                    }}
+                  >
+                    {t.visitationPage.actions.cancel}
+                  </Button>
                 ) : null}
+                <Group grow>
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    leftSection={<IconTrash size={16} />}
+                    onClick={() => {
+                      setDrawerVisit(null);
+                      setDeleteTarget(drawerVisit);
+                    }}
+                  >
+                    {t.visitationPage.actions.delete}
+                  </Button>
+                </Group>
               </Stack>
             </Stack>
           ) : null}

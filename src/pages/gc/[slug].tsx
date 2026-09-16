@@ -17,6 +17,7 @@ import {
   Text,
   TextInput,
   Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -208,6 +209,7 @@ function PublicGCMap({
 
 export default function PublicGrowthGroupsPage() {
   const { t } = useLanguage();
+  const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const slug = typeof router.query.slug === 'string' ? router.query.slug : '';
 
@@ -451,7 +453,9 @@ export default function PublicGrowthGroupsPage() {
       <Box
         style={{
           minHeight: '100vh',
-          background: `linear-gradient(180deg, ${themeColor} 0%, #f8f9fa 38%)`,
+          background: `linear-gradient(180deg, ${themeColor} 0%, ${
+            colorScheme === 'dark' ? '#1A1B1E' : '#f8f9fa'
+          } 38%)`,
         }}
       >
         {loading && (

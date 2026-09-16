@@ -90,7 +90,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     Cookies.set('idb_user_data', JSON.stringify(userData), { expires: 7, sameSite: 'lax' });
 
     setUser(userData);
-    router.push(userData.is_staff ? '/admin/churches' : '/dashboard');
+    if (userData.is_staff) {
+      router.push('/admin/churches');
+    } else if (userData.role === 'MUSICO' || userData.role === 'LOUVOR' || userData.role === 'INTERCESSAO') {
+      router.push('/calendar');
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const logout = () => {

@@ -67,6 +67,7 @@ export default function SecretaryDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
+  const isIntercessao = user?.role === 'INTERCESSAO';
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -214,6 +215,7 @@ export default function SecretaryDashboard() {
     });
   }
   loanAlerts.forEach((a) => {
+    if (isIntercessao) return;
     const overdue = a.type === 'loan_return_overdue';
     const todayL = a.type === 'loan_return_today';
     const color = overdue ? 'red' : todayL ? 'orange' : 'blue';
@@ -243,7 +245,7 @@ export default function SecretaryDashboard() {
     });
   });
 
-  const statCards = [
+  const allStatCards = [
     { key: 'members', label: sd.statMembers, value: activeMembers, color: 'blue', icon: <IconUsers size={22} /> },
     { key: 'loans', label: sd.statLoans, value: openLoans, color: 'green', icon: <IconPackage size={22} /> },
     { key: 'cultos', label: sd.statCultos, value: cultosMonth, color: 'teal', icon: <IconBuildingChurch size={22} /> },
@@ -252,8 +254,11 @@ export default function SecretaryDashboard() {
     { key: 'cards', label: sd.statCardsExpiring, value: cardSoon.length + cardExpired.length, color: 'red', icon: <IconIdBadge size={22} /> },
     { key: 'transfers', label: sd.statTransfers, value: pendingTransfers, color: 'indigo', icon: <IconArrowsRightLeft size={22} /> },
   ];
+  const statCards = isIntercessao
+    ? allStatCards.filter((c) => ['cultos', 'minutes', 'birthdays'].includes(c.key))
+    : allStatCards;
 
-  const quickTiles: QuickTile[] = [
+  const allQuickTiles: QuickTile[] = [
     { key: 'members', label: sd.linkMembers, icon: <IconUsers size={24} />, color: 'blue', href: '/members' },
     { key: 'calendar', label: sd.linkCalendar, icon: <IconCalendarEvent size={24} />, color: 'violet', href: '/calendar' },
     { key: 'cultos', label: sd.linkCultos, icon: <IconBuildingChurch size={24} />, color: 'teal', href: '/cultos' },
@@ -263,6 +268,9 @@ export default function SecretaryDashboard() {
     { key: 'birthdays', label: sd.linkBirthdays, icon: <IconCake size={24} />, color: 'pink', href: '/members-reports?tab=birthdays' },
     { key: 'transfers', label: sd.linkTransfers, icon: <IconArrowsRightLeft size={24} />, color: 'indigo', href: '/members?tab=transfers' },
   ];
+  const quickTiles = isIntercessao
+    ? allQuickTiles.filter((t) => ['calendar', 'cultos', 'minutes'].includes(t.key))
+    : allQuickTiles;
 
   const renderFeedRow = (row: FeedRow) => (
     <UnstyledButton
@@ -285,7 +293,7 @@ export default function SecretaryDashboard() {
     </UnstyledButton>
   );
 
-  const quickActions = (
+  const quickActions = isIntercessao ? null : (
     <Group gap="xs">
       <Button
         variant="light"

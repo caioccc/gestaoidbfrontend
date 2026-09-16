@@ -1203,7 +1203,7 @@ export default function MembersPage() {
   };
 
   return (
-    <AuthGuard roles={['PASTOR', 'SECRETARIA']}>
+    <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.membersPage.title} description={t.membersPage.subtitle}>
           <Tabs value={tab} onChange={setTab} variant="pills">

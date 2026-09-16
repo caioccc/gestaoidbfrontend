@@ -796,7 +796,7 @@ export default function MembersReportsPage() {
   );
 
   return (
-    <AuthGuard roles={['PASTOR', 'SECRETARIA']}>
+    <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader
           title={t.memberReports.title}

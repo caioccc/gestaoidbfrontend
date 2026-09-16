@@ -34,6 +34,15 @@ export function transposeKey(key: string, semitones: number): string {
   return transposeChord(clean, semitones);
 }
 
+export function keyDistance(from: string, to: string): number {
+  const a = normalizeRoot(from.trim());
+  const b = normalizeRoot(to.trim());
+  const ia = ROOTS.indexOf(a as (typeof ROOTS)[number]);
+  const ib = ROOTS.indexOf(b as (typeof ROOTS)[number]);
+  if (ia === -1 || ib === -1) return 0;
+  return (((ib - ia) % 12) + 12) % 12;
+}
+
 function transposeRawNote(note: string, semitones: number): string {
   const match = /^([A-G][#b]?)([:A-Za-z0-9]*)$/.exec((note || '').trim());
   if (!match) return note;

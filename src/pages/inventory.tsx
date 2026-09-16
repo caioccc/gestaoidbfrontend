@@ -18,6 +18,7 @@ import {
   TextInput,
   Textarea,
   ThemeIcon,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -791,6 +792,7 @@ interface LoanFormValues {
 
 function LoansTab() {
   const { t } = useLanguage();
+  const { colorScheme } = useMantineColorScheme();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -1029,17 +1031,18 @@ function LoansTab() {
     const open = isOpen(loan);
     const overdue = isOverdue(loan);
     const dueToday = isDueToday(loan);
+    const rowBackground = open
+      ? colorScheme === 'dark'
+        ? `rgba(224, 49, 49, ${overdue ? 0.16 : 0.08})`
+        : overdue
+          ? 'var(--mantine-color-red-1)'
+          : 'var(--mantine-color-red-0)'
+      : undefined;
     return (
       <Table.Tr
         key={loan.id}
         data-testid={`loan-row-${loan.id}`}
-        style={{
-          background: open
-            ? overdue
-              ? 'var(--mantine-color-red-1)'
-              : 'var(--mantine-color-red-0)'
-            : undefined,
-        }}
+        style={{ background: rowBackground }}
       >
         <Table.Td>
           <Group gap="sm" wrap="nowrap">
@@ -1425,7 +1428,7 @@ export default function InventoryPage() {
   const [tab, setTab] = useState<string | null>('loans');
 
   return (
-    <AuthGuard roles={['PASTOR', 'SECRETARIA']}>
+    <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.inventoryPage.title} description={t.inventoryPage.subtitle}>
           <Group gap="sm">
