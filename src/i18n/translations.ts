@@ -70,7 +70,7 @@ const pt = {
         ],
       },
     },
-    footer: 'Igrejas de Deus no Brasil - Convenção Regional da Paraíba. Todos os direitos reservados.',
+    footer: 'Igrejas de Deus no Brasil - Convenção Regional. Todos os direitos reservados.',
   },
   nav: {
     dashboard: 'Dashboard Financeiro',
