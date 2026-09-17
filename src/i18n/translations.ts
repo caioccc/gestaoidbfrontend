@@ -45,12 +45,12 @@ const pt = {
           'Registro de cultos com contagem de presença e histórico de pregações.',
           'Emissão com um clique de Certificados Eclésiais (Batismo, Apresentação) e Atas oficiais.',
           'Triagem e acompanhamento de Pedidos de Oração com integração direta via WhatsApp.',
-          'Mapa de visitação e acompanhamento de Grupos de Crescimento (PGs/Células).',
+          'Mapa de visitação e acompanhamento de Grupos de Crescimento.',
         ],
       },
       ministry: {
         title: 'Música, Mídia & Escala de Voluntários',
-        description: 'Escalas de voluntários sem choques, repertório com YouTube/Chordify e setlists prontas.',
+        description: 'Escalas de voluntários sem choques, repertório e setlists prontas.',
         items: [
           'Montagem de escalas mensais (Som, Mídia/Projeção, Recepção, Diaconia e Banda).',
           'Trava inteligente anti-choque de horários para o mesmo voluntário.',
@@ -2289,12 +2289,12 @@ const en: TranslationDict = {
           'Worship service registration with attendance counts and preaching history.',
           'One-click issuance of Ecclesiastical Certificates (Baptism, Presentation) and official minutes.',
           'Triage and follow-up of Prayer Requests with direct WhatsApp integration.',
-          'Visitation map and Growth Groups (PGs/Cells) tracking.',
+          'Visitation map and Growth Groups tracking.',
         ],
       },
       ministry: {
         title: 'Worship, Media & Volunteer Rosters',
-        description: 'Conflict-free volunteer rosters, repertoire with YouTube/Chordify, and ready-to-go setlists.',
+        description: 'Conflict-free volunteer rosters, repertoire, and ready-to-go setlists.',
         items: [
           'Monthly roster assembly (Sound, Media/Projection, Reception, Diaconate, and Band).',
           'Intelligent clash-prevention for volunteer schedule conflicts.',
@@ -4526,12 +4526,12 @@ const es: TranslationDict = {
           'Registro de servicios religiosos con conteo de asistencia e historial de predicaciones.',
           'Emisión con un clic de Certificados Eclesiásticos (Bautismo, Presentación) y Actas oficiales.',
           'Triaje y seguimiento de Pedidos de Oración con integración directa por WhatsApp.',
-          'Mapa de visitación y seguimiento de Grupos de Crecimiento (PGs/Células).',
+          'Mapa de visitación y seguimiento de Grupos de Crecimiento.',
         ],
       },
       ministry: {
         title: 'Adoración, Medios y Escalas de Voluntarios',
-        description: 'Escalas de voluntarios sin choques, repertorio con YouTube/Chordify y setlists listas.',
+        description: 'Escalas de voluntarios sin choques, repertorio y setlists listas.',
         items: [
           'Armado de escalas mensuales (Sonido, Medios/Proyección, Recepción, Diaconía y Banda).',
           'Traba inteligente anti-choque de horarios para el mismo voluntario.',
