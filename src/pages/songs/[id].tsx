@@ -31,6 +31,7 @@ import LyricsSheet from '../../components/LyricsSheet';
 import { useLanguage } from '../../i18n';
 import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
+import { formatMusicalKey } from '../../utils/format';
 import type { Song, SongHistoryItem } from '../../types';
 
 type Tab = 'player' | 'lyrics' | 'history';
@@ -122,8 +123,8 @@ export default function SongDetailPage() {
                 {song.band_name ? (
                   <Badge variant="dot" color={song.band_color}>{song.band_name}</Badge>
                 ) : null}
-                {song.church_key ? <Badge variant="light" color="violet">{t.music.churchKeyLabel}: {song.church_key}</Badge> : null}
-                {song.original_key ? <Badge variant="light" color="grape">{t.music.originalKeyLabel}: {song.original_key}</Badge> : null}
+                {song.church_key ? <Badge variant="light" color="violet">{t.music.churchKeyLabel}: {formatMusicalKey(song.church_key)}</Badge> : null}
+                {song.original_key ? <Badge variant="light" color="grape">{t.music.originalKeyLabel}: {formatMusicalKey(song.original_key)}</Badge> : null}
                 {song.bpm ? <Badge variant="light">{song.bpm} BPM</Badge> : null}
                 {song.time_signature ? <Badge variant="light">{song.time_signature}</Badge> : null}
               </Group>
@@ -204,16 +205,16 @@ function HistoryTab({ items }: { items: SongHistoryItem[] }) {
           <Table.Thead>
             <Table.Tr>
               <Table.Th>{t.music.date}</Table.Th>
-              <Table.Th>{t.music.themeLabel}</Table.Th>
-              <Table.Th>{t.music.originalKeyLabel}</Table.Th>
+              <Table.Th>{t.music.setlistsTitle}</Table.Th>
+              <Table.Th>{t.music.transposeLabel}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {items.map((h, i) => (
-              <Table.Tr key={i}>
+              <Table.Tr key={`${h.kind}-${h.setlist_id ?? i}`}>
                 <Table.Td>{h.date}</Table.Td>
-                <Table.Td>{h.theme}</Table.Td>
-                <Table.Td>{h.custom_key}</Table.Td>
+                <Table.Td>{h.name || '—'}</Table.Td>
+                <Table.Td>{h.key ? formatMusicalKey(h.key) : '—'}</Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>

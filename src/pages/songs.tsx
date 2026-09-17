@@ -38,6 +38,7 @@ import BandModal from '../components/BandModal';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
+import { formatMusicalKey } from '../utils/format';
 import type { Band, Song } from '../types';
 
 const MUSICAL_KEYS = [
@@ -262,7 +263,7 @@ export default function SongsPage() {
                           <Text size="sm">{s.artist}</Text>
                         </Table.Td>
                         <Table.Td>
-                          {s.church_key ? <Badge variant="light" color="violet">{s.church_key}</Badge> : null}
+                          {s.church_key ? <Badge variant="light" color="violet">{formatMusicalKey(s.church_key)}</Badge> : null}
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm">{s.bpm ?? '—'}</Text>
@@ -350,7 +351,7 @@ export default function SongsPage() {
                     <Text fw={600} truncate>{s.title}</Text>
                     <Text size="xs" c="dimmed" truncate>{s.artist || '—'}</Text>
                     <Group gap={4}>
-                      {s.church_key ? <Badge variant="light" color="violet" size="sm">{s.church_key}</Badge> : null}
+                      {s.church_key ? <Badge variant="light" color="violet" size="sm">{formatMusicalKey(s.church_key)}</Badge> : null}
                       <Badge variant="light" size="sm">{t.music.bpmLabel}: {s.bpm ?? '—'}</Badge>
                       <Badge variant="light" size="sm">{t.music.timesPlayed}: {s.times_played}</Badge>
                     </Group>

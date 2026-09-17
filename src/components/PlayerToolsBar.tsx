@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ActionIcon, Box, Button, Group, SegmentedControl, Text, Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useMetronome } from '../hooks/useMetronome';
 
 interface PlayerToolsBarProps {
   progress: number;
@@ -43,27 +44,17 @@ export default function PlayerToolsBar({
 }: PlayerToolsBarProps) {
   const { t } = useLanguage();
   const loopActive = loopA != null && loopB != null && loopB > loopA;
-  const [beat, setBeat] = useState(false);
-  const [measureBeat, setMeasureBeat] = useState(0);
 
   const beatsPerBar = (() => {
     const num = Number.parseInt((timeSignature || '').trim().split('/')[0] || '', 10);
     return Number.isFinite(num) && num > 0 ? num : 4;
   })();
 
-  useEffect(() => {
-    if (!metronomeOn || !bpm) return;
-    const intervalMs = Math.max(180, 60000 / bpm);
-    let m = 0;
-    setBeat(true);
-    setMeasureBeat(0);
-    const id = window.setInterval(() => {
-      m = (m + 1) % beatsPerBar;
-      setBeat((p) => !p);
-      setMeasureBeat(m);
-    }, intervalMs);
-    return () => window.clearInterval(id);
-  }, [metronomeOn, bpm, beatsPerBar]);
+  const { beat, measureBeat } = useMetronome({
+    enabled: metronomeOn,
+    bpm,
+    beatsPerBar,
+  });
 
   const speedData = SPEED_OPTIONS.map((r) => ({
     value: String(r),

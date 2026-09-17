@@ -4,7 +4,7 @@ import { notifications } from '@mantine/notifications';
 import { IconBrandWhatsapp, IconCopy } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '../utils/whatsapp';
-import { maskPhone, onlyDigits } from '../utils/format';
+import { maskPhone, onlyDigits, formatMusicalKey } from '../utils/format';
 import type { BandSetlist } from '../types';
 
 const MONTHS_PT = [
@@ -47,7 +47,7 @@ export default function SetlistShareModal({ setlist, onClose }: SetlistShareModa
     [...setlist.items]
       .sort((a, b) => a.order - b.order)
       .forEach((it, idx) => {
-        const tom = it.custom_key || it.song_church_key;
+        const tom = formatMusicalKey(it.custom_key || it.song_church_key);
         const title = it.song_artist ? `${it.song_title} — ${it.song_artist}` : it.song_title;
         lines.push(
           `${idx + 1}. ${title} — ${t.music.setlistSongCustomKey}: ${tom || '—'} | ${t.music.bpmLabel}: ${it.song_bpm ?? '—'}`,

@@ -192,6 +192,9 @@ export const musicApi = {
       .get('/api/music/setlists/', { params: params ?? {} })
       .then((r) => r.data),
 
+  bandSetlist: (id: number): Promise<BandSetlist> =>
+    apiClient.get(`/api/music/setlists/${id}/`).then((r) => r.data),
+
   createBandSetlist: (payload: BandSetlistPayload): Promise<BandSetlist> =>
     apiClient.post('/api/music/setlists/', payload).then((r) => r.data),
 

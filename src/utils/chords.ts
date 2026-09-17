@@ -81,3 +81,22 @@ export function chordAt(chords: ChordItem[], time: number): number {
   }
   return -1;
 }
+
+export function dedupeChords(chords: ChordItem[]): ChordItem[] {
+  const out: ChordItem[] = [];
+  for (const chord of chords) {
+    const prev = out[out.length - 1];
+    if (prev && (prev.note_fmt || prev.note) === (chord.note_fmt || chord.note)) {
+      if (chord.end != null || chord.tempo != null) {
+        out[out.length - 1] = {
+          ...prev,
+          end: chord.end != null ? chord.end : prev.end,
+          tempo: chord.tempo != null ? chord.tempo : prev.tempo,
+        };
+      }
+      continue;
+    }
+    out.push({ ...chord });
+  }
+  return out;
+}

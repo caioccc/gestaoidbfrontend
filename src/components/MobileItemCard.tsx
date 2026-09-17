@@ -6,6 +6,7 @@ interface MobileItemCardProps {
   media?: React.ReactNode;
   children: React.ReactNode;
   actions?: React.ReactNode;
+  primaryAction?: React.ReactNode;
   testId?: string;
 }
 
@@ -13,6 +14,7 @@ export default function MobileItemCard({
   media,
   children,
   actions,
+  primaryAction,
   testId,
 }: MobileItemCardProps) {
   return (
@@ -22,6 +24,7 @@ export default function MobileItemCard({
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Box>{children}</Box>
         </Box>
+        {primaryAction ? <Box style={{ flexShrink: 0 }}>{primaryAction}</Box> : null}
         {actions ? (
           <Menu shadow="md" position="bottom-end">
             <Menu.Target>

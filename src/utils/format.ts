@@ -22,6 +22,18 @@ export function formatDate(value: string | null | undefined): string {
   return d.toLocaleDateString('pt-BR');
 }
 
+export function formatMusicalKey(key: string | null | undefined): string {
+  if (!key) return '—';
+  const trimmed = key.trim();
+  if (!trimmed) return '—';
+  return trimmed.replace(/^([a-gA-G])([#bB]?)(m|M)?(.*)$/, (_, note, acc, minor, rest) => {
+    const formattedNote = note.toUpperCase();
+    const formattedAcc = acc ? (acc.toLowerCase() === 'b' ? 'b' : '#') : '';
+    const formattedMinor = minor && minor.toLowerCase() === 'm' ? 'm' : '';
+    return `${formattedNote}${formattedAcc}${formattedMinor}${rest}`;
+  });
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '—';
   const d = new Date(value);

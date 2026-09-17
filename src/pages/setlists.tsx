@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   ActionIcon,
   Badge,
@@ -22,6 +23,7 @@ import {
   IconBrandWhatsapp,
   IconMusic,
   IconPencil,
+  IconPlayerPlayFilled,
   IconPlus,
   IconTrash,
 } from '@tabler/icons-react';
@@ -34,6 +36,7 @@ import SetlistShareModal from '../components/SetlistShareModal';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
+import { formatMusicalKey } from '../utils/format';
 import type { Band, BandSetlist } from '../types';
 
 const MONTHS_PT = [
@@ -53,6 +56,28 @@ function formatDateLabel(iso: string): string {
   const [y, m, d] = iso.split('-');
   const i = Number(m) - 1;
   return `${Number(d)} de ${MONTHS_PT[i] ?? m} de ${y}`;
+}
+
+function PlaySetlistButton({ setlist }: { setlist: BandSetlist }) {
+  const { t } = useLanguage();
+  const router = useRouter();
+  const hasSongs = setlist.items.length > 0;
+  const tooltip = hasSongs ? t.music.setlistPlay : t.music.setlistPlayEmptyTip;
+  return (
+    <Tooltip label={tooltip}>
+      <span>
+        <Button
+          size="xs"
+          variant="filled"
+          color={hasSongs ? 'blue' : 'gray'}
+          disabled={!hasSongs}
+          onClick={() => void router.push(`/setlists/${setlist.id}/play`)}
+        >
+          <IconPlayerPlayFilled size={16} />
+        </Button>
+      </span>
+    </Tooltip>
+  );
 }
 
 function SetlistActions({
@@ -98,6 +123,7 @@ export default function SetlistsPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { canManageMusic } = useRoleHelpers(user);
+  const router = useRouter();
 
   const [month, setMonth] = useState(() => monthKey(new Date()));
   const [bandFilter, setBandFilter] = useState<string | null>(null);
@@ -238,7 +264,7 @@ export default function SetlistsPage() {
                               {s.items.slice(0, 3).map((it) => (
                                 <Text key={it.id} size="xs" c="dimmed" truncate>
                                   {it.order}. {it.song_title}
-                                  {it.custom_key ? <Text span c="grape"> ({it.custom_key})</Text> : ''}
+                                  {it.custom_key ? <Text span c="grape"> ({formatMusicalKey(it.custom_key)})</Text> : ''}
                                 </Text>
                               ))}
                               {s.items.length > 3 ? (
@@ -266,14 +292,17 @@ export default function SetlistsPage() {
                         <Table.Td>
                           <Text size="sm">{s.created_by_name || '—'}</Text>
                         </Table.Td>
-                        <Table.Td w={110}>
-                          <SetlistActions
-                            setlist={s}
-                            canManage={!!canManageMusic}
-                            onEdit={openEdit}
-                            onShare={setShareSetlist}
-                            onDelete={(x) => void remove(x)}
-                          />
+                        <Table.Td>
+                          <Group gap={6} wrap="nowrap">
+                            <PlaySetlistButton setlist={s} />
+                            <SetlistActions
+                              setlist={s}
+                              canManage={!!canManageMusic}
+                              onEdit={openEdit}
+                              onShare={setShareSetlist}
+                              onDelete={(x) => void remove(x)}
+                            />
+                          </Group>
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -296,6 +325,24 @@ export default function SetlistsPage() {
                     >
                       {Number(s.date.split('-')[2])}
                     </Badge>
+                  }
+                  primaryAction={
+                    <Tooltip
+                      label={s.items.length > 0 ? t.music.setlistPlay : t.music.setlistPlayEmptyTip}
+                    >
+                      <span>
+                        <ActionIcon
+                          variant="filled"
+                          color={s.items.length > 0 ? 'blue' : 'gray'}
+                          size="lg"
+                          disabled={s.items.length === 0}
+                          aria-label={t.music.setlistPlay}
+                          onClick={() => void router.push(`/setlists/${s.id}/play`)}
+                        >
+                          <IconPlayerPlayFilled size={16} />
+                        </ActionIcon>
+                      </span>
+                    </Tooltip>
                   }
                   actions={
                     <>
@@ -338,7 +385,7 @@ export default function SetlistsPage() {
                       {[...s.items].sort((a, b) => a.order - b.order).slice(0, 3).map((it) => (
                         <Text key={it.id} size="xs" c="dimmed" truncate>
                           {it.order}. {it.song_title}
-                          {it.custom_key ? <Text span c="grape"> ({it.custom_key})</Text> : ''}
+                          {it.custom_key ? <Text span c="grape"> ({formatMusicalKey(it.custom_key)})</Text> : ''}
                         </Text>
                       ))}
                       {s.items.length > 3 ? (

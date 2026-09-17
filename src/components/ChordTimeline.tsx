@@ -61,8 +61,8 @@ export default function ChordTimeline({
         const distance = Math.abs(i - activeIndex);
         const opacity = isActive ? 1 : Math.max(0.25, 1 - distance * 0.24);
         const scaled = isActive ? 1.08 : 1;
-        const activeWidth = simpleMode ? 92 : 108;
-        const cardWidth = isActive ? activeWidth : simpleMode ? 68 : 84;
+        const activeWidth = simpleMode ? 100 : 108;
+        const cardWidth = isActive ? activeWidth : simpleMode ? 78 : 84;
         const start = chord.start ?? 0;
         const end = chord.end != null ? chord.end : start + 1;
         const pct = end > start ? clamp(((progress - start) / (end - start)) * 100, 0, 100) : 0;
@@ -83,8 +83,9 @@ export default function ChordTimeline({
               justifyContent: 'center',
               gap: simpleMode ? 2 : 6,
               width: cardWidth,
-              minHeight: simpleMode ? 60 : 116,
-              padding: simpleMode ? '10px 8px' : '10px 6px',
+              height: simpleMode ? 54 : undefined,
+              minHeight: simpleMode ? 54 : 116,
+              padding: simpleMode ? '6px 8px' : '10px 6px',
               border: isActive
                 ? '2px solid var(--mantine-primary-color-filled)'
                 : '1px solid var(--mantine-color-default-border)',
@@ -130,7 +131,12 @@ export default function ChordTimeline({
               size={simpleMode ? undefined : isActive ? 'xl' : 'sm'}
               c={isActive ? 'var(--mantine-primary-color-filled)' : undefined}
               style={{
-                fontSize: simpleMode ? (isActive ? 26 : 20) : undefined,
+                fontSize: simpleMode ? (isActive ? 24 : 18) : undefined,
+                lineHeight: 1.1,
+                whiteSpace: simpleMode ? 'nowrap' : undefined,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
               }}
             >

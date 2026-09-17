@@ -1706,9 +1706,10 @@ export interface Song {
 
 export interface SongHistoryItem {
   date: string;
-  roster_id: number;
-  theme: string;
-  custom_key: string;
+  name: string;
+  key: string;
+  kind: string;
+  setlist_id?: number;
 }
 
 export interface YouTubeSearchResult {

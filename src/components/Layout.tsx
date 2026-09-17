@@ -727,7 +727,7 @@ export default function Layout({
       )}
 
       <AppShell.Main>
-        <ContentContextHeader />
+        {!expanded ? <ContentContextHeader /> : null}
         {children}
       </AppShell.Main>
     </AppShell>
