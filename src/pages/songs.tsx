@@ -167,7 +167,7 @@ export default function SongsPage() {
               <Button variant="light" onClick={() => setBandsOpen(true)} size="sm">
                 {t.music.bandManage}
               </Button>
-              <Button leftSection={<IconPlus size={16} />} onClick={openAdd} size="sm">
+              <Button leftSection={<IconPlus size={18} />} onClick={openAdd} size="sm">
                 {t.music.addSong}
               </Button>
             </Group>

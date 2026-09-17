@@ -34,7 +34,7 @@ import MobileItemCard from '../components/MobileItemCard';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
-import { formatBRL } from '../utils/format';
+import { formatBRL, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { WorshipService, WorshipServiceType } from '../types';
 
 function formatISODate(iso: string | null): string {
@@ -151,15 +151,15 @@ export default function CultosPage() {
       date: values.date,
       time: values.time ? `${values.time}:00` : null,
       service_type: values.service_type ?? undefined,
-      presider: values.presider,
-      preacher: values.preacher,
-      theme: values.theme,
+      presider: values.presider ? toUpperCamelWords(values.presider) : '',
+      preacher: values.preacher ? toUpperCamelWords(values.preacher) : '',
+      theme: values.theme ? toUpperCamelWords(values.theme) : '',
       scripture: values.scripture,
       attendees: integerOrUndefined(values.attendees),
       visitors: integerOrUndefined(values.visitors),
       conversions: integerOrUndefined(values.conversions),
       offering: values.offering || undefined,
-      notes: values.notes,
+      notes: values.notes ? toSentenceCase(values.notes) : '',
     };
 
     const request = editing

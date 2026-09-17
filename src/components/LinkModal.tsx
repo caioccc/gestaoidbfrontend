@@ -17,6 +17,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconCopy, IconSearch, IconQrcode } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { toSentenceCase, toUpperCamelWords } from '../utils/format';
 import { copyToClipboard } from '../utils/share';
 import { buildPixPayload } from '../utils/pix';
 import MaskedTextInput from './MaskedTextInput';
@@ -212,13 +213,17 @@ export default function LinkModal({
     linkType !== 'CALENDAR' &&
     linkType !== 'MEMBERSHIP' &&
     linkType !== 'PRAYER' &&
+    linkType !== 'GROWTH_GROUPS' &&
     linkType !== 'WHATSAPP' &&
     linkType !== 'MAPS';
   const showPix = linkType === 'PIX';
   const showWhatsapp = linkType === 'WHATSAPP';
   const showMaps = linkType === 'MAPS';
   const isSystem =
-    linkType === 'CALENDAR' || linkType === 'MEMBERSHIP' || linkType === 'PRAYER';
+    linkType === 'CALENDAR' ||
+    linkType === 'MEMBERSHIP' ||
+    linkType === 'PRAYER' ||
+    linkType === 'GROWTH_GROUPS';
 
   const pixMode = form.values.pix_amount_mode;
   const previewAmount = ((): string | number | null => {
@@ -292,9 +297,9 @@ export default function LinkModal({
 
   const handleSubmit = form.onSubmit(async (values) => {
     const base: Record<string, unknown> = {
-      title: values.title.trim(),
+      title: toUpperCamelWords(values.title),
       link_type: values.link_type,
-      description: values.description.trim(),
+      description: toSentenceCase(values.description),
       highlight: values.highlight,
       is_active: values.is_active,
     };
@@ -368,7 +373,7 @@ export default function LinkModal({
     onClose();
   });
 
-  const typeOptions = (['CUSTOM', 'PIX', 'WHATSAPP', 'YOUTUBE', 'MAPS', 'INSTAGRAM', 'CALENDAR', 'MEMBERSHIP', 'PRAYER'] as ChurchLinkType[]).map(
+  const typeOptions = (['CUSTOM', 'PIX', 'WHATSAPP', 'YOUTUBE', 'MAPS', 'INSTAGRAM', 'CALENDAR', 'MEMBERSHIP', 'PRAYER', 'GROWTH_GROUPS'] as ChurchLinkType[]).map(
     (type) => ({
       value: type,
       label: t.linkTypes[type] || type,

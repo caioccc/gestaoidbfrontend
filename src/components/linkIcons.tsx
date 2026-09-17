@@ -9,6 +9,7 @@ import {
   IconCalendarEvent,
   IconUserPlus,
   IconPray,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 
 const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
@@ -21,6 +22,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   calendar: IconCalendarEvent,
   'user-plus': IconUserPlus,
   pray: IconPray,
+  users: IconUsersGroup,
 };
 
 export function LinkTypeIcon({

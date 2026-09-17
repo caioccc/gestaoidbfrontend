@@ -38,6 +38,7 @@ import {
   IconClock,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import ShareLinkModal from './ShareLinkModal';
 import {
   CalendarEvent,
@@ -309,6 +310,10 @@ export default function CalendarEventsBoard({
         values.recurrence === 'weekly' && values.repeat_interval === 2 && !v
           ? t.calendarEvents.startDate
           : null,
+      start_time: (v) =>
+        v.trim() && !/^\d{2}:\d{2}$/.test(v.trim())
+          ? t.calendarEvents.timePlaceholder
+          : null,
       end_time: (v) =>
         v.trim() && !/^\d{2}:\d{2}$/.test(v.trim())
           ? t.calendarEvents.timePlaceholder
@@ -380,10 +385,10 @@ export default function CalendarEventsBoard({
   const handleSubmit = form.onSubmit(async (values) => {
     setSaving(true);
     const payload: Partial<CalendarEvent> = {
-      title: values.title.trim(),
+      title: toUpperCamelWords(values.title),
       category: values.category,
       audience: values.audience,
-      description: values.description.trim(),
+      description: toSentenceCase(values.description),
       start_time: timeToApi(values.start_time),
       end_time: timeToApi(values.end_time) || undefined,
       members: values.members.map(Number),
@@ -898,7 +903,7 @@ export default function CalendarEventsBoard({
                           <IconEdit size={15} />
                         </ActionIcon>
                       </Tooltip>
-                      <Tooltip label={t.common.delete}>
+                      <Tooltip label={t.calendarEvents.deleteTitle}>
                         <ActionIcon size="sm" color="red" variant="subtle" onClick={() => setDeleting(ev)}>
                           <IconTrash size={15} />
                         </ActionIcon>
@@ -1024,14 +1029,20 @@ export default function CalendarEventsBoard({
               data-testid="event-time"
               label={t.calendarEvents.time}
               placeholder={t.calendarEvents.timePlaceholder}
-              {...form.getInputProps('start_time')}
+              maxLength={5}
+              value={maskTime(form.values.start_time)}
+              onChange={(e) => form.setFieldValue('start_time', maskTime(e.currentTarget.value))}
+              error={form.errors.start_time}
             />
             {form.values.recurrence === 'weekly' && (
               <TextInput
                 data-testid="event-end-time"
                 label={t.calendarEvents.endTime}
                 placeholder={t.calendarEvents.timePlaceholder}
-                {...form.getInputProps('end_time')}
+                maxLength={5}
+                value={maskTime(form.values.end_time)}
+                onChange={(e) => form.setFieldValue('end_time', maskTime(e.currentTarget.value))}
+                error={form.errors.end_time}
               />
             )}
             <Textarea

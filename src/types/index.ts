@@ -976,7 +976,8 @@ export type ChurchLinkType =
   | 'INSTAGRAM'
   | 'CALENDAR'
   | 'MEMBERSHIP'
-  | 'PRAYER';
+  | 'PRAYER'
+  | 'GROWTH_GROUPS';
 
 export type ChurchPixAmountMode = 'OPEN' | 'FIXED' | 'GRID';
 

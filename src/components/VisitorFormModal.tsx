@@ -3,6 +3,7 @@ import { Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form';
 import MaskedTextInput from './MaskedTextInput';
 import { useLanguage } from '../i18n';
+import { toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { Member } from '../types';
 
 export interface VisitorFormValues {
@@ -44,7 +45,14 @@ export default function VisitorFormModal({ opened, onClose, visitor, onSave }: V
   }, [opened, visitor?.id]);
 
   const handleSubmit = form.onSubmit(async (values) => {
-    await onSave(values, !!visitor);
+    await onSave(
+      {
+        ...values,
+        name: toUpperCamelWords(values.name),
+        notes: values.notes ? toSentenceCase(values.notes) : '',
+      },
+      !!visitor,
+    );
     onClose();
   });
 

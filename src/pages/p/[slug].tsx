@@ -380,19 +380,6 @@ export default function PublicLinksPage() {
                 )}
 
                 <Button
-                  leftSection={<IconCopy size={16} />}
-                  fullWidth
-                  onClick={async () => {
-                    await copyToClipboard(pixLink.pix_key || '');
-                    notifications.show({
-                      color: 'green',
-                      message: t.publicLinks.pixCopied,
-                    });
-                  }}
-                >
-                  {t.publicLinks.copyPix}
-                </Button>
-                <Button
                   variant="light"
                   leftSection={<IconCopy size={16} />}
                   fullWidth

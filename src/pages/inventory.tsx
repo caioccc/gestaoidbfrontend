@@ -27,6 +27,7 @@ import {
   IconArrowRotaryLeft,
   IconBox,
   IconBuildingWarehouse,
+  IconFileText,
   IconMapPin,
   IconPencil,
   IconPlus,
@@ -41,7 +42,7 @@ import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
-import { toISO, toUpperCamelWords } from '../utils/format';
+import { toISO, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { Loan, MaterialItem, Member, StorageLocation } from '../types';
 
 function formatISODate(iso: string | null): string {
@@ -90,6 +91,17 @@ function ItemsTab() {
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [toDelete, setToDelete] = useState<MaterialItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const photoPreview = useMemo(() => {
+    if (photoFile) return URL.createObjectURL(photoFile);
+    return null;
+  }, [photoFile]);
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+    };
+  }, [photoPreview]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -145,7 +157,7 @@ function ItemsTab() {
     setSaving(true);
     const payload = {
       name: toUpperCamelWords(form.values.name),
-      description: form.values.description.trim(),
+      description: toSentenceCase(form.values.description),
       location: form.values.location ? Number(form.values.location) : null,
       photo: photoFile,
       manual: manualFile,
@@ -481,6 +493,19 @@ function ItemsTab() {
                   onChange={setPhotoFile}
                   data-testid="item-photo"
                 />
+                {(photoPreview || editing?.photo) && (
+                  <Box mt="xs">
+                    <Image
+                      src={photoPreview || editing?.photo || ''}
+                      alt={form.values.name || t.inventoryPage.itemPhoto}
+                      h={96}
+                      w={96}
+                      fit="cover"
+                      radius="sm"
+                      style={{ objectFit: 'cover' }}
+                    />
+                  </Box>
+                )}
               </Grid.Col>
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <FileInput
@@ -492,6 +517,24 @@ function ItemsTab() {
                   onChange={setManualFile}
                   data-testid="item-manual"
                 />
+                {manualFile ? (
+                  <Text size="xs" c="dimmed" mt="xs" truncate>
+                    {manualFile.name}
+                  </Text>
+                ) : editing?.manual ? (
+                  <Button
+                    component="a"
+                    href={editing.manual}
+                    target="_blank"
+                    rel="noreferrer"
+                    size="xs"
+                    variant="light"
+                    mt="xs"
+                    leftSection={<IconFileText size={14} />}
+                  >
+                    {t.inventoryPage.itemManual}
+                  </Button>
+                ) : null}
               </Grid.Col>
             </Grid>
             <Group justify="flex-end">
@@ -883,10 +926,12 @@ function LoansTab() {
     const payload = {
       item: Number(form.values.item),
       member: form.values.member ? Number(form.values.member) : null,
-      borrower_name: form.values.member ? '' : form.values.borrower_name.trim(),
+      borrower_name: form.values.member
+        ? ''
+        : toUpperCamelWords(form.values.borrower_name),
       borrowed_at: toISO(form.values.borrowed_at) || '',
       expected_return: toISO(form.values.expected_return) || '',
-      notes: form.values.notes.trim(),
+      notes: toSentenceCase(form.values.notes),
     };
     try {
       if (editing) {
