@@ -1156,6 +1156,12 @@ export type PrayerRequestStatus =
 
 export type PrayerRequestPreferredPeriod = 'ANY' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
 
+export interface PrayerRequestAssignee {
+  id: number;
+  name: string;
+  role: string;
+}
+
 export interface PrayerRequest {
   id: number;
   church: number;

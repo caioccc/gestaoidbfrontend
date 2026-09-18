@@ -54,6 +54,7 @@ import {
   PastoralVisitStatus,
   PastoralVisitSummary,
   PrayerRequest,
+  PrayerRequestAssignee,
   PrayerRequestPayload,
   PrayerRequestStatus,
   PrayerRequestCategory,
@@ -371,6 +372,9 @@ export const accountsApi = {
 
   prayerRequest: (id: number): Promise<PrayerRequest> =>
     apiClient.get(`/api/accounts/prayer-requests/${id}/`).then((r) => r.data),
+
+  prayerRequestAssignees: (): Promise<PrayerRequestAssignee[]> =>
+    apiClient.get('/api/accounts/prayer-requests/assignable-users/').then((r) => r.data),
 
   updatePrayerRequest: (id: number, payload: Partial<PrayerRequestPayload>): Promise<PrayerRequest> =>
     apiClient.patch(`/api/accounts/prayer-requests/${id}/`, payload).then((r) => r.data),

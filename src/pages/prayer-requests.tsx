@@ -50,11 +50,12 @@ import { saveBlob } from '../api/finance';
 import { useLanguage } from '../i18n';
 import { useAuth } from '../contexts/AuthContext';
 import type {
-  ChurchMembership,
   PrayerRequest,
+  PrayerRequestAssignee,
   PrayerRequestCategory,
   PrayerRequestStatus,
 } from '../types';
+import { toSentenceCase } from '../utils/format';
 
 const STATUS_COLOR: Record<PrayerRequestStatus, string> = {
   PENDING: 'orange',
@@ -136,7 +137,7 @@ export default function PrayerRequestsPage() {
   const [drawerRequest, setDrawerRequest] = useState<PrayerRequest | null>(null);
   const [drawerNotesDraft, setDrawerNotesDraft] = useState('');
   const [savingDrawerNotes, setSavingDrawerNotes] = useState(false);
-  const [intercessors, setIntercessors] = useState<ChurchMembership[]>([]);
+  const [intercessors, setIntercessors] = useState<PrayerRequestAssignee[]>([]);
   const [archiveTarget, setArchiveTarget] = useState<PrayerRequest | null>(null);
   const [archiving, setArchiving] = useState(false);
 
@@ -159,7 +160,7 @@ export default function PrayerRequestsPage() {
   useEffect(() => {
     if (!user?.church?.id) return;
     accountsApi
-      .churchUsers(user.church.id)
+      .prayerRequestAssignees()
       .then(setIntercessors)
       .catch(() => setIntercessors([]));
   }, [user]);
@@ -182,12 +183,24 @@ export default function PrayerRequestsPage() {
   }, [requests, t]);
 
   const intercessorOptions = useMemo(
-    () =>
-      intercessors
-        .filter((m) => ['INTERCESSAO', 'PASTOR', 'SECRETARIA'].includes(m.role))
-        .map((m) => ({ value: String(m.user_id), label: m.user_name || m.user_email })),
+    () => intercessors.map((m) => ({ value: String(m.id), label: m.name })),
     [intercessors]
   );
+
+  const assigneeOptions = useMemo(() => {
+    if (!drawerRequest?.assigned_to || !drawerRequest.assigned_to_name) {
+      return intercessorOptions;
+    }
+    const known = intercessorOptions.some(
+      (o) => o.value === String(drawerRequest.assigned_to)
+    );
+    return known
+      ? intercessorOptions
+      : [
+          ...intercessorOptions,
+          { value: String(drawerRequest.assigned_to), label: drawerRequest.assigned_to_name },
+        ];
+  }, [intercessorOptions, drawerRequest?.assigned_to, drawerRequest?.assigned_to_name]);
 
   const applyUpdated = (updated: PrayerRequest) => {
     setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -236,7 +249,7 @@ export default function PrayerRequestsPage() {
     setSavingDrawerNotes(true);
     try {
       const updated = await accountsApi.updatePrayerRequest(drawerRequest.id, {
-        pastoral_notes: drawerNotesDraft,
+        pastoral_notes: toSentenceCase(drawerNotesDraft),
       });
       applyUpdated(updated);
       notifications.show({ color: 'green', message: t.prayerRequestsPage.drawer.notesSaved });
@@ -798,7 +811,7 @@ export default function PrayerRequestsPage() {
                 <Select
                   label={t.prayerRequestsPage.drawer.assignIntercessor}
                   placeholder={t.prayerRequestsPage.drawer.assignIntercessor}
-                  data={intercessorOptions}
+                  data={assigneeOptions}
                   value={drawerRequest.assigned_to != null ? String(drawerRequest.assigned_to) : null}
                   onChange={(v) =>
                     assignIntercessor(drawerRequest.id, v ? Number(v) : null)

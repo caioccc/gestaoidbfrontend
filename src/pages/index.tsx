@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Image from 'next/image';
 import {
   ActionIcon,
   Badge,
@@ -79,9 +80,14 @@ export default function LandingPage() {
           <Container size="xl" py="md">
             <Group justify="space-between">
               <Group gap="xs">
-                <ThemeIcon size="md" radius="md" color="blue" variant="filled">
-                  <IconBuildingChurch size={18} />
-                </ThemeIcon>
+                <Image
+                  src="/apple-icon-180x180.png"
+                  alt="Gestão IDB"
+                  width={32}
+                  height={32}
+                  style={{ objectFit: 'contain', borderRadius: 6 }}
+                  priority
+                />
                 <Text fw={800} size="lg" c="blue">
                   {t.appTitle}
                 </Text>
@@ -231,9 +237,18 @@ export default function LandingPage() {
               <Text size="sm" c="dimmed">
                 © {new Date().getFullYear()} Gestão IDB
               </Text>
-              <Text size="sm" c="dimmed" ta="center">
-                {t.landingPage.footer}
-              </Text>
+              <Group gap={10} align="center" wrap="nowrap">
+                <Image
+                  src="/android-icon-192x192.png"
+                  alt="Igreja de Deus no Brasil"
+                  width={120}
+                  height={28}
+                  style={{ height: 28, width: 'auto', opacity: 0.8 }}
+                />
+                <Text size="sm" c="dimmed" ta="center">
+                  {t.landingPage.footer}
+                </Text>
+              </Group>
             </Flex>
           </Container>
         </Box>

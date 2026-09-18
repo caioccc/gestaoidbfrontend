@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 import {
   Box,
   Card,
@@ -8,7 +9,6 @@ import {
   Group,
   Stack,
   Text,
-  ThemeIcon,
   ActionIcon,
   Menu,
   useMantineColorScheme,
@@ -17,7 +17,6 @@ import {
   IconSun,
   IconMoon,
   IconLanguage,
-  IconBuildingChurch,
   IconArrowLeft,
 } from '@tabler/icons-react';
 import { useLanguage, SupportedLocale } from '../i18n';
@@ -54,12 +53,29 @@ export default function AuthShell({
             <ActionIcon variant="subtle">
               <IconArrowLeft size={18} />
             </ActionIcon>
-<ThemeIcon size="md" radius="md" color="blue" variant="filled">
-              <IconBuildingChurch size={18} />
-            </ThemeIcon>
-            <Text fw={800} size="lg" c="blue">
-              {t.appTitle}
-            </Text>
+            <Image
+              src="/android-icon-192x192.png"
+              alt="Gestão IDB"
+              width={32}
+              height={32}
+              style={{ objectFit: 'contain', borderRadius: 6 }}
+              priority
+            />
+            <Box style={{ lineHeight: 1.15 }} miw={0}>
+              <Text fw={800} size="md" c="blue" lh={1.1}>
+                {t.appTitle}
+              </Text>
+              <Text
+                size="xs"
+                c="dimmed"
+                tt="uppercase"
+                fw={700}
+                lh={1.1}
+                style={{ letterSpacing: '0.08em' }}
+              >
+                Igreja de Deus
+              </Text>
+            </Box>
           </Group>
           <Group gap="xs">
             <Menu shadow="md" width={140}>
