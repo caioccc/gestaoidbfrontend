@@ -545,17 +545,17 @@ export default function PublicMemberFormPage() {
                               error={form.errors.birth_date}
                             />
                             <TextInput
-                              label={t.membersPage.bornInState}
-                              maxLength={2}
-                              data-testid="pf-born_in_state"
-                              {...form.getInputProps('born_in_state')}
+                              label={t.membersPage.bornInCity}
+                              data-testid="pf-born_in_city"
+                              {...form.getInputProps('born_in_city')}
                             />
                           </SimpleGrid>
                           <SimpleGrid cols={{ base: 1, sm: 2 }}>
                             <TextInput
-                              label={t.membersPage.bornInCity}
-                              data-testid="pf-born_in_city"
-                              {...form.getInputProps('born_in_city')}
+                              label={t.membersPage.bornInState}
+                              maxLength={2}
+                              data-testid="pf-born_in_state"
+                              {...form.getInputProps('born_in_state')}
                             />
                             <TextInput
                               label={t.membersPage.profession}

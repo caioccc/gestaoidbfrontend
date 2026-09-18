@@ -264,6 +264,7 @@ export default function PublicLinksPage() {
           onClose={() => setPixLink(null)}
           title={pixLink?.title}
           centered
+          size={'lg'}
           portalProps={{ target: '#public-root' }}
         >
           {pixLink && (() => {
@@ -398,7 +399,7 @@ export default function PublicLinksPage() {
           onClose={() => setMapsLink(null)}
           title={mapsLink?.title}
           centered
-          size="md"
+          size="xl"
           portalProps={{ target: '#public-root' }}
         >
           {mapsLink && (() => {

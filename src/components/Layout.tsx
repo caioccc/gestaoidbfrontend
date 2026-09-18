@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import Image from 'next/image';
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Image from "next/image";
 import {
   AppShell,
   Burger,
@@ -17,8 +17,8 @@ import {
   useMantineColorScheme,
   Tooltip,
   Badge,
-} from '@mantine/core';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
+} from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import {
   IconLayoutDashboard,
   IconUpload,
@@ -55,18 +55,18 @@ import {
   IconSchool,
   IconListCheck,
   IconMusic,
-} from '@tabler/icons-react';
-import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
-import { useLanguage, SupportedLocale } from '../i18n';
-import { accountsApi } from '../api/accounts';
-import { Church, ChurchType } from '../types';
-import ContentContextHeader from './ContentContextHeader';
-import NotificationBell from './NotificationBell';
+} from "@tabler/icons-react";
+import { useAuth, useRoleHelpers } from "../contexts/AuthContext";
+import { useLanguage, SupportedLocale } from "../i18n";
+import { accountsApi } from "../api/accounts";
+import { Church, ChurchType } from "../types";
+import ContentContextHeader from "./ContentContextHeader";
+import NotificationBell from "./NotificationBell";
 
 const LOCALES: { value: SupportedLocale; label: string }[] = [
-  { value: 'pt-br', label: 'PT-BR' },
-  { value: 'en', label: 'EN' },
-  { value: 'es', label: 'ES' },
+  { value: "pt-br", label: "PT-BR" },
+  { value: "en", label: "EN" },
+  { value: "es", label: "ES" },
 ];
 
 interface NavItem {
@@ -81,12 +81,12 @@ interface NavItem {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  PASTOR: 'Pastor(a)',
-  SECRETARIA: 'Secretaria',
-  TESOUREIRO: 'Tesoureiro(a)',
-  INTERCESSAO: 'Intercessão & Visitação',
-  LOUVOR: 'Líder de Louvor & Música',
-  MUSICO: 'Músico / Voluntário',
+  PASTOR: "Pastor(a)",
+  SECRETARIA: "Secretaria",
+  TESOUREIRO: "Tesoureiro(a)",
+  INTERCESSAO: "Intercessão & Visitação",
+  LOUVOR: "Líder de Louvor & Música",
+  MUSICO: "Músico / Voluntário",
 };
 
 function SidebarContent({
@@ -99,8 +99,13 @@ function SidebarContent({
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const { hasRole, canFinance, canApproveCongregations, canManageMusic, canViewMusic } =
-    useRoleHelpers(user);
+  const {
+    hasRole,
+    canFinance,
+    canApproveCongregations,
+    canManageMusic,
+    canViewMusic,
+  } = useRoleHelpers(user);
 
   // Usar router.query.churchId (valor resolvido, ex.: "7") em vez de
   // fazer parse de router.pathname — que no Next.js contém o placeholder
@@ -113,12 +118,12 @@ function SidebarContent({
     ? `/churches/${congregationId}`
     : adminChurchId
       ? `/admin/churches/${adminChurchId}`
-      : '';
+      : "";
   // Na visão de congregação, Perfil da Igreja, Usuários e Membros são da
   // PRÓPRIA congregação (seções /churches/{id}/... ou /admin/churches/{id}/...).
   // Um ADMIN dentro de uma congregação também não gerencia a Central de
   // Aprovação da Sede (age como usuário daquela congregação).
-  const congregationScope = !!congregationId || churchType === 'CONGREGATION';
+  const congregationScope = !!congregationId || churchType === "CONGREGATION";
 
   const nav = (href: string) => (basePath ? `${basePath}${href}` : href);
   // Menus sem seção em /churches/[congregationId]/[section] (Atas, Cultos,
@@ -128,11 +133,13 @@ function SidebarContent({
   const isFixedInCongregation = (item: NavItem) =>
     !!item.fixed && !!congregationId && !user?.is_staff;
   const resolveHref = (item: NavItem) =>
-    item.keepAbsolute || isFixedInCongregation(item) ? item.href : nav(item.href);
+    item.keepAbsolute || isFixedInCongregation(item)
+      ? item.href
+      : nav(item.href);
   const isActive = (item: NavItem) => {
     const href = resolveHref(item);
     if (adminChurchId || congregationId) {
-      return router.asPath.replace(/\/$/, '') === href.replace(/\/$/, '');
+      return router.asPath.replace(/\/$/, "") === href.replace(/\/$/, "");
     }
     return router.pathname === item.href;
   };
@@ -145,31 +152,35 @@ function SidebarContent({
   // Dentro de qualquer igreja (admin ou congregação), Perfil/Usuários/Membros
   // ficam no escopo da igreja atual; "Igrejas" e "Central de Aprovação" são
   // páginas globais.
-  const showChurchSections = !isAdminWithoutChurch || !!adminChurchId || !!congregationId;
+  const showChurchSections =
+    !isAdminWithoutChurch || !!adminChurchId || !!congregationId;
 
   const canManageChurch =
     !!user?.is_staff ||
     !!user?.can_manage_churches ||
-    (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
+    (user?.church?.church_type === "INDEPENDENT" && hasRole("PASTOR"));
   // Tesoureiro(a) e Pastor(a) lidam com o financeiro; Secretária não enxerga
   // os módulos financeiros no menu (entradas, saídas, dizimistas, fechamentos,
   // DRE, extratos e validação mensal). Tesoureiro(a) também acessa os módulos
   // de secretaria da igreja (membros, patrimônio, relatórios), mas não vê
   // Usuários nem Governança.
-  const canSeeMembers = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO');
-  const canSeeVisitation = hasRole('PASTOR', 'SECRETARIA', 'INTERCESSAO');
-  const canSeePrayerRequests = hasRole('INTERCESSAO', 'PASTOR', 'SECRETARIA');
-  const canSeeUsers = hasRole('PASTOR');
-  const isMusicRole = user?.role === 'MUSICO' || user?.role === 'LOUVOR';
-  const hideDashboard = isMusicRole || user?.role === 'INTERCESSAO';
+  const canSeeMembers = hasRole("PASTOR", "SECRETARIA", "TESOUREIRO");
+  const canSeeVisitation = hasRole("PASTOR", "SECRETARIA", "INTERCESSAO");
+  const canSeePrayerRequests = hasRole("INTERCESSAO", "PASTOR", "SECRETARIA");
+  const canSeeUsers = hasRole("PASTOR");
+  const isMusicRole = user?.role === "MUSICO" || user?.role === "LOUVOR";
+  const hideDashboard = isMusicRole || user?.role === "INTERCESSAO";
 
   // Congregações não possuem Relatório Regional: o menu é ocultado nos três
   // contextos possíveis (usuário de congregação, rota /churches/[id] e a
   // página admin quando a igreja aberta é uma congregação).
   const isCongregationScope =
-    churchType === 'CONGREGATION' || user?.church?.church_type === 'CONGREGATION';
+    churchType === "CONGREGATION" ||
+    user?.church?.church_type === "CONGREGATION";
 
-  const dashboardLabel = canFinance ? t.nav.dashboard : t.secretaryDashboard.title;
+  const dashboardLabel = canFinance
+    ? t.nav.dashboard
+    : t.secretaryDashboard.title;
 
   const [pendingApprovals, setPendingApprovals] = useState(0);
   useEffect(() => {
@@ -191,18 +202,34 @@ function SidebarContent({
     };
   }, [canApproveCongregations, isCongregationScope]);
 
-  const sections: { title: string; requiresChurch: boolean; items: NavItem[] }[] = [
+  const sections: {
+    title: string;
+    requiresChurch: boolean;
+    items: NavItem[];
+  }[] = [
     {
       title: t.section.overview,
       requiresChurch: false,
       items: [
         ...(hideDashboard
           ? []
-          : [{ label: dashboardLabel, icon: <IconLayoutDashboard size={18} />, href: '/dashboard' }]),
-        { label: t.nav.calendar, icon: <IconCalendarEvent size={18} />, href: '/calendar' },
+          : [
+              {
+                label: dashboardLabel,
+                icon: <IconLayoutDashboard size={18} />,
+                href: "/dashboard",
+              },
+            ]),
+        {
+          label: t.nav.calendar,
+          icon: <IconCalendarEvent size={18} />,
+          href: "/calendar",
+        },
       ],
     },
-    ...(canApproveCongregations || user?.is_staff || (canManageChurch && !user?.is_staff)
+    ...(canApproveCongregations ||
+    user?.is_staff ||
+    (canManageChurch && !user?.is_staff)
       ? [
           {
             title: t.section.governance,
@@ -213,7 +240,7 @@ function SidebarContent({
                     {
                       label: t.nav.churches,
                       icon: <IconShieldCheck size={18} />,
-                      href: '/admin/churches',
+                      href: "/admin/churches",
                       keepAbsolute: true,
                     } as NavItem,
                   ]
@@ -223,7 +250,7 @@ function SidebarContent({
                     {
                       label: t.nav.congregations,
                       icon: <IconBuildingChurch size={18} />,
-                      href: '/churches',
+                      href: "/churches",
                       keepAbsolute: true,
                     } as NavItem,
                   ]
@@ -233,7 +260,7 @@ function SidebarContent({
                     {
                       label: t.nav.approvals,
                       icon: <IconClipboardCheck size={18} />,
-                      href: '/approvals',
+                      href: "/approvals",
                       keepAbsolute: true,
                       badge: pendingApprovals,
                     } as NavItem,
@@ -252,72 +279,72 @@ function SidebarContent({
               {
                 label: t.nav.members,
                 icon: <IconUsersGroup size={18} />,
-                href: '/members',
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                href: "/members",
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.minutes,
                 icon: <IconFileText size={18} />,
-                href: '/atas',
+                href: "/atas",
                 fixed: true,
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.cultos,
                 icon: <IconBuildingChurch size={18} />,
-                href: '/cultos',
+                href: "/cultos",
                 fixed: true,
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.inventory,
                 icon: <IconPackage size={18} />,
-                href: '/inventory',
+                href: "/inventory",
                 fixed: true,
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.memberReports,
                 icon: <IconChartPie size={18} />,
-                href: '/members-reports',
+                href: "/members-reports",
                 fixed: true,
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.certificates,
                 icon: <IconCertificate size={18} />,
-                href: '/certificates',
-                roles: ['PASTOR', 'SECRETARIA'],
+                href: "/certificates",
+                roles: ["PASTOR", "SECRETARIA"],
               } as NavItem,
               {
                 label: t.nav.links,
                 icon: <IconLink size={18} />,
-                href: '/links',
-                roles: ['PASTOR', 'SECRETARIA'],
+                href: "/links",
+                roles: ["PASTOR", "SECRETARIA"],
               } as NavItem,
               {
                 label: t.nav.growthGroups,
                 icon: <IconHomeHeart size={18} />,
-                href: '/growth-groups',
-                roles: ['PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO'],
+                href: "/growth-groups",
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO", "INTERCESSAO"],
               } as NavItem,
               {
                 label: t.nav.visitation,
                 icon: <IconMap size={18} />,
-                href: '/visitation',
-                roles: ['PASTOR', 'SECRETARIA', 'INTERCESSAO'],
+                href: "/visitation",
+                roles: ["PASTOR", "SECRETARIA", "INTERCESSAO"],
               } as NavItem,
               {
                 label: t.nav.prayerRequests,
                 icon: <IconPray size={18} />,
-                href: '/prayer-requests',
-                roles: ['INTERCESSAO', 'PASTOR', 'SECRETARIA'],
+                href: "/prayer-requests",
+                roles: ["INTERCESSAO", "PASTOR", "SECRETARIA"],
               } as NavItem,
               {
                 label: t.nav.sundaySchool,
                 icon: <IconSchool size={18} />,
-                href: '/sunday-school',
-                roles: ['PASTOR', 'SECRETARIA'],
+                href: "/sunday-school",
+                roles: ["PASTOR", "SECRETARIA"],
               } as NavItem,
             ],
           },
@@ -329,8 +356,16 @@ function SidebarContent({
             title: t.section.music,
             requiresChurch: true,
             items: [
-              { label: t.music.songsTitle, icon: <IconMusic size={18} />, href: '/songs' },
-              { label: t.music.setlistsTitle, icon: <IconListCheck size={18} />, href: '/setlists' },
+              {
+                label: t.music.songsTitle,
+                icon: <IconMusic size={18} />,
+                href: "/songs",
+              },
+              {
+                label: t.music.setlistsTitle,
+                icon: <IconListCheck size={18} />,
+                href: "/setlists",
+              },
             ],
           },
         ]
@@ -341,12 +376,36 @@ function SidebarContent({
             title: t.section.ledger,
             requiresChurch: true,
             items: [
-              { label: t.nav.import, icon: <IconUpload size={18} />, href: '/import' },
-              { label: t.nav.entries, icon: <IconArrowUpCircle size={18} />, href: '/entries' },
-              { label: t.nav.exits, icon: <IconArrowDownCircle size={18} />, href: '/exits' },
-              { label: t.nav.receipts, icon: <IconReceipt size={18} />, href: '/receipts' },
-              { label: t.nav.tithers, icon: <IconUsers size={18} />, href: '/tithers' },
-              { label: t.nav.closings, icon: <IconCalendarStats size={18} />, href: '/closings' },
+              {
+                label: t.nav.import,
+                icon: <IconUpload size={18} />,
+                href: "/import",
+              },
+              {
+                label: t.nav.entries,
+                icon: <IconArrowUpCircle size={18} />,
+                href: "/entries",
+              },
+              {
+                label: t.nav.exits,
+                icon: <IconArrowDownCircle size={18} />,
+                href: "/exits",
+              },
+              {
+                label: t.nav.receipts,
+                icon: <IconReceipt size={18} />,
+                href: "/receipts",
+              },
+              {
+                label: t.nav.tithers,
+                icon: <IconUsers size={18} />,
+                href: "/tithers",
+              },
+              {
+                label: t.nav.closings,
+                icon: <IconCalendarStats size={18} />,
+                href: "/closings",
+              },
             ],
           },
         ]
@@ -358,11 +417,29 @@ function SidebarContent({
             requiresChurch: true,
             items: [
               ...(!isCongregationScope
-                ? [{ label: t.nav.reports, icon: <IconReport size={18} />, href: '/reports' }]
+                ? [
+                    {
+                      label: t.nav.reports,
+                      icon: <IconReport size={18} />,
+                      href: "/reports",
+                    },
+                  ]
                 : []),
-              { label: t.nav.dre, icon: <IconChartBar size={18} />, href: '/dre' },
-              { label: t.nav.statement, icon: <IconWallet size={18} />, href: '/statement' },
-              { label: t.nav.validation, icon: <IconClipboardCheck size={18} />, href: '/validation' },
+              {
+                label: t.nav.dre,
+                icon: <IconChartBar size={18} />,
+                href: "/dre",
+              },
+              {
+                label: t.nav.statement,
+                icon: <IconWallet size={18} />,
+                href: "/statement",
+              },
+              {
+                label: t.nav.validation,
+                icon: <IconClipboardCheck size={18} />,
+                href: "/validation",
+              },
             ],
           },
         ]
@@ -373,9 +450,19 @@ function SidebarContent({
             title: t.section.settings,
             requiresChurch: false,
             items: [
-              { label: t.nav.settings, icon: <IconSettings size={18} />, href: '/settings' },
+              {
+                label: t.nav.settings,
+                icon: <IconSettings size={18} />,
+                href: "/settings",
+              },
               ...(canSeeUsers
-                ? [{ label: t.nav.users, icon: <IconUserShield size={18} />, href: '/users' }]
+                ? [
+                    {
+                      label: t.nav.users,
+                      icon: <IconUserShield size={18} />,
+                      href: "/users",
+                    },
+                  ]
                 : []),
             ] as NavItem[],
           },
@@ -390,7 +477,7 @@ function SidebarContent({
           .filter((section) => !section.requiresChurch || showChurchSections)
           .map((section) => {
             const visibleItems = section.items.filter(
-              (item) => !item.roles || hasRole(...item.roles)
+              (item) => !item.roles || hasRole(...item.roles),
             );
             if (visibleItems.length === 0) return null;
             return (
@@ -416,24 +503,28 @@ function SidebarContent({
                         onNavigate?.();
                       }}
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
+                        display: "flex",
+                        alignItems: "center",
                         gap: 10,
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: 'var(--mantine-radius-sm)',
+                        width: "100%",
+                        padding: "8px 12px",
+                        borderRadius: "var(--mantine-radius-sm)",
                         backgroundColor: active
-                          ? 'var(--mantine-primary-color-light)'
-                          : 'transparent',
+                          ? "var(--mantine-primary-color-light)"
+                          : "transparent",
                         color: active
-                          ? 'var(--mantine-primary-color-light-color)'
-                          : 'var(--mantine-color-dimmed)',
+                          ? "var(--mantine-primary-color-light-color)"
+                          : "var(--mantine-color-dimmed)",
                         fontWeight: active ? 600 : 400,
                       }}
                     >
                       <ThemeIcon
-                        variant={active ? 'filled' : 'subtle'}
-                        color={active ? 'var(--mantine-primary-color-filled)' : 'var(--mantine-color-dimmed)'}
+                        variant={active ? "filled" : "subtle"}
+                        color={
+                          active
+                            ? "var(--mantine-primary-color-filled)"
+                            : "var(--mantine-color-dimmed)"
+                        }
                         size="sm"
                       >
                         {item.icon}
@@ -444,7 +535,7 @@ function SidebarContent({
                           size="xs"
                           color="red"
                           variant="filled"
-                          style={{ marginLeft: 'auto' }}
+                          style={{ marginLeft: "auto" }}
                         >
                           {item.badge}
                         </Badge>
@@ -470,7 +561,7 @@ function ChurchSwitcher() {
   const canManage =
     !!user?.is_staff ||
     !!user?.can_manage_churches ||
-    (user?.church?.church_type === 'INDEPENDENT' && hasRole('PASTOR'));
+    (user?.church?.church_type === "INDEPENDENT" && hasRole("PASTOR"));
   const show = canManage && !!user?.church;
 
   useEffect(() => {
@@ -493,9 +584,9 @@ function ChurchSwitcher() {
       await switchChurch(church.id);
       const target = user?.is_staff
         ? `/admin/churches/${church.id}/dashboard`
-        : church.church_type === 'CONGREGATION' && hasRole('PASTOR')
+        : church.church_type === "CONGREGATION" && hasRole("PASTOR")
           ? `/churches/${church.id}/dashboard`
-          : '/dashboard';
+          : "/dashboard";
       router.replace(target);
     } catch {
       void 0;
@@ -540,16 +631,29 @@ function HeaderControls() {
   const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const isDark = mounted && colorScheme === 'dark';
-  const roleLabel = user?.role_display || (user?.role ? ROLE_LABELS[user.role] : null);
+  const isDark = mounted && colorScheme === "dark";
+  const roleLabel =
+    user?.role_display || (user?.role ? ROLE_LABELS[user.role] : null);
   const currentLocale = LOCALES.find((l) => l.value === locale);
-  const themeLabel = mounted ? (isDark ? t.nav.lightTheme : t.nav.darkTheme) : t.nav.darkTheme;
+  const themeLabel = mounted
+    ? isDark
+      ? t.nav.lightTheme
+      : t.nav.darkTheme
+    : t.nav.darkTheme;
   const cycleLocale = () => {
     const idx = LOCALES.findIndex((l) => l.value === locale);
     const next = LOCALES[(idx + 1) % LOCALES.length];
     setLocale(next.value);
   };
-  const themeIcon = mounted ? (isDark ? <IconSun size={14} /> : <IconMoon size={14} />) : <IconMoon size={14} />;
+  const themeIcon = mounted ? (
+    isDark ? (
+      <IconSun size={14} />
+    ) : (
+      <IconMoon size={14} />
+    )
+  ) : (
+    <IconMoon size={14} />
+  );
 
   return (
     <Group gap="xs" wrap="nowrap">
@@ -582,10 +686,29 @@ function HeaderControls() {
 
       <Box visibleFrom="sm">
         <Tooltip
-          label={mounted ? (isDark ? t.nav.lightTheme : t.nav.darkTheme) : t.nav.darkTheme}
+          label={
+            mounted
+              ? isDark
+                ? t.nav.lightTheme
+                : t.nav.darkTheme
+              : t.nav.darkTheme
+          }
         >
-          <ActionIcon variant="subtle" onClick={() => toggleColorScheme()} aria-label="toggle theme" size="lg">
-            {mounted ? (isDark ? <IconSun size={18} /> : <IconMoon size={18} />) : <IconMoon size={18} />}
+          <ActionIcon
+            variant="subtle"
+            onClick={() => toggleColorScheme()}
+            aria-label="toggle theme"
+            size="lg"
+          >
+            {mounted ? (
+              isDark ? (
+                <IconSun size={18} />
+              ) : (
+                <IconMoon size={18} />
+              )
+            ) : (
+              <IconMoon size={18} />
+            )}
           </ActionIcon>
         </Tooltip>
       </Box>
@@ -624,7 +747,7 @@ function HeaderControls() {
                 <Avatar size="sm" radius="xl" color="blue">
                   {user.name?.charAt(0)?.toUpperCase()}
                 </Avatar>
-                <Box style={{ textAlign: 'left' }} w={150} visibleFrom="sm">
+                <Box style={{ textAlign: "left" }} w={150} visibleFrom="sm">
                   <Text size="sm" fw={600} truncate>
                     {user.name}
                   </Text>
@@ -645,22 +768,35 @@ function HeaderControls() {
                     </Flex>
                   )}
                 </Box>
-                <IconChevronDown size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                <IconChevronDown
+                  size={14}
+                  style={{ color: "var(--mantine-color-dimmed)" }}
+                />
               </Flex>
             </UnstyledButton>
           </Menu.Target>
           <Menu.Dropdown>
             {user.is_staff && !user.church ? (
-              <Menu.Item leftSection={<IconShieldCheck size={14} />} onClick={() => router.push('/admin/churches')}>
+              <Menu.Item
+                leftSection={<IconShieldCheck size={14} />}
+                onClick={() => router.push("/admin/churches")}
+              >
                 {t.adminChurches.back}
               </Menu.Item>
             ) : (
-              <Menu.Item leftSection={<IconSettings size={14} />} onClick={() => router.push('/settings')}>
+              <Menu.Item
+                leftSection={<IconSettings size={14} />}
+                onClick={() => router.push("/settings")}
+              >
                 {t.section.settings}
               </Menu.Item>
             )}
             <Menu.Divider />
-            <Menu.Item color="red" leftSection={<IconLogout size={14} />} onClick={logout}>
+            <Menu.Item
+              color="red"
+              leftSection={<IconLogout size={14} />}
+              onClick={logout}
+            >
               {t.logout}
             </Menu.Item>
           </Menu.Dropdown>
@@ -680,7 +816,7 @@ export default function Layout({
   expanded?: boolean;
 }) {
   const [opened, { toggle, close }] = useDisclosure(false);
-  const isMobile = useMediaQuery('(max-width: 60em)');
+  const isMobile = useMediaQuery("(max-width: 60em)");
   const { t } = useLanguage();
 
   return (
@@ -688,7 +824,7 @@ export default function Layout({
       header={{ height: 60 }}
       navbar={{
         width: 270,
-        breakpoint: 'sm',
+        breakpoint: "sm",
         collapsed: { mobile: !opened },
       }}
       padding="md"
@@ -700,33 +836,40 @@ export default function Layout({
           px="md"
           justify="space-between"
           wrap="nowrap"
-          style={{ overflow: 'hidden', width: '100%' }}
+          style={{ overflow: "hidden", width: "100%" }}
         >
           <Group gap="xs" wrap="nowrap">
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
+            <Burger
+              opened={opened}
+              onClick={toggle}
+              hiddenFrom="sm"
+              size="sm"
+            />
             <Flex align="center" gap={8}>
               <Image
                 src="/android-icon-192x192.png"
                 alt="Gestão IDB"
                 width={32}
                 height={32}
-                style={{ objectFit: 'contain', borderRadius: 6 }}
+                style={{ objectFit: "contain", borderRadius: 6 }}
                 priority
               />
               <Box style={{ lineHeight: 1.15 }} miw={0}>
                 <Text fw={800} size="md" c="blue" lh={1.1}>
                   {t.appTitle}
                 </Text>
-                <Text
-                  size="xs"
-                  c="dimmed"
-                  tt="uppercase"
-                  fw={700}
-                  lh={1.1}
-                  style={{ letterSpacing: '0.08em' }}
-                >
-                  Igreja de Deus
-                </Text>
+                {!isMobile && (
+                  <Text
+                    size="xs"
+                    c="dimmed"
+                    tt="uppercase"
+                    fw={700}
+                    lh={1.1}
+                    style={{ letterSpacing: "0.08em" }}
+                  >
+                    Igreja de Deus
+                  </Text>
+                )}
               </Box>
             </Flex>
           </Group>

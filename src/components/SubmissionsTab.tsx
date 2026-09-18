@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Badge,
+  Box,
   Button,
   Card,
   Center,
   Checkbox,
   Group,
   Loader,
+  Menu,
   Modal,
   SegmentedControl,
   Stack,
@@ -32,6 +34,7 @@ import { useLanguage } from '../i18n';
 import { formatDate } from '../utils/format';
 import { buildFormUrl, copyToClipboard } from '../utils/share';
 import ShareLinkModal from './ShareLinkModal';
+import MobileItemCard from './MobileItemCard';
 import type { MemberSubmission, MemberSubmissionStatus } from '../types';
 
 type Filter = MemberSubmissionStatus | 'ALL';
@@ -150,6 +153,38 @@ export default function SubmissionsTab() {
 
   const sourceLabel = (item: MemberSubmission) =>
     item.member ? t.memberSubmissions.fromCard : t.memberSubmissions.fromForm;
+
+  const mobileMenuActions = (item: MemberSubmission) => (
+    <>
+      <Menu.Item
+        leftSection={<IconEye size={16} />}
+        onClick={() => setViewing(item)}
+        data-testid={`submission-view-${item.id}`}
+      >
+        {t.memberSubmissions.view}
+      </Menu.Item>
+      {item.status === 'PENDING' && (
+        <>
+          <Menu.Item
+            leftSection={<IconCheck size={16} />}
+            color="green"
+            onClick={() => openReview(item, 'approve')}
+            data-testid={`submission-approve-${item.id}`}
+          >
+            {t.memberSubmissions.approve}
+          </Menu.Item>
+          <Menu.Item
+            leftSection={<IconX size={16} />}
+            color="red"
+            onClick={() => openReview(item, 'reject')}
+            data-testid={`submission-reject-${item.id}`}
+          >
+            {t.memberSubmissions.reject}
+          </Menu.Item>
+        </>
+      )}
+    </>
+  );
 
   const rows = items.map((item) => (
     <Table.Tr key={item.id} data-testid={`submission-row-${item.id}`}>
@@ -358,30 +393,73 @@ export default function SubmissionsTab() {
                 </Button>
               </Group>
             )}
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th w={40}>
-                    <Checkbox
-                      checked={allSelected}
-                      indeterminate={!allSelected && selected.size > 0}
-                      onChange={() => {
-                        if (allSelected) setSelected(new Set());
-                        else setSelected(new Set(pendingIds));
-                      }}
-                      disabled={pendingIds.length === 0}
-                      aria-label={t.memberSubmissions.selectAll}
-                    />
-                  </Table.Th>
-                  <Table.Th>{t.membersPage.name}</Table.Th>
-                  <Table.Th>{t.memberSubmissions.source}</Table.Th>
-                  <Table.Th>{t.membersPage.status}</Table.Th>
-                  <Table.Th>{t.memberSubmissions.submittedAt}</Table.Th>
-                  <Table.Th ta="right">{t.common.actions}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
+            <Box visibleFrom="md">
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th w={40}>
+                      <Checkbox
+                        checked={allSelected}
+                        indeterminate={!allSelected && selected.size > 0}
+                        onChange={() => {
+                          if (allSelected) setSelected(new Set());
+                          else setSelected(new Set(pendingIds));
+                        }}
+                        disabled={pendingIds.length === 0}
+                        aria-label={t.memberSubmissions.selectAll}
+                      />
+                    </Table.Th>
+                    <Table.Th>{t.membersPage.name}</Table.Th>
+                    <Table.Th>{t.memberSubmissions.source}</Table.Th>
+                    <Table.Th>{t.membersPage.status}</Table.Th>
+                    <Table.Th>{t.memberSubmissions.submittedAt}</Table.Th>
+                    <Table.Th ta="right">{t.common.actions}</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{rows}</Table.Tbody>
+              </Table>
+            </Box>
+            <Stack hiddenFrom="md" gap="xs" p="sm">
+              {items.map((item) => (
+                <MobileItemCard
+                  key={item.id}
+                  testId={`submission-mobile-${item.id}`}
+                  media={
+                    <ThemeIcon
+                      size="lg"
+                      radius="md"
+                      color={item.member ? 'teal' : 'grape'}
+                      variant="light"
+                    >
+                      {item.member ? <IconUsersGroup size={18} /> : <IconUserPlus size={18} />}
+                    </ThemeIcon>
+                  }
+                  actions={mobileMenuActions(item)}
+                >
+                  <Stack gap={4}>
+                    <Group gap="xs" justify="space-between" wrap="nowrap">
+                      <Text fw={600} truncate>
+                        {item.data?.name || '—'}
+                      </Text>
+                      <Badge
+                        color={statusBadgeColor(item.status)}
+                        variant="light"
+                        style={{ flexShrink: 0 }}
+                      >
+                        {item.status_display}
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" truncate>
+                      {item.member ? t.memberSubmissions.member : t.memberSubmissions.candidate} •{' '}
+                      {sourceLabel(item)}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      {t.memberSubmissions.submittedAt}: {formatDate(item.created_at)}
+                    </Text>
+                  </Stack>
+                </MobileItemCard>
+              ))}
+            </Stack>
           </>
         )}
       </Card>

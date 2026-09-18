@@ -211,7 +211,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
       onClose={onClose}
       title={t.prayerPublicModal.title}
       centered
-      size="md"
+      size="xl"
       portalProps={portalProps}
     >
       {submitted ? (
