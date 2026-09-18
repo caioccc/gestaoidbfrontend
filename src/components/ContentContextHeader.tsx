@@ -36,6 +36,14 @@ const SEGMENT_KEYS: Record<string, string> = {
   users: 'users',
   churches: 'churches',
   links: 'links',
+  certificates: 'certificates',
+  'growth-groups': 'growthGroups',
+  visitation: 'visitation',
+  'prayer-requests': 'prayerRequests',
+  'sunday-school': 'sundaySchool',
+  songs: 'songsTitle',
+  setlists: 'setlistsTitle',
+  receipts: 'receipts',
 };
 
 function flatSectionFromPathname(pathname: string): string | null {
@@ -69,9 +77,10 @@ export default function ContentContextHeader() {
   if (GLOBAL_PAGES.includes(router.pathname)) return null;
 
   const qSection = router.query.section;
-  const section =
+  const rawSection =
     (qSection && !Array.isArray(qSection) ? qSection : null) ??
     flatSectionFromPathname(router.pathname);
+  const section = rawSection ? (SEGMENT_KEYS[rawSection] ?? rawSection) : null;
 
   if (loading) {
     return (
@@ -89,7 +98,9 @@ export default function ContentContextHeader() {
 
   const isSede = church.church_type === 'INDEPENDENT';
   const badge = isSede ? t.churchesPage.sede : t.churchesPage.congregation;
-  const sectionLabel = (t.nav as Record<string, string>)[section] ?? section;
+  const sectionLabel =
+    ((t.nav as Record<string, string>)[section] ?? (t.music as Record<string, string>)[section]) ??
+    section;
 
   const rootCrumb = scope
     ? {

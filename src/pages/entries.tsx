@@ -43,6 +43,38 @@ function yearRangeDefaults(): [string, string] {
   return [`${year}-01-01`, `${year}-12-31`];
 }
 
+function parseDateValue(v: Date | string | null): Date {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v;
+  if (typeof v === 'string' && v) {
+    const d = new Date(v);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+function widerRange(
+  prev: [string | null, string | null],
+  iso: string,
+): [string | null, string | null] {
+  const [start, end] = prev;
+  const next: [string | null, string | null] = [start, end];
+  if (start && iso < start) next[0] = iso;
+  if (end && iso > end) next[1] = iso;
+  return next;
+}
+
+function apiErrorMessage(err: any, fallback: string): string {
+  const d = err?.response?.data;
+  if (!d) return fallback;
+  if (typeof d === 'string') return d;
+  if (typeof d.detail === 'string') return d.detail;
+  const first = Object.keys(d)[0];
+  const val = first ? d[first] : null;
+  if (Array.isArray(val) && typeof val[0] === 'string') return `${first}: ${val[0]}`;
+  if (typeof val === 'string') return `${first}: ${val}`;
+  return fallback;
+}
+
 export default function EntriesPage() {
   const { t, locale } = useLanguage();
   const { categories } = useCategories();
@@ -101,6 +133,7 @@ export default function EntriesPage() {
       amount: 0,
     },
     validate: {
+      date: (v) => (v ? null : t.common.date),
       service_description: (v) => (v.trim() ? null : t.entriesPage.service),
       amount: (v) => (v > 0 ? null : t.common.value),
     },
@@ -148,13 +181,15 @@ export default function EntriesPage() {
       }
       setModalOpen(false);
       setEditing(null);
+      const savedIso = toISO(form.values.date);
+      if (savedIso) setRange((prev) => widerRange(prev, savedIso));
       form.reset();
       load();
     } catch (err: any) {
       notifications.show({
         color: 'red',
         title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
+        message: apiErrorMessage(err, 'Não foi possível salvar.'),
       });
     } finally {
       setSaving(false);
@@ -364,7 +399,13 @@ export default function EntriesPage() {
       >
         <form onSubmit={form.onSubmit(handleSave)}>
           <Stack gap="md">
-            <DateInput data-testid="entry-date" label={t.common.date} {...form.getInputProps('date')} locale={locale} />
+            <DateInput
+              data-testid="entry-date"
+              label={t.common.date}
+              value={form.values.date}
+              onChange={(v) => form.setFieldValue('date', parseDateValue(v))}
+              locale={locale}
+            />
             <TextInput
               data-testid="entry-service"
               label={t.entriesPage.service}

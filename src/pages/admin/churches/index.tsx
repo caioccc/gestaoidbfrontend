@@ -38,6 +38,7 @@ import {
   IconSearch,
   IconTrash,
   IconPlus,
+  IconPencil,
   IconBuildingChurch,
   IconAlertTriangle,
 } from '@tabler/icons-react';
@@ -73,6 +74,18 @@ const STATUS_META = {
   REJECTED: { color: 'red', tKey: 'statusRejected' as const },
 };
 
+function apiErrorMessage(err: any, fallback: string): string {
+  const d = err?.response?.data;
+  if (!d) return fallback;
+  if (typeof d === 'string') return d;
+  if (typeof d.detail === 'string') return d.detail;
+  const first = Object.keys(d)[0];
+  const val = first ? d[first] : null;
+  if (Array.isArray(val) && typeof val[0] === 'string') return `${first}: ${val[0]}`;
+  if (typeof val === 'string') return `${first}: ${val}`;
+  return fallback;
+}
+
 export default function AdminChurchesPage() {
   const { t } = useLanguage();
   const router = useRouter();
@@ -91,6 +104,11 @@ export default function AdminChurchesPage() {
   const [sedeList, setSedeList] = useState<Church[]>([]);
   const [sedeOptions, setSedeOptions] = useState<{ value: string; label: string }[]>([]);
   const [parentChurchId, setParentChurchId] = useState<number | null>(null);
+
+  const [editChurch, setEditChurch] = useState<PendingChurch | null>(null);
+  const [editStep, setEditStep] = useState(0);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const [formChurchType, setFormChurchType] = useState<'INDEPENDENT' | 'CONGREGATION'>(
     'INDEPENDENT'
@@ -253,6 +271,89 @@ export default function AdminChurchesPage() {
     const sedes = churches.filter((c) => c.church_type === 'INDEPENDENT');
     setSedeList(sedes as unknown as Church[]);
     setCreating(true);
+  };
+
+  const openEdit = (church: PendingChurch) => {
+    setEditError(null);
+    setCepError(null);
+    setFormChurchType(church.church_type as 'INDEPENDENT' | 'CONGREGATION');
+    setFormFields({
+      name: church.name || '',
+      phone: church.phone || '',
+      pastor_name: church.pastor_name || '',
+      accounting_category: church.accounting_category || '',
+      cep: church.cep || '',
+      street: church.street || '',
+      number: church.number || '',
+      neighborhood: church.neighborhood || '',
+      city: church.city || '',
+      state: church.state || '',
+      resp_user_id: '',
+      resp_role: 'PASTOR',
+    });
+    setParentChurchId(church.parent_church ?? null);
+    setEditStep(0);
+    setEditChurch(church);
+  };
+
+  const submitEdit = async () => {
+    if (!editChurch) return;
+    if (!formFields.name.trim()) {
+      setEditError(t.churchesPage.name);
+      return;
+    }
+    if (!formFields.city.trim() || !formFields.state.trim()) {
+      setEditError(t.registerPage.city);
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const payload: any = {
+        name: toUpperCamelWords(formFields.name),
+        city: toUpperCamelWords(formFields.city.trim()),
+        state: formFields.state.trim(),
+        cep: formFields.cep.replace(/\D/g, ''),
+        phone: formFields.phone.replace(/\D/g, ''),
+        street: toUpperCamelWords(formFields.street.trim()),
+        number: formFields.number.trim(),
+        neighborhood: toUpperCamelWords(formFields.neighborhood.trim()),
+        pastor_name: toUpperCamelWords(formFields.pastor_name.trim()),
+      };
+      if (editChurch.church_type === 'CONGREGATION') {
+        payload.accounting_category = formFields.accounting_category.trim();
+      }
+      await accountsApi.updateChurch(editChurch.id, payload);
+      notifications.show({ color: 'green', message: t.adminChurches.editChurchSuccess });
+      setEditChurch(null);
+      load();
+    } catch (err: any) {
+      setEditError(apiErrorMessage(err, 'Não foi possível salvar.'));
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const nextEditStep = () => {
+    if (editStep === 0 && !formFields.name.trim()) {
+      setEditError(t.churchesPage.name);
+      return;
+    }
+    if (editStep === 1 && (!formFields.city.trim() || !formFields.state.trim())) {
+      setEditError(t.registerPage.city);
+      return;
+    }
+    if (editStep === 1) {
+      submitEdit();
+      return;
+    }
+    setEditError(null);
+    setEditStep((c) => c + 1);
+  };
+
+  const backEditStep = () => {
+    setEditError(null);
+    setEditStep((c) => Math.max(c - 1, 0));
   };
 
   const maxStep = formChurchType === 'CONGREGATION' ? 3 : 2;
@@ -540,6 +641,18 @@ export default function AdminChurchesPage() {
                 </Stack>
 
                 <Group justify="flex-end" mt="md">
+                  <Button
+                    size="xs"
+                    variant="subtle"
+                    leftSection={<IconPencil size={14} />}
+                    data-testid={`admin-church-edit-${c.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEdit(c);
+                    }}
+                  >
+                    {t.adminChurches.editChurch}
+                  </Button>
                   <Button
                     size="xs"
                     variant="subtle"
@@ -1009,6 +1122,156 @@ export default function AdminChurchesPage() {
                   {t.registerPage.next}
                 </Button>
               )}
+            </Group>
+          </form>
+        </Modal>
+
+        <Modal
+          opened={!!editChurch}
+          onClose={() => {
+            if (!editSaving) setEditChurch(null);
+          }}
+          title={t.adminChurches.editChurchTitle}
+          centered
+          size="lg"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              nextEditStep();
+            }}
+          >
+            <Stepper
+              active={editStep}
+              onStepClick={(step) => {
+                if (step <= 1) setEditStep(step);
+              }}
+              allowNextStepsSelect={false}
+              size="sm"
+            >
+              <Stepper.Step
+                label={t.registerPage.stepChurch}
+                icon={<IconBuilding size={16} />}
+              >
+                <Stack gap="md" mt="md">
+                  <TextInput
+                    label={t.churchesPage.name}
+                    required
+                    data-testid="admin-church-edit-name"
+                    value={formFields.name}
+                    onChange={(e) => setField('name', e.currentTarget.value)}
+                  />
+                  <TextInput
+                    label={t.registerPage.pastor}
+                    data-testid="admin-church-edit-pastor"
+                    value={formFields.pastor_name}
+                    onChange={(e) => setField('pastor_name', e.currentTarget.value)}
+                  />
+                  <MaskedTextInput
+                    label={t.registerPage.phone}
+                    placeholder="(00) 00000-0000"
+                    mask="(00) 00000-0000"
+                    value={formFields.phone}
+                    onAccept={(v: string) => setField('phone', v)}
+                  />
+                  {editChurch?.church_type === 'CONGREGATION' && (
+                    <AccountingCategorySelect
+                      value={formFields.accounting_category}
+                      onChange={(v) => setField('accounting_category', v)}
+                      dataTestId="admin-church-edit-category"
+                    />
+                  )}
+                </Stack>
+              </Stepper.Step>
+
+              <Stepper.Step
+                label={t.registerPage.stepAddress}
+                icon={<IconMapPin size={16} />}
+              >
+                <Stack gap="md" mt="md">
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <MaskedTextInput
+                      label={t.registerPage.cep}
+                      description={t.registerPage.cepHint}
+                      placeholder="00000-000"
+                      mask="00000-000"
+                      value={formFields.cep}
+                      onAccept={(v: string) => setField('cep', v)}
+                      onBlur={() => handleCepBlur(formFields.cep)}
+                    />
+                    <TextInput
+                      label={t.registerPage.city}
+                      required
+                      value={formFields.city}
+                      onChange={(e) => setField('city', e.currentTarget.value)}
+                    />
+                  </SimpleGrid>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <TextInput
+                      label={t.registerPage.street}
+                      value={formFields.street}
+                      onChange={(e) => setField('street', e.currentTarget.value)}
+                    />
+                    <TextInput
+                      label={t.registerPage.number}
+                      value={formFields.number}
+                      onChange={(e) =>
+                        setField(
+                          'number',
+                          e.currentTarget.value.replace(/\D/g, '')
+                        )
+                      }
+                    />
+                  </SimpleGrid>
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    <TextInput
+                      label={t.registerPage.neighborhood}
+                      value={formFields.neighborhood}
+                      onChange={(e) =>
+                        setField('neighborhood', e.currentTarget.value)
+                      }
+                    />
+                    <Select
+                      label={t.registerPage.state}
+                      required
+                      data={UF_LIST}
+                      value={formFields.state}
+                      onChange={(v) => setField('state', v ?? '')}
+                      searchable
+                    />
+                  </SimpleGrid>
+                  {cepLoading && <Text size="xs" c="dimmed">...</Text>}
+                  {cepError && <Text size="xs" c="red">{cepError}</Text>}
+                </Stack>
+              </Stepper.Step>
+            </Stepper>
+
+            {editError && (
+              <Alert
+                icon={<IconAlertTriangle size={16} />}
+                color="red"
+                variant="light"
+                mt="md"
+              >
+                <Text size="sm">{editError}</Text>
+              </Alert>
+            )}
+
+            <Group justify="space-between" mt="lg">
+              <Button
+                type="button"
+                variant="default"
+                onClick={editStep > 0 ? backEditStep : () => setEditChurch(null)}
+              >
+                {editStep > 0 ? t.registerPage.back : t.common.cancel}
+              </Button>
+              <Button
+                type="submit"
+                loading={editSaving}
+                data-testid="admin-church-edit-submit"
+              >
+                {editStep === 1 ? t.common.save : t.registerPage.next}
+              </Button>
             </Group>
           </form>
         </Modal>
