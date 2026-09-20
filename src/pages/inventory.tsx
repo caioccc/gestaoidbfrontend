@@ -372,7 +372,7 @@ function ItemsTab() {
           </Stack>
         ) : (
           <>
-            <Box visibleFrom="sm">
+            <Box visibleFrom="lg">
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -386,7 +386,7 @@ function ItemsTab() {
                 <Table.Tbody>{rows}</Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="sm" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
               {filtered.map((item) => {
                 const loan = item.current_loan;
                 return (
@@ -734,7 +734,7 @@ function LocationsTab() {
           </Stack>
         ) : (
           <>
-            <Box visibleFrom="sm">
+            <Box visibleFrom="lg">
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -745,7 +745,7 @@ function LocationsTab() {
                 <Table.Tbody>{rows}</Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="sm" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
               {locations.map((loc) => (
                 <MobileItemCard
                   key={loc.id}
@@ -1214,7 +1214,7 @@ function LoansTab() {
           </Stack>
         ) : (
           <>
-            <Box visibleFrom="sm">
+            <Box visibleFrom="lg">
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -1229,7 +1229,7 @@ function LoansTab() {
                 <Table.Tbody>{loanRows}</Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="sm" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
               {sortedLoans.map((loan) => {
                 const open = isOpen(loan);
                 const overdue = isOverdue(loan);
@@ -1470,20 +1470,13 @@ function LoansTab() {
 
 export default function InventoryPage() {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<string | null>('loans');
+  const [tab, setTab] = useState<string | null>('locations');
 
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.inventoryPage.title} description={t.inventoryPage.subtitle}>
           <Group gap="sm">
-            <Button
-              variant={tab === 'loans' ? 'filled' : 'default'}
-              onClick={() => setTab('loans')}
-              data-testid="tab-loans"
-            >
-              {t.inventoryPage.loansTab}
-            </Button>
             <Button
               variant={tab === 'locations' ? 'filled' : 'default'}
               onClick={() => setTab('locations')}
@@ -1498,15 +1491,22 @@ export default function InventoryPage() {
             >
               {t.inventoryPage.itemsTab}
             </Button>
+            <Button
+              variant={tab === 'loans' ? 'filled' : 'default'}
+              onClick={() => setTab('loans')}
+              data-testid="tab-loans"
+            >
+              {t.inventoryPage.loansTab}
+            </Button>
           </Group>
         </PageHeader>
 
-        {tab === 'loans' ? (
-          <LoansTab />
-        ) : tab === 'locations' ? (
+        {tab === 'locations' ? (
           <LocationsTab />
-        ) : (
+        ) : tab === 'items' ? (
           <ItemsTab />
+        ) : (
+          <LoansTab />
         )}
       </Layout>
     </AuthGuard>

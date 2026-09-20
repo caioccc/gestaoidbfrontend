@@ -240,7 +240,7 @@ export default function CultosPage() {
           </Card>
         ) : (
           <Card withBorder p={0}>
-            <Box visibleFrom="sm">
+            <Box visibleFrom="lg">
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -309,7 +309,7 @@ export default function CultosPage() {
                 </Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="sm" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
               {services.map((s) => (
                 <MobileItemCard
                   key={s.id}

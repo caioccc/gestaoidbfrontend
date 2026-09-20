@@ -23,7 +23,6 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
-import MemberCardModal from './MemberCardModal';
 import { useLanguage } from '../i18n';
 import {
   isValidCpf,
@@ -144,7 +143,6 @@ export default function MemberFormModal({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
-  const [cardMember, setCardMember] = useState<Member | null>(null);
 
   const isoToDate = (iso: string): Date | null => {
     const [y, m, d] = iso.split('-').map(Number);
@@ -212,7 +210,6 @@ export default function MemberFormModal({
   useEffect(() => {
     if (!opened) return;
     setStep(0);
-    setCardMember(null);
     if (member) {
       form.setValues(fromMember(member));
     } else {
@@ -393,9 +390,11 @@ export default function MemberFormModal({
       payload.photo = form.values.photo ?? '';
     }
     try {
-      const saved = await onSave(payload, !!member);
+      await onSave(payload, !!member);
       notifications.show({ color: 'green', message: t.membersPage.saved });
-      setCardMember(saved);
+      form.resetDirty();
+      setStep(0);
+      onClose();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg =
@@ -472,14 +471,13 @@ export default function MemberFormModal({
   };
 
   return (
-    <>
-      <Modal
-        opened={opened}
-        onClose={onClose}
-        title={member ? t.membersPage.editMember : t.membersPage.addMember}
-        centered
-        size="xl"
-      >
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={member ? t.membersPage.editMember : t.membersPage.addMember}
+      centered
+      size="xl"
+    >
         <Stepper
           active={step}
           onStepClick={(s) => setStep(s)}
@@ -885,18 +883,5 @@ export default function MemberFormModal({
           )}
         </Group>
       </Modal>
-
-      <MemberCardModal
-        opened={!!cardMember}
-        member={cardMember}
-        churchName={churchName}
-        config={cardConfig}
-        churchContact={churchContact}
-        onClose={() => {
-          setCardMember(null);
-          onClose();
-        }}
-      />
-    </>
   );
 }

@@ -36,6 +36,7 @@ import {
   IconRefresh,
   IconQrcode,
   IconClock,
+  IconExternalLink,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
@@ -500,7 +501,7 @@ export default function CalendarEventsBoard({
           ? t.calendarEvents.recurringBiweek
           : t.calendarEvents.recurringWeek;
       parts.push(mode.replace('{days}', weekdayLabel(ev)));
-      if (ev.date) parts.push(`${t.calendarEvents.from} ${ev.date}`);
+      if (ev.date && !readOnly) parts.push(`${t.calendarEvents.from} ${ev.date}`);
     } else if (ev.repeat_monthly) {
       parts.push(t.calendarEvents.recurringDay.replace('{day}', String(ev.day)));
     } else if (ev.date) {
@@ -841,6 +842,18 @@ export default function CalendarEventsBoard({
                 onClick={() => setQrOpen(true)}
               >
                 {t.qrShare.qr}
+              </Button>
+              <Button
+                size="xs"
+                variant="default"
+                data-testid="public-calendar-open"
+                component="a"
+                href={`${origin}${publicLink.url}`}
+                target="_blank"
+                rel="noreferrer"
+                leftSection={<IconExternalLink size={14} />}
+              >
+                {t.calendarEvents.publicLink.open}
               </Button>
               <Button
                 size="xs"

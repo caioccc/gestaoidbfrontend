@@ -74,6 +74,18 @@ const STATUS_META = {
   REJECTED: { color: 'red', tKey: 'statusRejected' as const },
 };
 
+const STATUS_BORDER: Record<string, string | undefined> = {
+  PENDING: 'var(--mantine-color-yellow-7)',
+  ACTIVE: undefined,
+  REJECTED: 'var(--mantine-color-red-7)',
+};
+
+const STATUS_BORDER_WIDTH: Record<string, number> = {
+  PENDING: 2,
+  ACTIVE: 1,
+  REJECTED: 2,
+};
+
 function apiErrorMessage(err: any, fallback: string): string {
   const d = err?.response?.data;
   if (!d) return fallback;
@@ -581,7 +593,11 @@ export default function AdminChurchesPage() {
                 withBorder
                 shadow="sm"
                 padding="lg"
-                style={{ cursor: 'pointer' }}
+                style={{
+                  cursor: 'pointer',
+                  borderColor: STATUS_BORDER[c.status],
+                  borderWidth: STATUS_BORDER_WIDTH[c.status] ?? 1,
+                }}
                 onClick={() => openChurch(c)}
                 data-testid={`admin-church-card-${c.id}`}
               >
@@ -715,7 +731,19 @@ export default function AdminChurchesPage() {
                   <ThemeIcon color="blue" variant="light" size="lg">
                     <IconBuilding size={20} />
                   </ThemeIcon>
-                  <Text fw={700}>{selected.name}</Text>
+                  <Stack gap={2}>
+                    <Text fw={700}>{selected.name}</Text>
+                    <Badge
+                      color={selected.church_type === 'INDEPENDENT' ? 'blue' : 'teal'}
+                      variant="light"
+                      size="sm"
+                      style={{ alignSelf: 'flex-start' }}
+                    >
+                      {selected.church_type === 'INDEPENDENT'
+                        ? t.adminChurches.sedeBadge
+                        : t.adminChurches.congregationBadge}
+                    </Badge>
+                  </Stack>
                 </Group>
                 {statusBadge(selected.status)}
               </Group>

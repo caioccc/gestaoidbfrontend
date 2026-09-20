@@ -375,7 +375,7 @@ export default function MinutesPage() {
           </Card>
         ) : (
           <Card withBorder p={0}>
-            <Box visibleFrom="sm">
+            <Box visibleFrom="lg">
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
@@ -428,7 +428,7 @@ export default function MinutesPage() {
                 </Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="sm" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs" p="sm">
               {minutes.map((m) => (
                 <MobileItemCard
                   key={m.id}

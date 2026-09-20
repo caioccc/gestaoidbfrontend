@@ -1,7 +1,9 @@
 import React from 'react';
 import { Box, Text, Group, ActionIcon, Image } from '@mantine/core';
-import { Dropzone, IMAGE_MIME_TYPE } from '@mantine/dropzone';
+import { Dropzone, FileRejection, IMAGE_MIME_TYPE } from '@mantine/dropzone';
+import { notifications } from '@mantine/notifications';
 import { IconPhoto, IconUpload, IconX, IconTrash } from '@tabler/icons-react';
+import { useLanguage } from '../i18n';
 
 const MAX_DIMENSION = 800;
 const QUALITY = 0.82;
@@ -41,6 +43,7 @@ export default function ImageUpload({
   imageRadius = 'md',
   height = 160,
 }: ImageUploadProps) {
+  const { t } = useLanguage();
   const handleFile = async (files: File[]) => {
     const file = files[0];
     if (!file) return;
@@ -56,8 +59,21 @@ export default function ImageUpload({
       const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
       onChange?.(dataUrl);
     } catch {
+      notifications.show({ color: 'red', message: t.imageUpload.invalidImage });
       onChange?.(null);
     }
+  };
+
+  const handleReject = (rejections: FileRejection[]) => {
+    const rejection = rejections[0];
+    const code = rejection?.errors?.[0]?.code;
+    const message =
+      code === 'file-too-large'
+        ? t.imageUpload.fileTooLarge
+        : code === 'file-invalid-type'
+          ? t.imageUpload.invalidFileType
+          : t.imageUpload.invalidImage;
+    notifications.show({ color: 'red', message });
   };
 
   return (
@@ -93,6 +109,7 @@ export default function ImageUpload({
       ) : (
         <Dropzone
           onDrop={handleFile}
+          onReject={handleReject}
           accept={IMAGE_MIME_TYPE}
           maxSize={5 * 1024 * 1024}
           maxFiles={1}

@@ -227,49 +227,6 @@ function SidebarContent({
         },
       ],
     },
-    ...(canApproveCongregations ||
-    user?.is_staff ||
-    (canManageChurch && !user?.is_staff)
-      ? [
-          {
-            title: t.section.governance,
-            requiresChurch: false,
-            items: [
-              ...(user?.is_staff
-                ? [
-                    {
-                      label: t.nav.churches,
-                      icon: <IconShieldCheck size={18} />,
-                      href: "/admin/churches",
-                      keepAbsolute: true,
-                    } as NavItem,
-                  ]
-                : []),
-              ...(canManageChurch && !user?.is_staff
-                ? [
-                    {
-                      label: t.nav.congregations,
-                      icon: <IconBuildingChurch size={18} />,
-                      href: "/churches",
-                      keepAbsolute: true,
-                    } as NavItem,
-                  ]
-                : []),
-              ...(canApproveCongregations && !congregationScope
-                ? [
-                    {
-                      label: t.nav.approvals,
-                      icon: <IconClipboardCheck size={18} />,
-                      href: "/approvals",
-                      keepAbsolute: true,
-                      badge: pendingApprovals,
-                    } as NavItem,
-                  ]
-                : []),
-            ] as NavItem[],
-          },
-        ]
-      : []),
     ...(showChurchSections && (canSeeMembers || canSeeVisitation)
       ? [
           {
@@ -468,6 +425,49 @@ function SidebarContent({
           },
         ]
       : []),
+    ...(canApproveCongregations ||
+    user?.is_staff ||
+    (canManageChurch && !user?.is_staff)
+      ? [
+          {
+            title: t.section.governance,
+            requiresChurch: false,
+            items: [
+              ...(user?.is_staff
+                ? [
+                    {
+                      label: t.nav.churches,
+                      icon: <IconShieldCheck size={18} />,
+                      href: "/admin/churches",
+                      keepAbsolute: true,
+                    } as NavItem,
+                  ]
+                : []),
+              ...(canManageChurch && !user?.is_staff
+                ? [
+                    {
+                      label: t.nav.congregations,
+                      icon: <IconBuildingChurch size={18} />,
+                      href: "/churches",
+                      keepAbsolute: true,
+                    } as NavItem,
+                  ]
+                : []),
+              ...(canApproveCongregations && !congregationScope
+                ? [
+                    {
+                      label: t.nav.approvals,
+                      icon: <IconClipboardCheck size={18} />,
+                      href: "/approvals",
+                      keepAbsolute: true,
+                      badge: pendingApprovals,
+                    } as NavItem,
+                  ]
+                : []),
+            ] as NavItem[],
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -569,7 +569,7 @@ function ChurchSwitcher() {
     let active = true;
     accountsApi
       .churches()
-      .then((list) => active && setChurches(list))
+      .then((list) => active && setChurches(list.filter((c) => c.status === 'ACTIVE')))
       .catch(() => undefined);
     return () => {
       active = false;
@@ -816,7 +816,7 @@ export default function Layout({
   expanded?: boolean;
 }) {
   const [opened, { toggle, close }] = useDisclosure(false);
-  const isMobile = useMediaQuery("(max-width: 60em)");
+  const isMobile = useMediaQuery("(max-width: 62em)");
   const { t } = useLanguage();
 
   return (
@@ -824,7 +824,7 @@ export default function Layout({
       header={{ height: 60 }}
       navbar={{
         width: 270,
-        breakpoint: "sm",
+        breakpoint: "md",
         collapsed: { mobile: !opened },
       }}
       padding="md"
@@ -842,7 +842,7 @@ export default function Layout({
             <Burger
               opened={opened}
               onClick={toggle}
-              hiddenFrom="sm"
+              hiddenFrom="md"
               size="sm"
             />
             <Flex align="center" gap={8}>
