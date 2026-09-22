@@ -121,6 +121,7 @@ export interface LoanPayload {
   item: number;
   member?: number | null;
   borrower_name?: string;
+  borrower_phone?: string;
   borrowed_at: string;
   expected_return: string;
   notes?: string;
@@ -378,6 +379,9 @@ export const accountsApi = {
 
   updatePrayerRequest: (id: number, payload: Partial<PrayerRequestPayload>): Promise<PrayerRequest> =>
     apiClient.patch(`/api/accounts/prayer-requests/${id}/`, payload).then((r) => r.data),
+
+  createPrayerRequest: (payload: PrayerRequestPayload): Promise<PrayerRequest> =>
+    apiClient.post('/api/accounts/prayer-requests/', payload).then((r) => r.data),
 
   preparePrayerWhatsApp: (id: number): Promise<PrayerVisitPreparedPayload> =>
     apiClient.post(`/api/accounts/prayer-requests/${id}/prepare-whatsapp/`).then((r) => r.data),

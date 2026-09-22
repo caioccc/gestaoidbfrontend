@@ -56,6 +56,7 @@ interface ChurchProfileFormProps {
   onResetPassword?: (newPassword: string) => Promise<void>;
   showPrebenda?: boolean;
   canResetPassword?: boolean;
+  readOnly?: boolean;
 }
 
 export default function ChurchProfileForm({
@@ -67,6 +68,7 @@ export default function ChurchProfileForm({
   onResetPassword,
   showPrebenda = true,
   canResetPassword = true,
+  readOnly = false,
 }: ChurchProfileFormProps) {
   const { t } = useLanguage();
   const [cepLoading, setCepLoading] = useState(false);
@@ -172,6 +174,7 @@ export default function ChurchProfileForm({
   };
 
   const handleSave = async () => {
+    if (readOnly) return;
     const prebendaRaw = String(form.values.pastoral_prebenda_percent || '').trim();
     const prebendaValue = Number(
       prebendaRaw.includes(',') ? prebendaRaw.replace(',', '.') : prebendaRaw
@@ -280,6 +283,7 @@ export default function ChurchProfileForm({
     <>
       <Paper withBorder radius="md" p="md">
       <form onSubmit={form.onSubmit(handleSave)}>
+        <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0 }}>
         <Stack gap="lg">
           <Stack gap="sm">
             <Title order={5}>{t.settingsPage.registrationData}</Title>
@@ -357,7 +361,7 @@ export default function ChurchProfileForm({
                 disabled={!responsibleEmail}
                 style={{ flex: 1 }}
               />
-              {canResetPassword && (
+              {canResetPassword && !readOnly && (
                 <Button
                   data-testid="settings-reset-password"
                   variant="light"
@@ -439,12 +443,19 @@ export default function ChurchProfileForm({
             </Button>
           </Stack>
 
-          <Group justify="flex-end">
-            <Button data-testid="settings-save" type="submit" loading={saving}>
-              {t.common.save}
-            </Button>
-          </Group>
+          {readOnly ? (
+            <Text size="xs" c="dimmed">
+              {t.settingsPage.readOnlyHint}
+            </Text>
+          ) : (
+            <Group justify="flex-end">
+              <Button data-testid="settings-save" type="submit" loading={saving}>
+                {t.common.save}
+              </Button>
+            </Group>
+          )}
         </Stack>
+        </fieldset>
       </form>
     </Paper>
 

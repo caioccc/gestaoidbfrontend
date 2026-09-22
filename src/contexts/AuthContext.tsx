@@ -22,7 +22,7 @@ export interface UserSession {
   is_staff: boolean;
   is_active: boolean;
   church?: UserSessionChurch | null;
-  role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | null;
+  role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | 'PROFESSOR_EBD' | null;
   role_display?: string | null;
   can_manage_churches?: boolean;
   can_approve_congregations?: boolean;
@@ -92,7 +92,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(userData);
     if (userData.is_staff) {
       router.push('/admin/churches');
-    } else if (userData.role === 'MUSICO' || userData.role === 'LOUVOR' || userData.role === 'INTERCESSAO') {
+    } else if (
+      userData.role === 'MUSICO' ||
+      userData.role === 'LOUVOR' ||
+      userData.role === 'INTERCESSAO' ||
+      userData.role === 'PROFESSOR_EBD'
+    ) {
       router.push('/calendar');
     } else {
       router.push('/dashboard');

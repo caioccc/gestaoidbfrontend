@@ -13,6 +13,7 @@ import {
   TextInput,
   Textarea,
   Select,
+  ColorInput,
   SegmentedControl,
   NumberInput,
   MultiSelect,
@@ -69,6 +70,45 @@ const CATEGORY_COLORS: Record<CalendarEventCategory, string> = {
   culto: 'orange',
   ensaio: 'cyan',
 };
+
+const CATEGORY_HEX: Record<CalendarEventCategory, string> = {
+  bill: '#228be6',
+  deadline: '#9c36b5',
+  meeting: '#40c057',
+  event: '#7048e8',
+  culto: '#fd7e14',
+  ensaio: '#15aabf',
+};
+
+const COLOR_SWATCHES = [
+  ...Object.values(CATEGORY_HEX),
+  '#fa5252',
+  '#f767bf',
+  '#12b886',
+  '#ffd43b',
+  '#5c7cfa',
+  '#868e96',
+];
+
+function isHexColor(color: string): boolean {
+  return /^#[\da-fA-F]{6}/.test(color);
+}
+
+const eventColor = (ev: CalendarEvent): string =>
+  ev.color || (CATEGORY_COLORS[ev.category] ?? 'gray');
+
+function eventCellColors(color: string): { background: string; border: string } {
+  if (isHexColor(color)) {
+    return {
+      background: `${color}18`,
+      border: `1px solid ${color}4d`,
+    };
+  }
+  return {
+    background: `var(--mantine-color-${color}-0)`,
+    border: `1px solid var(--mantine-color-${color}-3)`,
+  };
+}
 
 const CATEGORY_ORDER: CalendarEventCategory[] = [
   'bill',
@@ -229,7 +269,21 @@ export default function CalendarEventsBoard({
       for (const ev of events) {
         let hit = false;
         if (ev.repeat_monthly) {
-          hit = ev.day === d.getDate();
+          const nthWd = ev.repeat_monthly_weekday;
+          const nthOrd = ev.repeat_monthly_ordinal;
+          if (nthWd != null && nthOrd != null) {
+            const yr = d.getFullYear();
+            const mo = d.getMonth();
+            const occ: number[] = [];
+            const dim = new Date(yr, mo + 1, 0).getDate();
+            for (let k = 1; k <= dim; k++) {
+              if (isoWeekday(new Date(yr, mo, k).getDay()) === nthWd) occ.push(k);
+            }
+            const target = nthOrd === -1 ? occ[occ.length - 1] : occ[nthOrd - 1];
+            hit = target === d.getDate();
+          } else {
+            hit = ev.day === d.getDate();
+          }
         } else if (ev.repeat_weekly) {
           const wd = isoWeekday(d.getDay());
           if (!(ev.weekdays || []).includes(wd)) continue;
@@ -254,7 +308,7 @@ export default function CalendarEventsBoard({
             id: ev.id,
             key: `f-${ev.id}`,
             title: ev.title,
-            color: CATEGORY_COLORS[ev.category] ?? 'gray',
+            color: eventColor(ev),
             badge: `${categoryLabel(ev.category)} • ${ev.title}`,
             time: ev.start_time,
             endTime: ev.end_time,
@@ -273,8 +327,12 @@ export default function CalendarEventsBoard({
     title: string;
     category: CalendarEventCategory;
     audience: CalendarEventAudience;
+    color: string;
     recurrence: RecurrenceMode;
+    monthlyType: 'day' | 'nth';
     day: number | null;
+    monthly_weekday: number | null;
+    monthly_ordinal: number | null;
     date: Date | null;
     weekdays: string[];
     repeat_interval: number;
@@ -289,8 +347,12 @@ export default function CalendarEventsBoard({
       title: '',
       category: 'event',
       audience: 'GENERAL',
+      color: '',
       recurrence: 'oneoff',
+      monthlyType: 'day',
       day: null,
+      monthly_weekday: null,
+      monthly_ordinal: null,
       date: new Date(),
       weekdays: [],
       repeat_interval: 1,
@@ -338,6 +400,7 @@ export default function CalendarEventsBoard({
       title: '',
       category: 'event',
       audience: gateway.canManageGeneral ? 'GENERAL' : 'FINANCE',
+      color: CATEGORY_HEX['event'],
       recurrence: 'oneoff',
       day: null,
       date: new Date(year, month, 1),
@@ -366,6 +429,7 @@ export default function CalendarEventsBoard({
       title: ev.title,
       category: ev.category,
       audience: ev.audience,
+      color: ev.color || '',
       recurrence,
       day: ev.repeat_monthly ? ev.day : null,
       date: ev.date ? dateFromApi(ev.date) : new Date(year, month, ev.day ?? 1),
@@ -389,6 +453,7 @@ export default function CalendarEventsBoard({
       title: toUpperCamelWords(values.title),
       category: values.category,
       audience: values.audience,
+      color: values.color.trim(),
       description: toSentenceCase(values.description),
       start_time: timeToApi(values.start_time),
       end_time: timeToApi(values.end_time) || undefined,
@@ -410,8 +475,16 @@ export default function CalendarEventsBoard({
       payload.weekdays = [];
       payload.repeat_interval = 1;
       payload.repeat_end_date = null;
-      payload.day = values.day ?? today.getDate();
       payload.date = null;
+      if (values.monthlyType === 'nth') {
+        payload.repeat_monthly_weekday = values.monthly_weekday;
+        payload.repeat_monthly_ordinal = values.monthly_ordinal;
+        payload.day = null;
+      } else {
+        payload.repeat_monthly_weekday = null;
+        payload.repeat_monthly_ordinal = null;
+        payload.day = values.day ?? today.getDate();
+      }
     } else {
       payload.repeat_monthly = false;
       payload.repeat_weekly = false;
@@ -493,6 +566,9 @@ export default function CalendarEventsBoard({
   const weekdayLabel = (ev: CalendarEvent) =>
     (ev.weekdays || []).map((d) => ISO_WEEKDAYS[d] ?? d).join(', ');
 
+  const nthLabel = (ord: number) =>
+    ord === -1 ? 'last' : `${ord}${'º'}`;
+
   const formatDateLine = (ev: CalendarEvent) => {
     const parts: string[] = [];
     if (ev.repeat_weekly) {
@@ -503,7 +579,15 @@ export default function CalendarEventsBoard({
       parts.push(mode.replace('{days}', weekdayLabel(ev)));
       if (ev.date && !readOnly) parts.push(`${t.calendarEvents.from} ${ev.date}`);
     } else if (ev.repeat_monthly) {
-      parts.push(t.calendarEvents.recurringDay.replace('{day}', String(ev.day)));
+      if (ev.repeat_monthly_weekday != null && ev.repeat_monthly_ordinal != null) {
+        parts.push(
+          t.calendarEvents.recurringNth
+            .replace('{ordinal}', nthLabel(ev.repeat_monthly_ordinal))
+            .replace('{weekday}', ISO_WEEKDAYS[ev.repeat_monthly_weekday] ?? String(ev.repeat_monthly_weekday))
+        );
+      } else {
+        parts.push(t.calendarEvents.recurringDay.replace('{day}', String(ev.day)));
+      }
     } else if (ev.date) {
       parts.push(ev.date);
     }
@@ -653,8 +737,7 @@ export default function CalendarEventsBoard({
                         <Box
                           key={b.key}
                           style={{
-                            background: `var(--mantine-color-${b.color}-0)`,
-                            border: `1px solid var(--mantine-color-${b.color}-3)`,
+                            ...eventCellColors(b.color),
                             borderRadius: 4,
                             padding: '6px 8px',
                             minHeight: duration * 28,
@@ -893,7 +976,7 @@ export default function CalendarEventsBoard({
                 <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
                   <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
                     <Group gap="sm" wrap="nowrap">
-                      <Badge size="sm" variant="light" color={CATEGORY_COLORS[ev.category] ?? 'gray'}>
+                      <Badge size="sm" variant="light" color={eventColor(ev)}>
                         {categoryLabel(ev.category)}
                       </Badge>
                       <Text size="sm" fw={500} truncate>
@@ -961,6 +1044,13 @@ export default function CalendarEventsBoard({
               data={CATEGORY_ORDER.map((c) => ({ value: c, label: categoryLabel(c) }))}
               {...form.getInputProps('category')}
             />
+            <ColorInput
+              data-testid="event-color"
+              label={t.calendarEvents.color}
+              placeholder={t.calendarEvents.colorPlaceholder}
+              swatches={COLOR_SWATCHES}
+              {...form.getInputProps('color')}
+            />
             <Select
               data-testid="event-recurrence"
               label={t.calendarEvents.recurrence}
@@ -972,14 +1062,60 @@ export default function CalendarEventsBoard({
               {...form.getInputProps('recurrence')}
             />
             {form.values.recurrence === 'monthly' && (
-              <NumberInput
-                data-testid="event-day"
-                label={t.calendarEvents.dayOfMonth}
-                min={1}
-                max={31}
-                value={form.values.day ?? 1}
-                onChange={(v) => form.setFieldValue('day', typeof v === 'number' ? v : Number(v) || null)}
-              />
+              <>
+                <SegmentedControl
+                  data-testid="event-monthly-type"
+                  fullWidth
+                  data={[
+                    { value: 'day', label: t.calendarEvents.dayOfMonth },
+                    { value: 'nth', label: t.calendarEvents.recurringNth },
+                  ]}
+                  value={form.values.monthlyType}
+                  onChange={(v) => form.setFieldValue('monthlyType', v as 'day' | 'nth')}
+                />
+                {form.values.monthlyType === 'nth' ? (
+                  <Group grow>
+                    <Select
+                      data-testid="event-monthly-weekday"
+                      label={t.calendarEvents.weekdays}
+                      data={ISO_WEEKDAYS.map((l, i) => ({ value: String(i), label: l }))}
+                      value={
+                        form.values.monthly_weekday != null ? String(form.values.monthly_weekday) : null
+                      }
+                      onChange={(v) =>
+                        form.setFieldValue('monthly_weekday', v != null ? Number(v) : null)
+                      }
+                    />
+                    <Select
+                      data-testid="event-monthly-ordinal"
+                      label={t.calendarEvents.monthlyOrdinal}
+                      data={[
+                        { value: '1', label: '1ª' },
+                        { value: '2', label: '2ª' },
+                        { value: '3', label: '3ª' },
+                        { value: '4', label: '4ª' },
+                        { value: '5', label: '5ª' },
+                        { value: '-1', label: t.calendarEvents.ordinalLast },
+                      ]}
+                      value={
+                        form.values.monthly_ordinal != null ? String(form.values.monthly_ordinal) : null
+                      }
+                      onChange={(v) =>
+                        form.setFieldValue('monthly_ordinal', v != null ? Number(v) : null)
+                      }
+                    />
+                  </Group>
+                ) : (
+                  <NumberInput
+                    data-testid="event-day"
+                    label={t.calendarEvents.dayOfMonth}
+                  min={1}
+                  max={31}
+                  value={form.values.day ?? 1}
+                  onChange={(v) => form.setFieldValue('day', typeof v === 'number' ? v : Number(v) || null)}
+                />
+              )}
+              </>
             )}
             {form.values.recurrence === 'weekly' && (
               <>
@@ -1096,7 +1232,7 @@ export default function CalendarEventsBoard({
         {detail && (
           <Stack gap="md">
             <Group gap="xs" wrap="wrap">
-              <Badge size="sm" variant="light" color={CATEGORY_COLORS[detail.category] ?? 'gray'}>
+              <Badge size="sm" variant="light" color={eventColor(detail)}>
                 {categoryLabel(detail.category)}
               </Badge>
               <Badge size="sm" variant="default">

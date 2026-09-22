@@ -48,6 +48,8 @@ export default function PublicCalendarPage() {
         created_by_name: '',
         members: [],
         members_names: [],
+        repeat_monthly_weekday: ev.repeat_monthly_weekday ?? null,
+        repeat_monthly_ordinal: ev.repeat_monthly_ordinal ?? null,
         created_at: '',
       })),
     create: async () => {

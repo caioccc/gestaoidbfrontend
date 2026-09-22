@@ -62,18 +62,22 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   const [enriching, setEnriching] = useState(false);
   const [chordsAlert, setChordsAlert] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [existingSong, setExistingSong] = useState<Song | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
 
   useEffect(() => {
     if (!opened) {
       setSearchAlert(false);
       setChordsAlert(false);
       setResults([]);
+      setExistingSong(null);
       return;
     }
     void musicApi.bands().then(setBands).catch(() => setBands([]));
     setSearchAlert(false);
     setChordsAlert(false);
     setResults([]);
+    setExistingSong(null);
     setTitle(editing?.title ?? '');
     setArtist(editing?.artist ?? '');
     setYoutubeId(editing?.youtube_id ?? '');
@@ -170,6 +174,59 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       setEnriching(false);
     }
   };
+
+  // Pré-cadastro: o mesmo vídeo já pode ter sido cadastrado por outra igreja.
+  // Busca global e preenche o formulário para evitar novo scraping.
+  useEffect(() => {
+    if (!opened || editing) {
+      setExistingSong(null);
+      return;
+    }
+    const id = youtubeId.trim();
+    if (!/^[\w-]{11}$/.test(id)) {
+      setExistingSong(null);
+      return;
+    }
+    let active = true;
+    setCheckingExisting(true);
+    const timer = window.setTimeout(() => {
+      musicApi
+        .checkYoutube(id)
+        .then((data) => {
+          if (!active || !data.found || !data.song) {
+            if (active) setExistingSong(null);
+            return;
+          }
+          const found = data.song;
+          setExistingSong(found);
+          setTitle((prev) => prev || found.title);
+          setArtist((prev) => prev || found.artist || '');
+          setThumbnailUrl((prev) => prev || found.thumbnail_url || '');
+          setOriginalKey((prev) => prev || found.original_key || '');
+          setChurchKey((prev) => prev || found.church_key || '');
+          setBpm((prev) => {
+            if (prev || !found.bpm) return prev;
+            return String(found.bpm);
+          });
+          setTimeSignature((prev) => prev || found.time_signature || '4/4');
+          if (found.chords_json?.length) {
+            setChordsJson((prev) => (prev.length ? prev : found.chords_json));
+          }
+          setLyrics((prev) => prev || found.lyrics || '');
+          setTags((prev) => prev || found.tags || '');
+        })
+        .catch(() => {
+          if (active) setExistingSong(null);
+        })
+        .finally(() => {
+          if (active) setCheckingExisting(false);
+        });
+    }, 300);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [opened, editing, youtubeId]);
 
   const save = async () => {
     if (!title.trim() || !youtubeId.trim()) return;
@@ -305,6 +362,21 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
             </Button>
           }
         />
+
+        {checkingExisting ? (
+          <Group gap={6}>
+            <Loader size={16} />
+            <Text size="sm" c="dimmed">
+              {t.music.checkingCatalog}
+            </Text>
+          </Group>
+        ) : null}
+
+        {existingSong ? (
+          <Alert color="blue" icon={<IconMusic size={18} />}>
+            {t.music.foundExisting.replace('{title}', existingSong.title)}
+          </Alert>
+        ) : null}
 
         {chordsAlert ? (
           <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>

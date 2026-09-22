@@ -38,15 +38,15 @@ function statusBadge(status: MemberTransferStatus, t: any) {
   );
 }
 
-const fmtDate = (iso: string): string => {
+const fmtDate = (iso: string, locale = 'pt-br'): string => {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
+    : d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 export default function TransfersTab() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [incoming, setIncoming] = useState<MemberTransfer[]>([]);
   const [outgoing, setOutgoing] = useState<MemberTransfer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,7 +180,7 @@ export default function TransfersTab() {
           </Text>
         </Group>
       </Table.Td>
-      <Table.Td>{fmtDate(tr.issued_at)}</Table.Td>
+      <Table.Td>{fmtDate(tr.issued_at, locale)}</Table.Td>
       <Table.Td>{statusBadge(tr.status, t)}</Table.Td>
       <Table.Td style={{ textAlign: 'right' }}>
         {tr.status === 'PENDING' && (
@@ -219,7 +219,7 @@ export default function TransfersTab() {
           <Text size="sm">{tr.target_church_name}</Text>
         </Group>
       </Table.Td>
-      <Table.Td>{fmtDate(tr.issued_at)}</Table.Td>
+      <Table.Td>{fmtDate(tr.issued_at, locale)}</Table.Td>
       <Table.Td>{statusBadge(tr.status, t)}</Table.Td>
       <Table.Td style={{ textAlign: 'right' }}>
         {tr.status === 'PENDING' && (

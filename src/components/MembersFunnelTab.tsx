@@ -10,7 +10,7 @@ import {
   Loader,
   Menu,
   Modal,
-  ScrollArea,
+  SimpleGrid,
   Stack,
   Text,
   ThemeIcon,
@@ -282,9 +282,8 @@ function FunnelColumn({
     <Stack
       ref={setNodeRef}
       gap="xs"
-      w={260}
+      w="100%"
       style={{
-        flexShrink: 0,
         borderRadius: 'var(--mantine-radius-md)',
         backgroundColor:
           colorScheme === 'dark'
@@ -683,64 +682,65 @@ export default function MembersFunnelTab({
           </Group>
         </Badge>
       </Group>
-      <ScrollArea type="always" offsetScrollbars style={{ whiteSpace: 'nowrap' }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDragEnd={onDragEnd}
-          onDragCancel={() => {
-            setDraggingId(null);
-            setDragStart(null);
-          }}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => {
+          setDraggingId(null);
+          setDragStart(null);
+        }}
+      >
+        <SimpleGrid
+          cols={{ base: 1, sm: 2, md: 3, lg: 4, xl: 6 }}
+          spacing="md"
         >
-          <Group align="flex-start" gap="md" wrap="nowrap">
-            {FUNNEL_COLUMNS.map((stage) => (
-              <SortableContext
-                key={stage}
-                items={boards[stage].map((m) => simpleDragId(m.id))}
-                strategy={verticalListSortingStrategy}
+          {FUNNEL_COLUMNS.map((stage) => (
+            <SortableContext
+              key={stage}
+              items={boards[stage].map((m) => simpleDragId(m.id))}
+              strategy={verticalListSortingStrategy}
+            >
+              <FunnelColumn
+                id={stage}
+                colorScheme={colorScheme}
+                title={t.funnel[stageToKey(stage)]}
+                color={STAGE_COLORS[stage]}
+                count={boards[stage].length}
+                emptyLabel={isVisitorStage(stage) ? t.funnel.visitorEmpty : t.funnel.empty}
               >
-                <FunnelColumn
-                  id={stage}
-                  colorScheme={colorScheme}
-                  title={t.funnel[stageToKey(stage)]}
-                  color={STAGE_COLORS[stage]}
-                  count={boards[stage].length}
-                  emptyLabel={isVisitorStage(stage) ? t.funnel.visitorEmpty : t.funnel.empty}
-                >
-                  {boards[stage].map((member) => (
-                    <SortableFunnelCard
-                      key={member.id}
-                      member={member}
-                      stage={stage}
-                      color={STAGE_COLORS[stage]}
-                      isVisitor={isVisitorStage(stage)}
-                      onWhatsApp={(m) => setWaMember(m)}
-                      onEdit={isVisitorStage(stage) ? openEditVisitor : undefined}
-                      onDelete={isVisitorStage(stage) ? (m) => setToDelete(m) : undefined}
-                      onPromote={isVisitorStage(stage) ? openPromote : undefined}
-                    />
-                  ))}
-                </FunnelColumn>
-              </SortableContext>
-            ))}
-          </Group>
-          <DragOverlay>
-            {draggingMember ? (
-              <Card withBorder radius="md" p="xs" shadow="lg">
-                <Group gap="xs" wrap="nowrap">
-                  <Avatar src={draggingMember.photo || null} radius="xl" size="md" />
-                  <Text size="sm" fw={600}>
-                    {draggingMember.name}
-                  </Text>
-                </Group>
-              </Card>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </ScrollArea>
+                {boards[stage].map((member) => (
+                  <SortableFunnelCard
+                    key={member.id}
+                    member={member}
+                    stage={stage}
+                    color={STAGE_COLORS[stage]}
+                    isVisitor={isVisitorStage(stage)}
+                    onWhatsApp={(m) => setWaMember(m)}
+                    onEdit={isVisitorStage(stage) ? openEditVisitor : undefined}
+                    onDelete={isVisitorStage(stage) ? (m) => setToDelete(m) : undefined}
+                    onPromote={isVisitorStage(stage) ? openPromote : undefined}
+                  />
+                ))}
+              </FunnelColumn>
+            </SortableContext>
+          ))}
+        </SimpleGrid>
+        <DragOverlay>
+          {draggingMember ? (
+            <Card withBorder radius="md" p="xs" shadow="lg">
+              <Group gap="xs" wrap="nowrap">
+                <Avatar src={draggingMember.photo || null} radius="xl" size="md" />
+                <Text size="sm" fw={600}>
+                  {draggingMember.name}
+                </Text>
+              </Group>
+            </Card>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       <VisitorFormModal
         opened={visitorForm.opened}

@@ -250,6 +250,11 @@ export const musicApi = {
   songHistory: (id: number): Promise<{ results: SongHistoryItem[] }> =>
     apiClient.get(`/api/music/songs/${id}/history/`).then((r) => r.data),
 
+  checkYoutube: (videoId: string): Promise<{ found: boolean; song: Song | null }> =>
+    apiClient
+      .get('/api/music/songs/check-youtube/', { params: { video_id: videoId } })
+      .then((r) => r.data),
+
   // ---------------------------------------------------------------------------
   // Scraping (YouTube / Chordify)
   // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 // Refletem as respostas do backend Django/DRF
 
 export type ChurchType = 'INDEPENDENT' | 'CONGREGATION';
-export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO';
+export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | 'PROFESSOR_EBD';
 
 export interface Church {
   id: number;
@@ -181,6 +181,7 @@ export interface CalendarEvent {
   title: string;
   category: CalendarEventCategory;
   category_display: string;
+  color: string;
   description: string;
   start_time: string | null;
   end_time: string | null;
@@ -194,6 +195,8 @@ export interface CalendarEvent {
   date: string | null;
   month: number | null;
   day: number | null;
+  repeat_monthly_weekday: number | null;
+  repeat_monthly_ordinal: number | null;
   created_at: string;
 }
 
@@ -202,6 +205,7 @@ export interface PublicCalendarEvent {
   title: string;
   category: CalendarEventCategory;
   category_display: string;
+  color: string;
   description: string;
   start_time: string | null;
   end_time: string | null;
@@ -213,6 +217,8 @@ export interface PublicCalendarEvent {
   date: string | null;
   month: number | null;
   day: number | null;
+  repeat_monthly_weekday: number | null;
+  repeat_monthly_ordinal: number | null;
 }
 
 export interface PublicCalendarPayload {
@@ -806,8 +812,12 @@ export interface Loan {
   item_name: string;
   member: number | null;
   member_name: string | null;
+  member_phone: string | null;
   borrower_name: string;
+  borrower_phone: string;
   borrower_display: string;
+  contact_phone: string | null;
+  whatsapp_url: string | null;
   borrowed_at: string;
   expected_return: string;
   returned_at: string | null;

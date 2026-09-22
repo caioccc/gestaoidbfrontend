@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActionIcon,
   Badge,
   Box,
   Button,
@@ -18,6 +19,7 @@ import {
   TextInput,
   Textarea,
   ThemeIcon,
+  Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
@@ -25,12 +27,14 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
   IconArrowRotaryLeft,
+  IconBellRinging,
   IconBox,
   IconBuildingWarehouse,
   IconFileText,
   IconMapPin,
   IconPencil,
   IconPlus,
+  IconReceipt,
   IconRefresh,
   IconSearch,
   IconTrash,
@@ -42,7 +46,7 @@ import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
-import { toISO, toSentenceCase, toUpperCamelWords } from '../utils/format';
+import { toISO, toSentenceCase, toUpperCamelWords, maskPhone } from '../utils/format';
 import type { Loan, MaterialItem, Member, StorageLocation } from '../types';
 
 function formatISODate(iso: string | null): string {
@@ -828,6 +832,7 @@ interface LoanFormValues {
   item: string | null;
   member: string | null;
   borrower_name: string;
+  borrower_phone: string;
   borrowed_at: Date | null;
   expected_return: Date | null;
   notes: string;
@@ -873,6 +878,7 @@ function LoansTab() {
       item: null,
       member: null,
       borrower_name: '',
+      borrower_phone: '',
       borrowed_at: null,
       expected_return: null,
       notes: '',
@@ -897,6 +903,7 @@ function LoansTab() {
       item: null,
       member: null,
       borrower_name: '',
+      borrower_phone: '',
       borrowed_at: startOfToday(),
       expected_return: null,
       notes: '',
@@ -911,6 +918,7 @@ function LoansTab() {
       item: String(loan.item),
       member: loan.member != null ? String(loan.member) : null,
       borrower_name: loan.borrower_name || '',
+      borrower_phone: loan.borrower_phone || '',
       borrowed_at: new Date(`${loan.borrowed_at}T00:00:00`),
       expected_return: new Date(`${loan.expected_return}T00:00:00`),
       notes: loan.notes || '',
@@ -929,6 +937,7 @@ function LoansTab() {
       borrower_name: form.values.member
         ? ''
         : toUpperCamelWords(form.values.borrower_name),
+      borrower_phone: form.values.member ? '' : form.values.borrower_phone,
       borrowed_at: toISO(form.values.borrowed_at) || '',
       expected_return: toISO(form.values.expected_return) || '',
       notes: toSentenceCase(form.values.notes),
@@ -1031,6 +1040,63 @@ function LoansTab() {
     return [...open, ...returned];
   }, [visibleLoans]);
 
+  const loanWhatsApp = (loan: Loan, kind: 'receipt' | 'charge'): string | null => {
+    if (!loan.contact_phone) return null;
+    const msg =
+      kind === 'receipt'
+        ? t.inventoryPage.loanWhatsReceiptMsg
+            .replace('{name}', loan.borrower_display)
+            .replace('{item}', loan.item_name)
+        : t.inventoryPage.loanWhatsChargeMsg
+            .replace('{name}', loan.borrower_display)
+            .replace('{item}', loan.item_name)
+            .replace('{date}', formatISODate(loan.expected_return));
+    const phone = loan.contact_phone.replace(/\D/g, '');
+    return `https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`;
+  };
+
+  const loanWhatsAppButtons = (loan: Loan) => {
+    const receipt = loanWhatsApp(loan, 'receipt');
+    const charge = loanWhatsApp(loan, 'charge');
+    if (!receipt && !charge) return null;
+    return (
+      <Group gap={2} mt={2} wrap="nowrap">
+        {receipt ? (
+          <Tooltip label={t.inventoryPage.loanWhatsReceipt}>
+            <ActionIcon
+              component="a"
+              href={receipt}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="light"
+              color="green"
+              size="sm"
+              data-testid={`loan-receipt-${loan.id}`}
+            >
+              <IconReceipt size={14} />
+            </ActionIcon>
+          </Tooltip>
+        ) : null}
+        {charge ? (
+          <Tooltip label={t.inventoryPage.loanWhatsCharge}>
+            <ActionIcon
+              component="a"
+              href={charge}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="light"
+              color="orange"
+              size="sm"
+              data-testid={`loan-charge-${loan.id}`}
+            >
+              <IconBellRinging size={14} />
+            </ActionIcon>
+          </Tooltip>
+        ) : null}
+      </Group>
+    );
+  };
+
   const loanActions = (loan: Loan) => {
     const open = isOpen(loan);
     return (
@@ -1115,6 +1181,7 @@ function LoansTab() {
               {loan.member_name}
             </Text>
           )}
+          {loanWhatsAppButtons(loan)}
         </Table.Td>
         <Table.Td>{formatISODate(loan.borrowed_at)}</Table.Td>
         <Table.Td>
@@ -1262,11 +1329,12 @@ function LoansTab() {
                       <Text size="sm" fw={500} c={open ? 'red' : undefined} truncate>
                         {loan.borrower_display}
                       </Text>
-                      {loan.member_name && (
-                        <Text size="xs" c="dimmed" truncate>
-                          {loan.member_name}
-                        </Text>
-                      )}
+{loan.member_name && (
+                          <Text size="xs" c="dimmed" truncate>
+                            {loan.member_name}
+                          </Text>
+                        )}
+                        {loanWhatsAppButtons(loan)}
                       <Text size="xs" c="dimmed">
                         {t.inventoryPage.borrowedAt}: {formatISODate(loan.borrowed_at)}
                       </Text>
@@ -1363,6 +1431,16 @@ function LoansTab() {
               placeholder={t.inventoryPage.loanBorrowerName}
               data-testid="loan-borrower-name"
               {...form.getInputProps('borrower_name')}
+            />
+            <TextInput
+              label={t.inventoryPage.loanBorrowerPhone}
+              placeholder="(11) 99999-9999"
+              disabled={!!form.values.member}
+              data-testid="loan-borrower-phone"
+              value={form.values.borrower_phone}
+              onChange={(e) =>
+                form.setFieldValue('borrower_phone', maskPhone(e.currentTarget.value))
+              }
             />
             <Grid>
               <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -1478,6 +1556,13 @@ export default function InventoryPage() {
         <PageHeader title={t.inventoryPage.title} description={t.inventoryPage.subtitle}>
           <Group gap="sm">
             <Button
+              variant={tab === 'loans' ? 'filled' : 'default'}
+              onClick={() => setTab('loans')}
+              data-testid="tab-loans"
+            >
+              {t.inventoryPage.loansTab}
+            </Button>
+            <Button
               variant={tab === 'locations' ? 'filled' : 'default'}
               onClick={() => setTab('locations')}
               data-testid="tab-locations"
@@ -1490,13 +1575,6 @@ export default function InventoryPage() {
               data-testid="tab-items"
             >
               {t.inventoryPage.itemsTab}
-            </Button>
-            <Button
-              variant={tab === 'loans' ? 'filled' : 'default'}
-              onClick={() => setTab('loans')}
-              data-testid="tab-loans"
-            >
-              {t.inventoryPage.loansTab}
             </Button>
           </Group>
         </PageHeader>

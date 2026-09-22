@@ -15,11 +15,36 @@ export function toNumber(value: string | number | null | undefined): number {
   return Number.isNaN(num) ? 0 : num;
 }
 
-export function formatDate(value: string | null | undefined): string {
+export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString('pt-BR');
+
+  // Se for string
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '—';
+
+    // Se vier no padrão YYYY-MM-DD (ex.: "2026-09-21" ou "2026-09-21T00:00:00...")
+    const match = trimmed.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      const [, y, m, d] = match;
+      return `${d}/${m}/${y}`; // Retorna 21/09/2026 direto, imune a fuso horário
+    }
+
+    // Se for outro formato de string com hora, converte
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) return value;
+    value = parsed;
+  }
+
+  // Se for instância de Date
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const d = String(value.getDate()).padStart(2, '0');
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const y = value.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+
+  return '—';
 }
 
 export function formatMusicalKey(key: string | null | undefined): string {
@@ -34,22 +59,63 @@ export function formatMusicalKey(key: string | null | undefined): string {
   });
 }
 
-export function formatDateTime(value: string | null | undefined): string {
+export function formatDateTime(value: string | null | undefined, locale = 'pt-BR'): string {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  const date = d.toLocaleDateString('pt-BR');
-  const time = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const date = d.toLocaleDateString(locale);
+  const time = d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   return `${date} ${time}`;
 }
 
-export function toISO(date: Date | null | undefined): string | undefined {
+// src/utils/format.ts
+
+export function toISO(date: Date | string | null | undefined): string | undefined {
   if (!date) return undefined;
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+
+  // 1. Se já for string
+  if (typeof date === 'string') {
+    const trimmed = date.trim();
+    if (!trimmed) return undefined;
+
+    // Se já começa com YYYY-MM-DD, corta direto os 10 primeiros caracteres
+    // Isso NÃO passa pelo motor de fuso horário e nunca perde o dia
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+
+    // Se for string em formato BR (DD/MM/YYYY)
+    const brMatch = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (brMatch) {
+      return `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`;
+    }
+
+    const parsed = new Date(trimmed);
+    if (isNaN(parsed.getTime())) return undefined;
+    date = parsed;
+  }
+
+  // 2. Se for objeto Date
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    // Usamos getFullYear, getMonth e getDate locais
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  return undefined;
 }
+
+export function parseISODate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  const match = dateStr.slice(0, 10).split('-');
+  if (match.length !== 3) return new Date(dateStr);
+  const [y, m, d] = match.map(Number);
+  // Cria a data no meio-dia (12:00) local para ficar imune a qualquer desvio de timezone
+  return new Date(y, m - 1, d, 12, 0, 0);
+}
+
 
 export function formatMoneyInput(value: number | null | undefined): string {
   const num = toNumber(value);

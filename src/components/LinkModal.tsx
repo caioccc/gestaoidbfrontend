@@ -390,13 +390,6 @@ export default function LinkModal({
     >
       <form onSubmit={handleSubmit}>
         <Stack gap="md">
-          <TextInput
-            label={t.linksPage.titleLabel}
-            required
-            data-autofocus
-            {...form.getInputProps('title')}
-          />
-
           <Select
             label={t.linksPage.typeLabel}
             placeholder={t.linksPage.typeLabel}
@@ -422,6 +415,13 @@ export default function LinkModal({
             value={form.values.link_type || null}
             error={form.errors.link_type}
             data-testid="link-type"
+          />
+
+          <TextInput
+            label={t.linksPage.titleLabel}
+            required
+            data-autofocus
+            {...form.getInputProps('title')}
           />
 
           {showUrl && (

@@ -578,7 +578,7 @@ function formatLongDate(date: Date, locale: MinutesTemplateLocale): string {
       year: 'numeric',
     }).format(date);
   } catch {
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(map[locale]);
   }
 }
 

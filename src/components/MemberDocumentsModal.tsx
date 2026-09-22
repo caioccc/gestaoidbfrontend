@@ -18,11 +18,11 @@ import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MemberDocument, MemberDocumentType } from '../types';
 
-function fmtDateTime(iso: string): string {
+function fmtDateTime(iso: string, locale = 'pt-br'): string {
   const d = new Date(iso);
   return isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString(undefined, {
+    : d.toLocaleDateString(locale, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -38,7 +38,7 @@ export default function MemberDocumentsModal({
   opened: boolean;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [docs, setDocs] = useState<MemberDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -178,7 +178,7 @@ export default function MemberDocumentsModal({
                     )}
                   </Table.Td>
                   <Table.Td>{doc.uploaded_by_name || '—'}</Table.Td>
-                  <Table.Td>{fmtDateTime(doc.uploaded_at)}</Table.Td>
+                  <Table.Td>{fmtDateTime(doc.uploaded_at, locale)}</Table.Td>
                   <Table.Td style={{ textAlign: 'right' }}>
                     <Group gap={4} justify="flex-end">
                       <Button

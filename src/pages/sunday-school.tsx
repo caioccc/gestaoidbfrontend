@@ -82,17 +82,17 @@ const CATEGORY_OPTIONS: { value: SundaySchoolCategory; key: string }[] = [
 
 export default function SundaySchoolPage() {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<string | null>('classes');
+  const [tab, setTab] = useState<string | null>('report');
 
   return (
-    <AuthGuard roles={['PASTOR', 'SECRETARIA']}>
+    <AuthGuard roles={['PASTOR', 'SECRETARIA', 'PROFESSOR_EBD']}>
       <Layout>
         <PageHeader title={t.sundaySchool.title} description={t.sundaySchool.subtitle}>
           <Tabs value={tab} onChange={setTab} variant="pills">
             <Tabs.List>
-              <Tabs.Tab value="classes">{t.sundaySchool.tabClasses}</Tabs.Tab>
               <Tabs.Tab value="report">{t.sundaySchool.tabReport}</Tabs.Tab>
               <Tabs.Tab value="students">{t.sundaySchool.tabStudents}</Tabs.Tab>
+              <Tabs.Tab value="classes">{t.sundaySchool.tabClasses}</Tabs.Tab>
             </Tabs.List>
           </Tabs>
         </PageHeader>
@@ -101,6 +101,42 @@ export default function SundaySchoolPage() {
         {tab === 'students' ? <StudentsTab /> : null}
       </Layout>
     </AuthGuard>
+  );
+}
+
+function ClassSubtabs({
+  classes,
+  value,
+  onChange,
+  allowAll = false,
+}: {
+  classes: SundaySchoolClass[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+  allowAll?: boolean;
+}) {
+  const { t } = useLanguage();
+  return (
+    <ScrollArea type="hover" offsetScrollbars>
+      <Tabs
+        value={value ?? '__all__'}
+        onChange={(v) => onChange(v && v !== '__all__' ? v : null)}
+        variant="pills"
+      >
+        <Tabs.List>
+          {allowAll ? (
+            <Tabs.Tab value="__all__" data-testid="class-subtab-all">
+              {t.sundaySchool.allClasses}
+            </Tabs.Tab>
+          ) : null}
+          {classes.map((c) => (
+            <Tabs.Tab key={c.id} value={String(c.id)} data-testid={`class-subtab-${c.id}`}>
+              {c.name}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
+    </ScrollArea>
   );
 }
 
@@ -651,15 +687,10 @@ function StudentsTab() {
 
   return (
     <Stack gap="md">
+      {classes.length > 0 ? (
+        <ClassSubtabs classes={classes} value={classId} onChange={setClassId} />
+      ) : null}
       <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-        <Select
-          label={t.sundaySchool.selectClass}
-          placeholder={t.sundaySchool.selectClass}
-          data={classes.map((c) => ({ value: String(c.id), label: c.name }))}
-          value={classId}
-          onChange={setClassId}
-          w={260}
-        />
         <TextInput
           placeholder={t.sundaySchool.searchStudent}
           value={search}
@@ -934,18 +965,6 @@ function ReportTab() {
           onChange={(v) => setMonth(v ?? '1')}
           w={200}
         />
-        <Select
-          label={t.sundaySchool.selectClass}
-          data={[
-            { value: '', label: t.sundaySchool.allClasses },
-            ...classes.map((c) => ({ value: String(c.id), label: c.name })),
-          ]}
-          value={classId ?? ''}
-          onChange={(v) => setClassId(v || null)}
-          allowDeselect
-          clearable
-          w={240}
-        />
         <Button
           leftSection={<IconFileTypePdf size={16} />}
           loading={exporting}
@@ -955,6 +974,10 @@ function ReportTab() {
           {t.sundaySchool.exportPdf}
         </Button>
       </Group>
+
+      {classes.length > 0 ? (
+        <ClassSubtabs classes={classes} value={classId} onChange={setClassId} allowAll />
+      ) : null}
 
       {loading ? (
         <Center h={220}>

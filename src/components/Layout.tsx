@@ -55,6 +55,7 @@ import {
   IconSchool,
   IconListCheck,
   IconMusic,
+  IconChartFunnel,
 } from "@tabler/icons-react";
 import { useAuth, useRoleHelpers } from "../contexts/AuthContext";
 import { useLanguage, SupportedLocale } from "../i18n";
@@ -78,6 +79,7 @@ interface NavItem {
   fixed?: boolean;
   roles?: string[];
   badge?: number;
+  children?: NavItem[];
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -87,6 +89,7 @@ const ROLE_LABELS: Record<string, string> = {
   INTERCESSAO: "Intercessão & Visitação",
   LOUVOR: "Líder de Louvor & Música",
   MUSICO: "Músico / Voluntário",
+  PROFESSOR_EBD: "Professor(a) de EBD",
 };
 
 function SidebarContent({
@@ -141,7 +144,12 @@ function SidebarContent({
     if (adminChurchId || congregationId) {
       return router.asPath.replace(/\/$/, "") === href.replace(/\/$/, "");
     }
-    return router.pathname === item.href;
+    // Correspondência por prefixo: subpáginas de música (ex.: player de setlist
+    // /setlists/[id]/play ou detalhe /songs/[id]) mantêm o item do menu ativo.
+    return (
+      router.pathname === item.href ||
+      router.pathname.startsWith(item.href + "/")
+    );
   };
 
   const hasChurch = !!user?.church;
@@ -169,7 +177,8 @@ function SidebarContent({
   const canSeePrayerRequests = hasRole("INTERCESSAO", "PASTOR", "SECRETARIA");
   const canSeeUsers = hasRole("PASTOR");
   const isMusicRole = user?.role === "MUSICO" || user?.role === "LOUVOR";
-  const hideDashboard = isMusicRole || user?.role === "INTERCESSAO";
+  const isEbdRole = user?.role === "PROFESSOR_EBD";
+  const hideDashboard = isMusicRole || user?.role === "INTERCESSAO" || isEbdRole;
 
   // Congregações não possuem Relatório Regional: o menu é ocultado nos três
   // contextos possíveis (usuário de congregação, rota /churches/[id] e a
@@ -227,7 +236,7 @@ function SidebarContent({
         },
       ],
     },
-    ...(showChurchSections && (canSeeMembers || canSeeVisitation)
+    ...(showChurchSections && (canSeeMembers || canSeeVisitation || isEbdRole)
       ? [
           {
             title: t.section.secretaryMembership,
@@ -240,9 +249,16 @@ function SidebarContent({
                 roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
-                label: t.nav.minutes,
-                icon: <IconFileText size={18} />,
-                href: "/atas",
+                label: t.nav.memberReports,
+                icon: <IconChartPie size={18} />,
+                href: "/members-reports",
+                fixed: true,
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
+              } as NavItem,
+              {
+                label: t.nav.visitors,
+                icon: <IconChartFunnel size={18} />,
+                href: "/visitors",
                 fixed: true,
                 roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
@@ -261,9 +277,9 @@ function SidebarContent({
                 roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
-                label: t.nav.memberReports,
-                icon: <IconChartPie size={18} />,
-                href: "/members-reports",
+                label: t.nav.minutes,
+                icon: <IconFileText size={18} />,
+                href: "/atas",
                 fixed: true,
                 roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
@@ -283,7 +299,7 @@ function SidebarContent({
                 label: t.nav.growthGroups,
                 icon: <IconHomeHeart size={18} />,
                 href: "/growth-groups",
-                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO", "INTERCESSAO"],
+                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO", "INTERCESSAO", "PROFESSOR_EBD"],
               } as NavItem,
               {
                 label: t.nav.visitation,
@@ -301,7 +317,7 @@ function SidebarContent({
                 label: t.nav.sundaySchool,
                 icon: <IconSchool size={18} />,
                 href: "/sunday-school",
-                roles: ["PASTOR", "SECRETARIA"],
+                roles: ["PASTOR", "SECRETARIA", "PROFESSOR_EBD"],
               } as NavItem,
             ],
           },
@@ -496,51 +512,101 @@ function SidebarContent({
                   const href = resolveHref(item);
                   const active = isActive(item);
                   return (
-                    <UnstyledButton
-                      key={item.href}
-                      onClick={() => {
-                        router.push(href);
-                        onNavigate?.();
-                      }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "var(--mantine-radius-sm)",
-                        backgroundColor: active
-                          ? "var(--mantine-primary-color-light)"
-                          : "transparent",
-                        color: active
-                          ? "var(--mantine-primary-color-light-color)"
-                          : "var(--mantine-color-dimmed)",
-                        fontWeight: active ? 600 : 400,
-                      }}
-                    >
-                      <ThemeIcon
-                        variant={active ? "filled" : "subtle"}
-                        color={
-                          active
-                            ? "var(--mantine-primary-color-filled)"
-                            : "var(--mantine-color-dimmed)"
-                        }
-                        size="sm"
+                    <React.Fragment key={item.href}>
+                      <UnstyledButton
+                        onClick={() => {
+                          router.push(href);
+                          onNavigate?.();
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          width: "100%",
+                          padding: "8px 12px",
+                          borderRadius: "var(--mantine-radius-sm)",
+                          backgroundColor: active
+                            ? "var(--mantine-primary-color-light)"
+                            : "transparent",
+                          color: active
+                            ? "var(--mantine-primary-color-light-color)"
+                            : "var(--mantine-color-dimmed)",
+                          fontWeight: active ? 600 : 400,
+                        }}
                       >
-                        {item.icon}
-                      </ThemeIcon>
-                      <Text size="sm">{item.label}</Text>
-                      {item.badge != null && item.badge > 0 ? (
-                        <Badge
-                          size="xs"
-                          color="red"
-                          variant="filled"
-                          style={{ marginLeft: "auto" }}
+                        <ThemeIcon
+                          variant={active ? "filled" : "subtle"}
+                          color={
+                            active
+                              ? "var(--mantine-primary-color-filled)"
+                              : "var(--mantine-color-dimmed)"
+                          }
+                          size="sm"
                         >
-                          {item.badge}
-                        </Badge>
+                          {item.icon}
+                        </ThemeIcon>
+                        <Text size="sm">{item.label}</Text>
+                        {item.badge != null && item.badge > 0 ? (
+                          <Badge
+                            size="xs"
+                            color="red"
+                            variant="filled"
+                            style={{ marginLeft: "auto" }}
+                          >
+                            {item.badge}
+                          </Badge>
+                        ) : null}
+                      </UnstyledButton>
+                      {item.children && item.children.length > 0 ? (
+                        <Box pl="md" mt={2} mb={2}>
+                          {item.children.map((child) => {
+                            const childHref = resolveHref(child);
+                            const childActive = isActive(child);
+                            const childRoles =
+                              child.roles ??
+                              item.roles ??
+                              [];
+                            const canSeeChild =
+                              childRoles.length === 0 ||
+                              hasRole(...childRoles);
+                            if (!canSeeChild) return null;
+                            return (
+                              <UnstyledButton
+                                key={child.href}
+                                onClick={() => {
+                                  router.push(childHref);
+                                  onNavigate?.();
+                                }}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 10,
+                                  width: "100%",
+                                  padding: "6px 12px",
+                                  borderRadius: "var(--mantine-radius-sm)",
+                                  backgroundColor: childActive
+                                    ? "var(--mantine-primary-color-light)"
+                                    : "transparent",
+                                  color: childActive
+                                    ? "var(--mantine-primary-color-light-color)"
+                                    : "var(--mantine-color-dimmed)",
+                                  fontWeight: childActive ? 600 : 400,
+                                }}
+                              >
+                                <ThemeIcon
+                                  variant="subtle"
+                                  color="var(--mantine-color-dimmed)"
+                                  size="xs"
+                                >
+                                  {child.icon}
+                                </ThemeIcon>
+                                <Text size="sm">{child.label}</Text>
+                              </UnstyledButton>
+                            );
+                          })}
+                        </Box>
                       ) : null}
-                    </UnstyledButton>
+                    </React.Fragment>
                   );
                 })}
               </Box>

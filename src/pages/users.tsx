@@ -42,6 +42,7 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'INTERCESSAO', label: 'Intercessor(a)' },
   { value: 'LOUVOR', label: 'Líder de Louvor & Música' },
   { value: 'MUSICO', label: 'Músico / Voluntário' },
+  { value: 'PROFESSOR_EBD', label: 'Professor(a) de EBD' },
 ];
 
 interface AddUserForm {

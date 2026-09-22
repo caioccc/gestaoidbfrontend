@@ -38,12 +38,14 @@ import {
   IconLayoutList,
   IconMapPin,
   IconPhone,
+  IconPlus,
   IconPrinter,
   IconSearch,
   IconUser,
   IconUserCheck,
 } from '@tabler/icons-react';
 import AuthGuard from '../components/AuthGuard';
+import CreatePrayerRequestModal from '../components/CreatePrayerRequestModal';
 import PageHeader from '../components/PageHeader';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
@@ -55,7 +57,7 @@ import type {
   PrayerRequestCategory,
   PrayerRequestStatus,
 } from '../types';
-import { toSentenceCase } from '../utils/format';
+import { toSentenceCase, formatDateTime } from '../utils/format';
 
 const STATUS_COLOR: Record<PrayerRequestStatus, string> = {
   PENDING: 'orange',
@@ -111,16 +113,8 @@ const buildWhatsAppLink = (phone: string, name: string): string | null => {
   return `https://wa.me/${normalized}?text=${msg}`;
 };
 
-const formatDateTime = (iso: string) => {
-  try {
-    return new Date(iso).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return '';
-  }
-};
-
 export default function PrayerRequestsPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { user } = useAuth();
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -140,6 +134,7 @@ export default function PrayerRequestsPage() {
   const [intercessors, setIntercessors] = useState<PrayerRequestAssignee[]>([]);
   const [archiveTarget, setArchiveTarget] = useState<PrayerRequest | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = () => {
     setLoading(true);
@@ -316,9 +311,14 @@ export default function PrayerRequestsPage() {
     <AuthGuard roles={['INTERCESSAO', 'PASTOR', 'SECRETARIA']}>
       <>
         <PageHeader title={t.prayerRequestsPage.title} description={t.prayerRequestsPage.subtitle}>
-          <Button leftSection={<IconPrinter size={16} />} variant="light" onClick={printSheet}>
-            {t.prayerRequestsPage.actions.printSheet}
-          </Button>
+          <Group gap="sm">
+            <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
+              {t.prayerRequestsPage.createNew}
+            </Button>
+            <Button leftSection={<IconPrinter size={16} />} variant="light" onClick={printSheet}>
+              {t.prayerRequestsPage.actions.printSheet}
+            </Button>
+          </Group>
         </PageHeader>
 
         <Group gap="xs" wrap="wrap" mb="md">
@@ -710,7 +710,7 @@ export default function PrayerRequestsPage() {
               <Group gap={4}>
                 <IconCalendarCheck size={13} style={{ color: 'var(--mantine-color-gray-5)' }} />
                 <Text size="xs" c="dimmed">
-                  {formatDateTime(drawerRequest.created_at)}
+                  {formatDateTime(drawerRequest.created_at, locale)}
                 </Text>
                 <Text size="xs" c="dimmed">
                   ·
@@ -901,6 +901,12 @@ export default function PrayerRequestsPage() {
             </Group>
           </Stack>
         </Modal>
+
+        <CreatePrayerRequestModal
+          opened={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={load}
+        />
       </>
     </AuthGuard>
   );

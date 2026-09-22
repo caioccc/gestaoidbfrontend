@@ -70,6 +70,27 @@ const PUBLIC_ROUTES = [
   '/ata/[hash]',
 ];
 
+// Registro central de papéis por rota (item "Gestão de Acessos"/PROFESSOR_EBD).
+// Estas páginas possuem AuthGuard próprio; o guarda aqui garante que papéis sem
+// acesso nem renderizem o conteúdo, mesmo acessando a URL diretamente.
+const ALL_ROLES = [
+  'PASTOR',
+  'SECRETARIA',
+  'TESOUREIRO',
+  'INTERCESSAO',
+  'LOUVOR',
+  'MUSICO',
+  'PROFESSOR_EBD',
+];
+
+const ROUTE_ROLES: Record<string, string[]> = {
+  '/sunday-school': ['PASTOR', 'SECRETARIA', 'PROFESSOR_EBD'],
+  '/growth-groups': ['PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO', 'PROFESSOR_EBD'],
+  // Módulos de secretaria/administrativa: PROFESSOR_EBD fica de fora.
+  '/cultos': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
+  '/atas': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
+};
+
 const PUBLIC_ROOT_ID = 'public-root';
 
 const ADMIN_ONLY: string[] = [];
@@ -112,6 +133,14 @@ function RouteGate({
             <Component {...pageProps} />
           </div>
         </MantineProvider>
+      );
+    }
+    const routeRoles = ROUTE_ROLES[router.pathname];
+    if (routeRoles) {
+      return (
+        <AuthGuard roles={routeRoles}>
+          <Component {...pageProps} />
+        </AuthGuard>
       );
     }
     return <Component {...pageProps} />;

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { notifications } from '@mantine/notifications';
-import { Center, Text } from '@mantine/core';
 import PageHeader from '../components/PageHeader';
 import ChurchProfileForm from '../components/ChurchProfileForm';
 import { useLanguage } from '../i18n';
@@ -15,10 +14,11 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
 
-  const canEditProfile = isAdmin || !hasRole('MUSICO', 'LOUVOR');
+  const readOnly = !isAdmin && hasRole('MUSICO', 'LOUVOR', 'PROFESSOR_EBD');
+  const canEditProfile = !readOnly;
 
   useEffect(() => {
-    if (!canEditProfile) {
+    if (!user?.church?.id) {
       setLoading(false);
       return;
     }
@@ -29,7 +29,7 @@ export default function SettingsPage() {
         notifications.show({ color: 'red', message: 'Não foi possível carregar o perfil.' });
       })
       .finally(() => setLoading(false));
-  }, [canEditProfile]);
+  }, [user?.church?.id]);
 
   const handleSave = async (payload: Record<string, any>) => {
     setSaving(true);
@@ -55,17 +55,6 @@ export default function SettingsPage() {
     await accountsApi.resetPassword(newPassword);
   };
 
-  if (!canEditProfile) {
-    return (
-      <>
-        <PageHeader title={t.settingsPage.title} />
-        <Center py="xl">
-          <Text c="dimmed">Você não tem acesso a esta página.</Text>
-        </Center>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader title={t.settingsPage.title} />
@@ -78,6 +67,7 @@ export default function SettingsPage() {
         onResetPassword={handleResetPassword}
         canResetPassword={isAdmin || !hasRole('SECRETARIA')}
         showPrebenda={user?.church?.church_type !== 'CONGREGATION'}
+        readOnly={readOnly}
       />
     </>
   );

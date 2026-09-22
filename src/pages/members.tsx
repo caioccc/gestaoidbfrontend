@@ -57,7 +57,6 @@ import CardConfigTab from '../components/CardConfigTab';
 import TransfersTab from '../components/TransfersTab';
 import SubmissionsTab from '../components/SubmissionsTab';
 import ShareLinkModal from '../components/ShareLinkModal';
-import MembersFunnelTab from '../components/MembersFunnelTab';
 import SendWhatsAppModal from '../components/SendWhatsAppModal';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
@@ -1191,9 +1190,6 @@ export default function MembersPage() {
     if (router.query.tab === 'transfers') {
       setTab('transfers');
     }
-    if (router.query.tab === 'funnel') {
-      setTab('funnel');
-    }
   }, [router.query.tab]);
 
   const handleRenewValidity = async (date: string | null) => {
@@ -1210,9 +1206,6 @@ export default function MembersPage() {
             <Tabs.List>
               <Tabs.Tab value="members" data-testid="tab-members">
                 {t.membersPage.tabsMembers}
-              </Tabs.Tab>
-              <Tabs.Tab value="funnel" data-testid="tab-funnel">
-                {t.membersPage.tabsFunnel}
               </Tabs.Tab>
               <Tabs.Tab value="areas" data-testid="tab-areas">
                 {t.membersPage.tabsAreas}
@@ -1243,13 +1236,6 @@ export default function MembersPage() {
           />
         ) : tab === 'areas' ? (
           <AreasTab />
-        ) : tab === 'funnel' ? (
-          <MembersFunnelTab
-            churchName={church?.name || ''}
-            churchCity={church?.city || ''}
-            cardConfig={cardData.config}
-            churchContact={cardData.contact}
-          />
         ) : tab === 'config' ? (
           <CardConfigTab churchName={church?.name || ''} data={cardData} />
         ) : tab === 'transfers' ? (
