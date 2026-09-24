@@ -17,9 +17,11 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAlertCircle,
   IconArrowLeft,
   IconBrandYoutube,
   IconPencil,
+  IconRefresh,
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../../components/PageHeader';
@@ -28,6 +30,7 @@ import Layout from '../../components/Layout';
 import SongModal from '../../components/SongModal';
 import ChordSyncPlayer from '../../components/ChordSyncPlayer';
 import LyricsSheet from '../../components/LyricsSheet';
+import SongChordStatusBadge from '../../components/SongChordStatusBadge';
 import { useLanguage } from '../../i18n';
 import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
@@ -49,6 +52,7 @@ export default function SongDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('player');
   const [stageMode, setStageMode] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -65,6 +69,29 @@ export default function SongDetailPage() {
   }, [id]);
 
   useEffect(() => { void load(); }, [load]);
+  const songStatus = song?.chord_status;
+
+  useEffect(() => {
+    if (!song || (songStatus !== 'PENDING' && songStatus !== 'PROCESSING')) return;
+    const timer = window.setInterval(() => {
+      musicApi.song(id).then(setSong).catch(() => undefined);
+    }, 10000);
+    return () => window.clearInterval(timer);
+  }, [id, song, songStatus]);
+
+  const reprocessChord = async () => {
+    if (!song) return;
+    setReprocessing(true);
+    try {
+      const res = await musicApi.reprocessSong(song.id);
+      setSong(res.song);
+      notifications.show({ color: 'green', message: t.music.chordReprocessDone });
+    } catch {
+      notifications.show({ color: 'red', message: t.music.chordSaveError });
+    } finally {
+      setReprocessing(false);
+    }
+  };
 
   const removeSong = async () => {
     if (!song) return;
@@ -101,6 +128,17 @@ export default function SongDetailPage() {
                 <Button variant="light" leftSection={<IconPencil size={16} />} onClick={() => setEditOpen(true)} size="sm">
                   {t.music.editSong}
                 </Button>
+                {song.chord_status === 'COMPLETED' || song.chord_status === 'MANUAL' ? (
+                  <Button
+                    variant="subtle"
+                    leftSection={<IconRefresh size={16} />}
+                    onClick={reprocessChord}
+                    loading={reprocessing}
+                    size="sm"
+                  >
+                    {t.music.chordReprocess}
+                  </Button>
+                ) : null}
                 <Tooltip label={t.common.delete}>
                   <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={removeSong} size="sm">
                     {t.common.delete}
@@ -127,6 +165,9 @@ export default function SongDetailPage() {
                 {song.original_key ? <Badge variant="light" color="grape">{t.music.originalKeyLabel}: {formatMusicalKey(song.original_key)}</Badge> : null}
                 {song.bpm ? <Badge variant="light">{song.bpm} BPM</Badge> : null}
                 {song.time_signature ? <Badge variant="light">{song.time_signature}</Badge> : null}
+                {song.chord_status ? (
+                  <SongChordStatusBadge status={song.chord_status} detail={song.chord_error || undefined} />
+                ) : null}
               </Group>
               <Text size="sm" c="dimmed">
                 {t.music.timesPlayed}: {song.times_played}
@@ -161,18 +202,71 @@ export default function SongDetailPage() {
           />
         </Group>
 
+        {song.chord_status && song.chord_status !== 'COMPLETED' && song.chord_status !== 'MANUAL' ? (
+          <Card withBorder mb="md">
+            <Group justify="space-between" align="center" wrap="wrap">
+              <Group gap="sm" align="center">
+                {song.chord_status === 'PENDING' || song.chord_status === 'PROCESSING' ? (
+                  <Loader size={18} />
+                ) : (
+                  <IconAlertCircle size={18} color="var(--mantine-color-red-6)" />
+                )}
+                <Box>
+                  <Text size="sm" fw={600}>
+                    {song.chord_status === 'FAILED' ? t.music.chordFailedDetail : t.music.chordProcessing}
+                  </Text>
+                  {song.chord_status === 'FAILED' && song.chord_error ? (
+                    <Text size="xs" c="dimmed">{song.chord_error}</Text>
+                  ) : null}
+                </Box>
+              </Group>
+              <Button
+                variant="light"
+                leftSection={<IconRefresh size={16} />}
+                onClick={reprocessChord}
+                loading={reprocessing}
+                size="sm"
+              >
+                {t.music.chordReprocess}
+              </Button>
+            </Group>
+          </Card>
+        ) : null}
+
         {tab === 'player' ? (
-          <ChordSyncPlayer
-            youtubeId={song.youtube_id}
-            chords={song.chords_json ?? []}
-            title={song.title}
-            originalKey={song.original_key}
-            churchKey={song.church_key}
-            bpm={song.bpm}
-            timeSignature={song.time_signature}
-            stageMode={stageMode}
-            onToggleStageMode={() => setStageMode((s) => !s)}
-          />
+          song.chord_status && song.chord_status !== 'COMPLETED' && song.chord_status !== 'MANUAL' ? (
+            <Card withBorder p="lg">
+              <Center>
+                <Stack align="center" gap="sm">
+                  {song.chord_status === 'PENDING' || song.chord_status === 'PROCESSING' ? (
+                    <>
+                      <Loader size={24} />
+                      <Text size="sm" c="dimmed">{t.music.chordProcessing}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <IconAlertCircle size={24} color="var(--mantine-color-red-6)" />
+                      <Text size="sm" c="dimmed">{t.music.chordFailedDetail}</Text>
+                      {song.chord_error ? <Text size="xs" c="dimmed">{song.chord_error}</Text> : null}
+                    </>
+                  )}
+                  <Text size="xs" c="dimmed">{t.music.chordKeysAutofill}</Text>
+                </Stack>
+              </Center>
+            </Card>
+          ) : (
+            <ChordSyncPlayer
+              youtubeId={song.youtube_id}
+              chords={song.chords_json ?? []}
+              title={song.title}
+              originalKey={song.original_key}
+              churchKey={song.church_key}
+              bpm={song.bpm}
+              timeSignature={song.time_signature}
+              stageMode={stageMode}
+              onToggleStageMode={() => setStageMode((s) => !s)}
+            />
+          )
         ) : null}
 
         {tab === 'lyrics' ? (

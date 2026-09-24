@@ -22,6 +22,8 @@ import {
   Center,
   Divider,
   ScrollArea,
+  Code,
+  ThemeIcon,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -899,63 +901,83 @@ export default function CalendarEventsBoard({
       </Paper>
 
       {canCreateAny && gateway.publicLink && gateway.canManageGeneral && publicLink && (
-        <Paper withBorder radius="md" p="md" mt="md">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Stack gap={2}>
-              <Group gap="xs">
+        <Paper withBorder radius="md" p="sm" mt="md">
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+              <ThemeIcon size="md" radius="xl" color="grape" variant="light">
                 <IconLink size={18} />
-                <Text size="sm" fw={700}>
+              </ThemeIcon>
+              <Stack gap={2} style={{ minWidth: 0 }}>
+                <Text size="sm" fw={700} truncate>
                   {t.calendarEvents.publicLink.title}
                 </Text>
-              </Group>
-              <Text size="xs" c="dimmed">
-                {t.calendarEvents.publicLink.hint}
-              </Text>
-              <Text size="sm" data-testid="public-calendar-link">
-                {origin}
-                {publicLink.url}
-              </Text>
-            </Stack>
-            <Group wrap="nowrap">
-              <Button
-                size="xs"
-                variant="default"
-                data-testid="public-calendar-qr"
-                leftSection={<IconQrcode size={14} />}
-                onClick={() => setQrOpen(true)}
-              >
-                {t.qrShare.qr}
-              </Button>
-              <Button
-                size="xs"
-                variant="default"
-                data-testid="public-calendar-open"
-                component="a"
-                href={`${origin}${publicLink.url}`}
-                target="_blank"
-                rel="noreferrer"
-                leftSection={<IconExternalLink size={14} />}
-              >
-                {t.calendarEvents.publicLink.open}
-              </Button>
-              <Button
-                size="xs"
-                variant="light"
-                data-testid="public-calendar-copy"
-                leftSection={<IconCopy size={14} />}
-                onClick={copyPublicLink}
-              >
-                {copied ? t.calendarEvents.publicLink.copied : t.calendarEvents.publicLink.copy}
-              </Button>
-              <Button
-                size="xs"
-                variant="default"
-                data-testid="public-calendar-regenerate"
-                leftSection={<IconRefresh size={14} />}
-                onClick={() => setConfirmRegenerate(true)}
-              >
-                {t.calendarEvents.publicLink.regenerate}
-              </Button>
+                <Text size="xs" c="dimmed" truncate>
+                  {t.calendarEvents.publicLink.hint}
+                </Text>
+                <Code
+                  data-testid="public-calendar-link"
+                  style={{
+                    width: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {origin}
+                  {publicLink.url}
+                </Code>
+              </Stack>
+            </Group>
+            <Group wrap="nowrap" gap="xs">
+              <Tooltip label={t.qrShare.qr}>
+                <Button
+                  size="xs"
+                  variant="default"
+                  data-testid="public-calendar-qr"
+                  leftSection={<IconQrcode size={14} />}
+                  onClick={() => setQrOpen(true)}
+                >
+                  {t.qrShare.qr}
+                </Button>
+              </Tooltip>
+              <Tooltip label={t.calendarEvents.publicLink.open}>
+                <Button
+                  size="xs"
+                  variant="default"
+                  data-testid="public-calendar-open"
+                  component="a"
+                  href={`${origin}${publicLink.url}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  leftSection={<IconExternalLink size={14} />}
+                >
+                  {t.calendarEvents.publicLink.open}
+                </Button>
+              </Tooltip>
+              <Tooltip label={t.calendarEvents.publicLink.copy}>
+                <Button
+                  size="xs"
+                  variant="light"
+                  data-testid="public-calendar-copy"
+                  leftSection={<IconCopy size={14} />}
+                  onClick={copyPublicLink}
+                >
+                  {copied
+                    ? t.calendarEvents.publicLink.copied
+                    : t.calendarEvents.publicLink.copy}
+                </Button>
+              </Tooltip>
+              <Tooltip label={t.calendarEvents.publicLink.regenerate}>
+                <Button
+                  size="xs"
+                  variant="default"
+                  data-testid="public-calendar-regenerate"
+                  leftSection={<IconRefresh size={14} />}
+                  onClick={() => setConfirmRegenerate(true)}
+                >
+                  {t.calendarEvents.publicLink.regenerate}
+                </Button>
+              </Tooltip>
             </Group>
           </Group>
         </Paper>

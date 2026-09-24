@@ -1,17 +1,17 @@
 import React from 'react';
 import {
+  ActionIcon,
   Badge,
   Box,
-  Card,
-  Flex,
   Group,
+  Paper,
+  Stack,
   Switch,
   Text,
   ThemeIcon,
   Tooltip,
-  ActionIcon,
 } from '@mantine/core';
-import { IconGripVertical, IconPencil, IconTrash, IconExternalLink } from '@tabler/icons-react';
+import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LinkTypeIcon } from './linkIcons';
@@ -48,82 +48,68 @@ export default function SortableLinkRow({
       : link.url;
 
   return (
-    <Card
+    <Paper
       ref={setNodeRef}
       style={style}
       withBorder
-      shadow="sm"
-      padding="sm"
+      p="sm"
+      radius="md"
+      mb="xs"
+      shadow={isDragging ? 'md' : 'xs'}
       data-testid={`link-row-${link.id}`}
     >
-      <Flex align="center" gap="sm">
-        <Box style={{ cursor: 'grab', touchAction: 'none' }} {...attributes} {...listeners}>
-          <IconGripVertical size={18} style={{ color: 'var(--mantine-color-dimmed)' }} />
-        </Box>
+      <Group justify="space-between" wrap="nowrap" gap="xs">
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Box style={{ cursor: 'grab', touchAction: 'none' }} {...attributes} {...listeners}>
+            <IconGripVertical size={18} style={{ color: 'var(--mantine-color-dimmed)' }} />
+          </Box>
 
-        <ThemeIcon variant="light" size="lg">
-          <LinkTypeIcon iconKey={link.icon_key} />
-        </ThemeIcon>
+          <ThemeIcon variant="light" size="lg">
+            <LinkTypeIcon iconKey={link.icon_key} />
+          </ThemeIcon>
 
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Group gap={6}>
-            <Text size="sm" fw={600} truncate>
-              {link.title}
+          <Stack gap={0} style={{ minWidth: 0 }}>
+            <Group gap={6} wrap="nowrap">
+              <Text size="sm" fw={600} truncate>
+                {link.title}
+              </Text>
+              {typeof link.click_count === 'number' && link.click_count > 0 ? (
+                <Badge size="xs" variant="light" color="gray">
+                  {t.linksPage.clickCount.replace('{count}', String(link.click_count))}
+                </Badge>
+              ) : null}
+              {link.highlight && (
+                <Badge size="xs" color="yellow" variant="light">
+                  {t.linksPage.highlightLabel}
+                </Badge>
+              )}
+            </Group>
+            <Text size="xs" c="dimmed" truncate>
+              {link.link_type_display}
+              {urlText ? ` · ${urlText}` : ''}
             </Text>
-            {link.highlight && (
-              <Badge size="xs" color="yellow" variant="light">
-                {t.linksPage.highlightLabel}
-              </Badge>
-            )}
-            {!link.is_active && (
-              <Badge size="xs" variant="light">
-                {t.linksPage.pageDisabled}
-              </Badge>
-            )}
-          </Group>
-          <Text size="xs" c="dimmed" truncate>
-            {link.link_type_display}
-            {urlText ? ` · ${urlText}` : ''}
-            {link.click_count > 0
-              ? ` · ${t.linksPage.clickCount.replace('{count}', String(link.click_count))}`
-              : ''}
-          </Text>
-        </Box>
+          </Stack>
+        </Group>
 
-        <Switch
-          size="sm"
-          checked={link.is_active}
-          onChange={(event) => onToggleActive(link, event.currentTarget.checked)}
-          aria-label={t.linksPage.activeLabel}
-        />
-
-        {link.url && (
-          <Tooltip label={t.linksPage.openPage}>
-            <ActionIcon
-              variant="subtle"
-              component="a"
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <IconExternalLink size={16} />
+        <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Switch
+            size="sm"
+            checked={link.is_active}
+            onChange={(event) => onToggleActive(link, event.currentTarget.checked)}
+            aria-label={t.linksPage.activeLabel}
+          />
+          <Tooltip label={t.common.edit}>
+            <ActionIcon variant="subtle" color="blue" onClick={() => onEdit(link)}>
+              <IconPencil size={16} />
             </ActionIcon>
           </Tooltip>
-        )}
-
-        <Tooltip label={t.common.edit}>
-          <ActionIcon variant="subtle" onClick={() => onEdit(link)}>
-            <IconPencil size={16} />
-          </ActionIcon>
-        </Tooltip>
-
-        <Tooltip label={t.common.delete}>
-          <ActionIcon variant="subtle" color="red" onClick={() => onDelete(link)}>
-            <IconTrash size={16} />
-          </ActionIcon>
-        </Tooltip>
-      </Flex>
-    </Card>
+          <Tooltip label={t.common.delete}>
+            <ActionIcon variant="subtle" color="red" onClick={() => onDelete(link)}>
+              <IconTrash size={16} />
+            </ActionIcon>
+          </Tooltip>
+        </Group>
+      </Group>
+    </Paper>
   );
 }

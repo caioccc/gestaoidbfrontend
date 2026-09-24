@@ -1695,6 +1695,13 @@ export interface ChordItem {
   instrument: string;
 }
 
+export type ChordStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'MANUAL';
+
 export interface Song {
   id: number;
   church: number;
@@ -1718,6 +1725,10 @@ export interface Song {
   times_played: number;
   last_played: string | null;
   is_active: boolean;
+  chord_status: ChordStatus;
+  chord_error: string;
+  chord_retries: number;
+  chord_processed_at: string | null;
   created_at: string;
 }
 

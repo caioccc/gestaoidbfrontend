@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Accordion,
   ActionIcon,
   Badge,
   Box,
   Button,
-  Card,
   Center,
   Group,
+  Grid,
   Loader,
+  Menu,
   Modal,
+  Paper,
+  Progress,
   ScrollArea,
+  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
@@ -25,11 +30,16 @@ import { notifications } from '@mantine/notifications';
 import {
   IconBrandWhatsapp,
   IconCalendarEvent,
+  IconChecklist,
+  IconClipboardCheck,
   IconDeviceFloppy,
-  IconFileTypePdf,
-  IconMapPin,
+  IconDoor,
+  IconDotsVertical,
+  IconFileSpreadsheet,
   IconPencil,
+  IconPhone,
   IconPlus,
+  IconReportAnalytics,
   IconSearch,
   IconTrash,
   IconUser,
@@ -82,61 +92,30 @@ const CATEGORY_OPTIONS: { value: SundaySchoolCategory; key: string }[] = [
 
 export default function SundaySchoolPage() {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<string | null>('report');
+  const [tab, setTab] = useState<string | null>('classes');
 
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'PROFESSOR_EBD']}>
       <Layout>
-        <PageHeader title={t.sundaySchool.title} description={t.sundaySchool.subtitle}>
-          <Tabs value={tab} onChange={setTab} variant="pills">
-            <Tabs.List>
-              <Tabs.Tab value="report">{t.sundaySchool.tabReport}</Tabs.Tab>
-              <Tabs.Tab value="students">{t.sundaySchool.tabStudents}</Tabs.Tab>
-              <Tabs.Tab value="classes">{t.sundaySchool.tabClasses}</Tabs.Tab>
-            </Tabs.List>
-          </Tabs>
-        </PageHeader>
+        <PageHeader title={t.sundaySchool.title} description={t.sundaySchool.subtitle} />
+        <Tabs value={tab} onChange={setTab} variant="default" mb="lg">
+          <Tabs.List>
+            <Tabs.Tab value="classes" leftSection={<IconChecklist size={16} />}>
+              {t.sundaySchool.tabClasses}
+            </Tabs.Tab>
+            <Tabs.Tab value="students" leftSection={<IconUsers size={16} />}>
+              {t.sundaySchool.tabStudents}
+            </Tabs.Tab>
+            <Tabs.Tab value="report" leftSection={<IconReportAnalytics size={16} />}>
+              {t.sundaySchool.tabReport}
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs>
         {tab === 'classes' ? <ClassesTab /> : null}
         {tab === 'report' ? <ReportTab /> : null}
         {tab === 'students' ? <StudentsTab /> : null}
       </Layout>
     </AuthGuard>
-  );
-}
-
-function ClassSubtabs({
-  classes,
-  value,
-  onChange,
-  allowAll = false,
-}: {
-  classes: SundaySchoolClass[];
-  value: string | null;
-  onChange: (v: string | null) => void;
-  allowAll?: boolean;
-}) {
-  const { t } = useLanguage();
-  return (
-    <ScrollArea type="hover" offsetScrollbars>
-      <Tabs
-        value={value ?? '__all__'}
-        onChange={(v) => onChange(v && v !== '__all__' ? v : null)}
-        variant="pills"
-      >
-        <Tabs.List>
-          {allowAll ? (
-            <Tabs.Tab value="__all__" data-testid="class-subtab-all">
-              {t.sundaySchool.allClasses}
-            </Tabs.Tab>
-          ) : null}
-          {classes.map((c) => (
-            <Tabs.Tab key={c.id} value={String(c.id)} data-testid={`class-subtab-${c.id}`}>
-              {c.name}
-            </Tabs.Tab>
-          ))}
-        </Tabs.List>
-      </Tabs>
-    </ScrollArea>
   );
 }
 
@@ -169,12 +148,14 @@ function ClassesTab() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
+      <Group justify="space-between" mb="md">
         <Text size="sm" c="dimmed">
           {t.sundaySchool.noClassesHint}
         </Text>
         <Button
           leftSection={<IconPlus size={16} />}
+          variant="filled"
+          color="blue"
           onClick={() => {
             setEditing(null);
             setFormOpen(true);
@@ -190,106 +171,113 @@ function ClassesTab() {
           <Loader />
         </Center>
       ) : classes.length === 0 ? (
-        <Card withBorder>
+        <Paper withBorder p="md" radius="md">
           <Center h={160}>
             <Text c="dimmed">{t.sundaySchool.noClasses}</Text>
           </Center>
-        </Card>
+        </Paper>
       ) : (
-        <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
           {classes.map((c) => (
-            <Card key={c.id} withBorder padding="md">
-              <Stack gap="xs">
-                <Group justify="space-between" align="flex-start" wrap="nowrap">
-                  <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                    <Text fw={700} truncate>
-                      {c.name}
-                    </Text>
-                    <Group gap={6} wrap="wrap">
-                      <Badge color="grape" variant="light" size="sm">
-                        {c.category_display}
-                      </Badge>
-                      <Badge
-                        color={c.is_active ? 'green' : 'gray'}
-                        variant="light"
-                        size="sm"
-                      >
-                        {c.is_active ? t.sundaySchool.active : t.sundaySchool.inactive}
-                      </Badge>
-                    </Group>
-                  </Stack>
-                  <Group gap={4} wrap="nowrap">
-                    <Tooltip label={t.sundaySchool.editClass}>
-                      <ActionIcon
-                        variant="subtle"
-                        color="blue"
+            <Paper
+              key={c.id}
+              withBorder
+              p="md"
+              radius="md"
+              shadow="xs"
+              style={{ display: 'flex', flexDirection: 'column' }}
+            >
+              <Group justify="space-between" align="flex-start" mb="xs" wrap="nowrap">
+                <Text fw={600} size="md" truncate style={{ flex: 1, minWidth: 0 }}>
+                  {c.name}
+                </Text>
+                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
+                  <Badge size="sm" variant="light" color="grape">
+                    {c.category_display}
+                  </Badge>
+                  <Menu position="bottom-end" shadow="md">
+                    <Menu.Target>
+                      <ActionIcon variant="subtle" color="gray" aria-label={t.sundaySchool.editClass}>
+                        <IconDotsVertical size={16} />
+                      </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Item
+                        leftSection={<IconPencil size={14} />}
                         onClick={() => {
                           setEditing(c);
                           setFormOpen(true);
                         }}
                       >
-                        <IconPencil size={17} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <ActionIcon
-                      variant="subtle"
-                      color="red"
-                      onClick={() => setDeleting(c)}
-                    >
-                      <IconTrash size={17} />
-                    </ActionIcon>
-                  </Group>
+                        {t.common.edit}
+                      </Menu.Item>
+                      <Menu.Item
+                        leftSection={<IconTrash size={14} />}
+                        color="red"
+                        onClick={() => setDeleting(c)}
+                      >
+                        {t.common.delete}
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
                 </Group>
+              </Group>
 
-                <Text size="sm" c="dimmed">
-                  {t.sundaySchool.teacherName}: {c.teacher_name || '—'}
-                </Text>
-                {c.co_teacher_name ? (
-                  <Text size="sm" c="dimmed">
-                    {t.sundaySchool.coTeacherName}: {c.co_teacher_name}
+              <Stack gap={6} style={{ flex: 1 }}>
+                <Group gap="xs" c="dimmed" wrap="nowrap">
+                  <IconUser size={14} />
+                  <Text size="xs" c="dimmed" truncate>
+                    {c.teacher_name || '—'}
                   </Text>
-                ) : null}
+                </Group>
                 {c.room_location ? (
-                  <Group gap={4} align="center">
-                    <IconMapPin size={14} />
-                    <Text size="sm" c="dimmed">
+                  <Group gap="xs" c="dimmed" wrap="nowrap">
+                    <IconDoor size={14} />
+                    <Text size="xs" c="dimmed" truncate>
                       {c.room_location}
                     </Text>
                   </Group>
                 ) : null}
-                <Group gap={6} align="center">
-                  <IconUsers size={14} />
-                  <Text size="sm" c="dimmed">
-                    {c.enrollment_count}
-                  </Text>
-                </Group>
+                <Badge
+                  variant="outline"
+                  color="gray"
+                  size="sm"
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {t.sundaySchool.studentsCount.replace('{count}', String(c.enrollment_count))}
+                </Badge>
+              </Stack>
 
-                <Group gap="sm" wrap="wrap">
-                  <Button
-                    leftSection={<IconCalendarEvent size={16} />}
+              <Group gap="xs" mt="md" wrap="nowrap">
+                <Button
+                  fullWidth
+                  variant="light"
+                  color="blue"
+                  leftSection={<IconClipboardCheck size={16} />}
+                  disabled={!c.is_active}
+                  onClick={() => {
+                    setCallRollFor(c);
+                    setCallRollDate(nextSundayKey());
+                  }}
+                  data-testid={`call-roll-${c.id}`}
+                  style={{ flex: 1 }}
+                >
+                  {t.sundaySchool.registerCallShort}
+                </Button>
+                <Tooltip label={t.sundaySchool.announceWhatsAppHint}>
+                  <ActionIcon
+                    color="teal"
                     variant="light"
-                    disabled={!c.is_active}
-                    onClick={() => {
-                      setCallRollFor(c);
-                      setCallRollDate(nextSundayKey());
-                    }}
-                    data-testid={`call-roll-${c.id}`}
-                  >
-                    {t.sundaySchool.registerCall}
-                  </Button>
-                  <Button
-                    leftSection={<IconBrandWhatsapp size={16} />}
-                    variant="light"
-                    color="green"
+                    size="lg"
                     disabled={!c.is_active}
                     onClick={() => setAnnounceFor(c)}
                     data-testid={`announce-${c.id}`}
                   >
-                    {t.sundaySchool.announceClass}
-                  </Button>
-                </Group>
-              </Stack>
-            </Card>
+                    <IconBrandWhatsapp size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </Paper>
           ))}
         </SimpleGrid>
       )}
@@ -688,39 +676,42 @@ function StudentsTab() {
   return (
     <Stack gap="md">
       {classes.length > 0 ? (
-        <ClassSubtabs classes={classes} value={classId} onChange={setClassId} />
-      ) : null}
-      <Group justify="space-between" align="flex-end" wrap="wrap" gap="sm">
-        <TextInput
-          placeholder={t.sundaySchool.searchStudent}
-          value={search}
-          onChange={(e) => setSearch(e.currentTarget.value)}
-          leftSection={<IconSearch size={16} />}
-          w={260}
+        <SegmentedControl
+          size="sm"
+          radius="md"
+          mb="md"
+          value={classId ?? (classes[0] ? String(classes[0].id) : '')}
+          onChange={(v) => setClassId(v)}
+          data={classes.map((c) => ({ value: String(c.id), label: c.name }))}
+          style={{ overflowX: 'auto' }}
         />
-      </Group>
+      ) : null}
 
-      <Card withBorder padding="md">
-        <Stack gap="xs">
-          <Text fw={600} size="sm">
-            {t.sundaySchool.addStudent}
-          </Text>
-          <Group align="flex-end" wrap="wrap" gap="sm">
+      <Paper withBorder p="md" radius="md" mb="md" maw={900}>
+        <Grid align="flex-end">
+          <Grid.Col span={{ base: 12, sm: 6 }}>
             <TextInput
               label={t.sundaySchool.studentName}
               placeholder={t.sundaySchool.studentName}
+              leftSection={<IconUser size={15} />}
               value={newName}
               onChange={(e) => setNewName(e.currentTarget.value)}
-              style={{ flex: 1, minWidth: 200 }}
             />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 4 }}>
             <TextInput
               label={t.sundaySchool.studentPhone}
               placeholder="(11) 99999-9999"
+              leftSection={<IconPhone size={15} />}
               value={newPhone}
               onChange={(e) => setNewPhone(maskPhone(e.currentTarget.value))}
-              style={{ flex: 1, minWidth: 200 }}
             />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Button
+              fullWidth
+              variant="filled"
+              color="blue"
               leftSection={<IconPlus size={16} />}
               loading={adding}
               onClick={addStudent}
@@ -728,85 +719,119 @@ function StudentsTab() {
             >
               {t.sundaySchool.addStudent}
             </Button>
-          </Group>
-        </Stack>
-      </Card>
+          </Grid.Col>
+        </Grid>
+      </Paper>
 
-      {loading ? (
-        <Center h={220}>
-          <Loader />
-        </Center>
-      ) : students.length === 0 ? (
-        <Card withBorder>
-          <Center h={160}>
-            <Text c="dimmed">{t.sundaySchool.noStudents}</Text>
+      <Box maw={900}>
+        <Paper withBorder radius="md" p="sm" mb="sm">
+          <Group justify="space-between" wrap="wrap" gap="sm">
+            <TextInput
+              placeholder={t.sundaySchool.searchStudent}
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              leftSection={<IconSearch size={16} />}
+              maw={320}
+            />
+          </Group>
+        </Paper>
+
+        {loading ? (
+          <Center h={220}>
+            <Loader />
           </Center>
-        </Card>
-      ) : (
-        <Stack gap="xs">
-          {students.map((s) => (
-            <Card key={s.id} withBorder padding="xs">
-              <Group justify="space-between" wrap="wrap" gap="sm">
-                <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 160 }}>
-                  <Text fw={600} size="sm" truncate>
-                    {s.student_name}
-                  </Text>
-                  {s.member_name ? (
-                    <Badge color="blue" variant="light" size="xs">
-                      {s.member_name}
-                    </Badge>
-                  ) : null}
-                </Group>
-                <Group gap="xs" wrap="wrap">
-                  <Text size="xs" c="dimmed">
-                    {s.phone || '—'}
-                  </Text>
-                  {s.whatsapp_url ? (
-                    <Tooltip label={t.sundaySchool.whatsappAbsence}>
-                      <ActionIcon
-                        component="a"
-                        href={s.whatsapp_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="light"
-                        color="green"
-                        size="md"
-                      >
-                        <IconBrandWhatsapp size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  ) : null}
-                  <ActionIcon
-                    variant="subtle"
-                    color="blue"
-                    size="md"
-                    onClick={() => setEditing(s)}
-                    data-testid={`edit-student-${s.id}`}
-                  >
-                    <IconPencil size={16} />
-                  </ActionIcon>
-                  <ActionIcon
-                    variant="subtle"
-                    color="red"
-                    size="md"
-                    onClick={async () => {
-                      await accountsApi.deleteSundaySchoolStudent(s.sunday_school_class, s.id);
-                      notifications.show({
-                        color: 'green',
-                        message: t.sundaySchool.studentRemoved,
-                      });
-                      load();
-                    }}
-                    data-testid={`remove-student-${s.id}`}
-                  >
-                    <IconTrash size={16} />
-                  </ActionIcon>
-                </Group>
-              </Group>
-            </Card>
-          ))}
-        </Stack>
-      )}
+        ) : students.length === 0 ? (
+          <Paper withBorder p="md" radius="md">
+            <Center h={160}>
+              <Text c="dimmed">{t.sundaySchool.noStudents}</Text>
+            </Center>
+          </Paper>
+        ) : (
+          <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+            <Table.ScrollContainer minWidth={560}>
+              <Table highlightOnHover striped>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>{t.sundaySchool.studentName}</Table.Th>
+                    <Table.Th>{t.sundaySchool.studentPhone}</Table.Th>
+                    <Table.Th ta="right" />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {students.map((s) => (
+                    <Table.Tr key={s.id}>
+                      <Table.Td>
+                        <Group gap="sm" wrap="nowrap">
+                          <Text fw={600} size="sm">
+                            {s.student_name}
+                          </Text>
+                          {s.member_name ? (
+                            <Badge color="blue" variant="light" size="xs">
+                              {s.member_name}
+                            </Badge>
+                          ) : null}
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm" c="dimmed">
+                          {s.phone || '—'}
+                        </Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap={4} justify="flex-end" wrap="nowrap">
+                          {s.whatsapp_url ? (
+                            <Tooltip label={t.sundaySchool.whatsappAbsence}>
+                              <ActionIcon
+                                component="a"
+                                href={s.whatsapp_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="subtle"
+                                color="teal"
+                                size="md"
+                              >
+                                <IconBrandWhatsapp size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          ) : null}
+                          <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            size="md"
+                            onClick={() => setEditing(s)}
+                            data-testid={`edit-student-${s.id}`}
+                          >
+                            <IconPencil size={16} />
+                          </ActionIcon>
+                          <ActionIcon
+                            variant="subtle"
+                            color="red"
+                            size="md"
+                            onClick={async () => {
+                              await accountsApi.deleteSundaySchoolStudent(
+                                s.sunday_school_class,
+                                s.id
+                              );
+                              notifications.show({
+                                color: 'green',
+                                message: t.sundaySchool.studentRemoved,
+                              });
+                              load();
+                            }}
+                            data-testid={`remove-student-${s.id}`}
+                          >
+                            <IconTrash size={16} />
+                          </ActionIcon>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </Paper>
+        )}
+      </Box>
       <EditStudentModal
         opened={!!editing}
         onClose={() => setEditing(null)}
@@ -950,41 +975,54 @@ function ReportTab() {
 
   return (
     <Stack gap="md">
-      <Group align="flex-end" wrap="wrap" gap="sm">
-        <Select
-          label={t.sundaySchool.selectYear}
-          data={years.map((y) => ({ value: y, label: y }))}
-          value={year}
-          onChange={(v) => setYear(v ?? String(now.getFullYear()))}
-          w={110}
-        />
-        <Select
-          label={t.sundaySchool.selectMonth}
-          data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-          value={month}
-          onChange={(v) => setMonth(v ?? '1')}
-          w={200}
-        />
-        <Button
-          leftSection={<IconFileTypePdf size={16} />}
-          loading={exporting}
-          onClick={exportPdf}
-          data-testid="export-report-pdf"
-        >
-          {t.sundaySchool.exportPdf}
-        </Button>
-      </Group>
-
-      {classes.length > 0 ? (
-        <ClassSubtabs classes={classes} value={classId} onChange={setClassId} allowAll />
-      ) : null}
+      <Paper withBorder p="sm" radius="md" mb="md">
+        <Group justify="space-between" wrap="wrap" gap="sm">
+          <Group align="flex-end" wrap="wrap" gap="sm">
+            <Select
+              label={t.sundaySchool.selectYear}
+              data={years.map((y) => ({ value: y, label: y }))}
+              value={year}
+              onChange={(v) => setYear(v ?? String(now.getFullYear()))}
+              w={110}
+            />
+            <Select
+              label={t.sundaySchool.selectMonth}
+              data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
+              value={month}
+              onChange={(v) => setMonth(v ?? '1')}
+              w={200}
+            />
+            <Select
+              label={t.sundaySchool.selectClass}
+              data={[
+                { value: '__all__', label: t.sundaySchool.allClasses },
+                ...classes.map((c) => ({ value: String(c.id), label: c.name })),
+              ]}
+              value={classId ?? '__all__'}
+              onChange={(v) => setClassId(v && v !== '__all__' ? v : null)}
+              allowDeselect={false}
+              w={220}
+            />
+          </Group>
+          <Button
+            leftSection={<IconFileSpreadsheet size={16} />}
+            variant="default"
+            size="sm"
+            loading={exporting}
+            onClick={exportPdf}
+            data-testid="export-report-pdf"
+          >
+            {t.sundaySchool.exportPdf}
+          </Button>
+        </Group>
+      </Paper>
 
       {loading ? (
         <Center h={220}>
           <Loader />
         </Center>
       ) : !report || report.classes.length === 0 ? (
-        <Card withBorder>
+        <Paper withBorder p="md" radius="md">
           <Center h={160}>
             <Stack gap={4} align="center">
               <IconCalendarEvent size={28} />
@@ -994,236 +1032,235 @@ function ReportTab() {
               </Text>
             </Stack>
           </Center>
-        </Card>
+        </Paper>
       ) : (
-        <Stack gap="md">
-          {report.classes.map((c) => (
-            <Card key={c.class_id} withBorder padding="md">
-              <Stack gap="sm">
-                <Group justify="space-between" align="flex-start" wrap="wrap" gap="xs">
-                  <Stack gap={2}>
-                    <Text fw={700}>{c.class_name}</Text>
-                    <Group gap={6} wrap="wrap">
-                      <Badge color="grape" variant="light" size="sm">
-                        {c.category_display}
-                      </Badge>
-                      {c.teacher_name ? (
-                        <Group gap={4} align="center">
-                          <IconUser size={14} />
-                          <Text size="xs" c="dimmed">
-                            {c.teacher_name}
-                          </Text>
-                        </Group>
-                      ) : null}
-                      {c.room_location ? (
-                        <Group gap={4} align="center">
-                          <IconMapPin size={14} />
-                          <Text size="xs" c="dimmed">
-                            {c.room_location}
-                          </Text>
-                        </Group>
-                      ) : null}
-                    </Group>
-                  </Stack>
-                  <Stack gap={2} align="flex-end">
-                    <Text fw={600}>{formatBRL(Number(c.offering_total))}</Text>
-                    <Text size="xs" c="dimmed">
-                      {t.sundaySchool.offeringTotal}
+        <Accordion variant="separated">
+          {report.classes.map((c) => {
+            const avgFreq =
+              c.students.length > 0
+                ? Math.round(
+                    c.students.reduce((acc, s) => acc + s.presence_percent, 0) /
+                      c.students.length
+                  )
+                : 0;
+            return (
+              <Accordion.Item key={c.class_id} value={String(c.class_id)}>
+                <Accordion.Control>
+                  <Group justify="space-between" wrap="wrap" gap="xs" pr="md">
+                    <Text fw={600} size="md">
+                      {c.class_name}
                     </Text>
-                  </Stack>
-                </Group>
+                    <Group gap="xs" wrap="wrap">
+                      <Badge size="sm" variant="light" color="blue">
+                        {t.sundaySchool.avgFrequency}: {avgFreq}%
+                      </Badge>
+                      <Badge size="sm" variant="light" color="orange">
+                        {t.sundaySchool.avgBibles}: {c.avg_bibles}
+                      </Badge>
+                      <Badge size="sm" variant="light" color="green">
+                        {t.sundaySchool.offeringTotal}:{' '}
+                        {formatBRL(Number(c.offering_total))}
+                      </Badge>
+                    </Group>
+                  </Group>
+                </Accordion.Control>
+                <Accordion.Panel>
+                  <Group gap="xs" wrap="wrap" mb="sm">
+                    <Badge size="sm" variant="light" color="grape">
+                      {t.sundaySchool.retention}: {retentionCount(c)}/{c.students.length}
+                    </Badge>
+                    <Text size="xs" c="dimmed">
+                      {t.sundaySchool.retentionHint}
+                    </Text>
+                  </Group>
 
-                <SimpleGrid cols={{ base: 2, md: 5 }} spacing="xs">
-                  <StatsChip
-                    label={t.sundaySchool.sessionsCount}
-                    value={String(c.session_count)}
-                  />
-                  <StatsChip label={t.sundaySchool.avgBibles} value={String(c.avg_bibles)} />
-                  <StatsChip
-                    label={t.sundaySchool.avgMagazines}
-                    value={String(c.avg_magazines)}
-                  />
-                  <StatsChip
-                    label={t.sundaySchool.visitorsTotal}
-                    value={String(c.visitors_total)}
-                  />
-                  <StatsChip
-                    label={t.sundaySchool.retention}
-                    value={`${retentionCount(c)}/${c.students.length}`}
-                    hint={t.sundaySchool.retentionHint}
-                  />
-                </SimpleGrid>
-
-                <Box visibleFrom="sm">
-                  <Table.ScrollContainer minWidth={520}>
-                    <Table highlightOnHover verticalSpacing="xs" horizontalSpacing="sm">
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th>{t.sundaySchool.studentName}</Table.Th>
-                          {c.columns.map((col) => (
-                            <Table.Th key={col.date} ta="center">
-                              <Stack gap={2} align="center">
-                                <Text size="xs" fw={600}>
-                                  {formatKey(col.date)}
+                  <Box visibleFrom="sm">
+                    <Table.ScrollContainer minWidth={700}>
+                      <Table highlightOnHover verticalSpacing="xs" horizontalSpacing="sm">
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>{t.sundaySchool.studentName}</Table.Th>
+                            {c.columns.map((col, idx) => (
+                              <Table.Th key={col.date} ta="center">
+                                <Stack gap={2} align="center">
+                                  <Text size="xs" fw={600}>
+                                    D{idx + 1}
+                                  </Text>
+                                  <Text size="xs" c="dimmed">
+                                    {formatKey(col.date)}
+                                  </Text>
+                                </Stack>
+                              </Table.Th>
+                            ))}
+                            <Table.Th ta="center">{t.sundaySchool.presencePercent}</Table.Th>
+                            <Table.Th ta="center">{t.sundaySchool.consecutiveAbsences}</Table.Th>
+                            <Table.Th ta="center">{t.sundaySchool.riskEvasion}</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {c.students.map((s) => (
+                            <Table.Tr key={s.enrollment_id}>
+                              <Table.Td>
+                                <Text size="sm" fw={500}>
+                                  {s.student_name}
                                 </Text>
-                              </Stack>
-                            </Table.Th>
-                          ))}
-                          <Table.Th ta="center">{t.sundaySchool.presencePercent}</Table.Th>
-                          <Table.Th ta="center">{t.sundaySchool.consecutiveAbsences}</Table.Th>
-                          <Table.Th ta="center">{t.sundaySchool.riskEvasion}</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {c.students.map((s) => (
-                          <Table.Tr key={s.enrollment_id}>
-                            <Table.Td>
-                              <Text size="sm" fw={500}>
-                                {s.student_name}
-                              </Text>
-                            </Table.Td>
-                            {s.attendance.map((value, idx) => (
-                              <Table.Td key={idx} ta="center">
-                                {value === null ? (
+                              </Table.Td>
+                              {s.attendance.map((value, idx) => (
+                                <Table.Td key={idx} ta="center">
+                                  {value === null ? (
+                                    <Text size="xs" c="dimmed">
+                                      —
+                                    </Text>
+                                  ) : value ? (
+                                    <Badge
+                                      color="teal"
+                                      variant="light"
+                                      size="xs"
+                                      radius="xl"
+                                      title={t.sundaySchool.present}
+                                    >
+                                      P
+                                    </Badge>
+                                  ) : (
+                                    <Badge
+                                      color="red"
+                                      variant="light"
+                                      size="xs"
+                                      radius="xl"
+                                      title={t.sundaySchool.absent}
+                                    >
+                                      F
+                                    </Badge>
+                                  )}
+                                </Table.Td>
+                              ))}
+                              <Table.Td ta="center">
+                                <Group gap={6} justify="center" wrap="nowrap">
+                                  <Progress
+                                    size="sm"
+                                    radius="xl"
+                                    value={s.presence_percent}
+                                    color={
+                                      s.presence_percent >= 75
+                                        ? 'teal'
+                                        : s.presence_percent >= 50
+                                          ? 'yellow'
+                                          : 'red'
+                                    }
+                                    w={90}
+                                  />
+                                  <Text size="sm" fw={600}>
+                                    {s.presence_percent}%
+                                  </Text>
+                                </Group>
+                              </Table.Td>
+                              <Table.Td ta="center">
+                                <Text size="sm">{s.consecutive_absences}</Text>
+                              </Table.Td>
+                              <Table.Td ta="center">
+                                {s.risk_evasion ? (
+                                  <Group gap={4} justify="center" wrap="nowrap">
+                                    <Badge color="red" variant="filled" size="sm">
+                                      {t.sundaySchool.riskEvasion}
+                                    </Badge>
+                                    {s.whatsapp_url ? (
+                                      <Tooltip label={t.sundaySchool.absentWhatsAppTooltip}>
+                                        <ActionIcon
+                                          component="a"
+                                          href={s.whatsapp_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          variant="light"
+                                          color="green"
+                                          size="sm"
+                                        >
+                                          <IconBrandWhatsapp size={14} />
+                                        </ActionIcon>
+                                      </Tooltip>
+                                    ) : null}
+                                  </Group>
+                                ) : (
                                   <Text size="xs" c="dimmed">
                                     —
                                   </Text>
-                                ) : value ? (
-                                  <Badge color="teal" variant="light" size="xs" radius="xl">
-                                    {t.sundaySchool.present}
-                                  </Badge>
-                                ) : (
-                                  <Badge color="red" variant="light" size="xs" radius="xl">
-                                    {t.sundaySchool.absent}
-                                  </Badge>
                                 )}
                               </Table.Td>
-                            ))}
-                            <Table.Td ta="center">
-                              <Badge
-                                color={s.presence_percent >= 75 ? 'teal' : s.presence_percent >= 50 ? 'yellow' : 'red'}
-                                variant="light"
-                                size="sm"
-                              >
-                                {s.presence_percent}%
-                              </Badge>
-                            </Table.Td>
-                            <Table.Td ta="center">
-                              <Text size="sm">{s.consecutive_absences}</Text>
-                            </Table.Td>
-                            <Table.Td ta="center">
-                              {s.risk_evasion ? (
-                                <Group gap={4} justify="center" wrap="nowrap">
-                                  <Badge color="red" variant="filled" size="sm">
-                                    {t.sundaySchool.riskEvasion}
-                                  </Badge>
-                                  {s.whatsapp_url ? (
-                                    <Tooltip label={t.sundaySchool.absentWhatsAppTooltip}>
-                                      <ActionIcon
-                                        component="a"
-                                        href={s.whatsapp_url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        variant="light"
-                                        color="green"
-                                        size="sm"
-                                      >
-                                        <IconBrandWhatsapp size={14} />
-                                      </ActionIcon>
-                                    </Tooltip>
-                                  ) : null}
-                                </Group>
-                              ) : (
-                                <Text size="xs" c="dimmed">
-                                  —
-                                </Text>
-                              )}
-                            </Table.Td>
-                          </Table.Tr>
-                        ))}
-                      </Table.Tbody>
-                    </Table>
-                  </Table.ScrollContainer>
-                </Box>
+                            </Table.Tr>
+                          ))}
+                        </Table.Tbody>
+                      </Table>
+                    </Table.ScrollContainer>
+                  </Box>
 
-                <Stack hiddenFrom="sm" gap="xs">
-                  {c.students.map((s) => (
-                    <Card key={s.enrollment_id} withBorder padding="xs">
-                      <Group justify="space-between" wrap="wrap" gap="xs">
-                        <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 140 }}>
-                          {s.student_name}
-                        </Text>
-                        <Group gap={4}>
-                          <Badge
-                            color={s.presence_percent >= 75 ? 'teal' : s.presence_percent >= 50 ? 'yellow' : 'red'}
-                            variant="light"
-                            size="sm"
-                          >
-                            {s.presence_percent}%
-                          </Badge>
-                          {s.risk_evasion ? (
-                            <>
-                              <Badge color="red" variant="filled" size="sm">
-                                {t.sundaySchool.riskEvasion}
-                              </Badge>
-                              {s.whatsapp_url ? (
-                                <ActionIcon
-                                  component="a"
-                                  href={s.whatsapp_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  variant="light"
-                                  color="green"
-                                  size="sm"
-                                >
-                                  <IconBrandWhatsapp size={14} />
-                                </ActionIcon>
-                              ) : null}
-                            </>
-                          ) : null}
+                  <Stack hiddenFrom="sm" gap="xs">
+                    {c.students.map((s) => (
+                      <Paper key={s.enrollment_id} withBorder p="xs" radius="md">
+                        <Group justify="space-between" wrap="wrap" gap="xs">
+                          <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 140 }}>
+                            {s.student_name}
+                          </Text>
+                          <Group gap={4}>
+                            <Progress
+                              size="sm"
+                              radius="xl"
+                              value={s.presence_percent}
+                              color={
+                                s.presence_percent >= 75
+                                  ? 'teal'
+                                  : s.presence_percent >= 50
+                                    ? 'yellow'
+                                    : 'red'
+                              }
+                              w={60}
+                            />
+                            <Text size="sm" fw={600}>
+                              {s.presence_percent}%
+                            </Text>
+                            {s.risk_evasion ? (
+                              <>
+                                <Badge color="red" variant="filled" size="sm">
+                                  {t.sundaySchool.riskEvasion}
+                                </Badge>
+                                {s.whatsapp_url ? (
+                                  <ActionIcon
+                                    component="a"
+                                    href={s.whatsapp_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    variant="light"
+                                    color="green"
+                                    size="sm"
+                                  >
+                                    <IconBrandWhatsapp size={14} />
+                                  </ActionIcon>
+                                ) : null}
+                              </>
+                            ) : null}
+                          </Group>
                         </Group>
-                      </Group>
-                      <Group gap={4} mt={4} wrap="wrap">
-                        {s.attendance.map((value, idx) => (
-                          <Badge
-                            key={idx}
-                            color={value === null ? 'gray' : value ? 'teal' : 'red'}
-                            variant="light"
-                            size="xs"
-                          >
-                            {value === null ? '—' : value ? t.sundaySchool.present : t.sundaySchool.absent}
-                          </Badge>
-                        ))}
-                      </Group>
-                    </Card>
-                  ))}
-                </Stack>
-              </Stack>
-            </Card>
-          ))}
-        </Stack>
+                        <Group gap={4} mt={4} wrap="wrap">
+                          {s.attendance.map((value, idx) => (
+                            <Badge
+                              key={idx}
+                              color={value === null ? 'gray' : value ? 'teal' : 'red'}
+                              variant="light"
+                              size="xs"
+                              radius="xl"
+                            >
+                              {value === null ? '—' : value ? 'P' : 'F'}
+                            </Badge>
+                          ))}
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Accordion.Panel>
+              </Accordion.Item>
+            );
+          })}
+        </Accordion>
       )}
     </Stack>
-  );
-}
-
-function StatsChip({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card withBorder padding="xs">
-      <Stack gap={0}>
-        <Text size="xs" c="dimmed">
-          {label}
-        </Text>
-        <Text fw={700} size="lg">
-          {value}
-        </Text>
-        {hint ? (
-          <Text size="xs" c="dimmed">
-            {hint}
-          </Text>
-        ) : null}
-      </Stack>
-    </Card>
   );
 }
 

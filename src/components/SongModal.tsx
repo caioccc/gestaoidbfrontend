@@ -37,6 +37,24 @@ interface SongModalProps {
   onSaved: () => void;
 }
 
+export type SongPayload = {
+  title: string;
+  artist?: string;
+  band?: number | null;
+  youtube_id?: string;
+  youtube_title?: string;
+  thumbnail_url?: string;
+  duration_seconds?: number;
+  original_key?: string;
+  church_key?: string;
+  bpm?: number;
+  time_signature?: string;
+  chords?: string;
+  chords_json?: Song['chords_json'];
+  lyrics?: string;
+  tags?: string;
+};
+
 export default function SongModal({ opened, onClose, editing, onSaved }: SongModalProps) {
   const { t } = useLanguage();
 
@@ -59,8 +77,6 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   const [results, setResults] = useState<YouTubeSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchAlert, setSearchAlert] = useState(false);
-  const [enriching, setEnriching] = useState(false);
-  const [chordsAlert, setChordsAlert] = useState(false);
   const [saving, setSaving] = useState(false);
   const [existingSong, setExistingSong] = useState<Song | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
@@ -68,14 +84,12 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   useEffect(() => {
     if (!opened) {
       setSearchAlert(false);
-      setChordsAlert(false);
       setResults([]);
       setExistingSong(null);
       return;
     }
     void musicApi.bands().then(setBands).catch(() => setBands([]));
     setSearchAlert(false);
-    setChordsAlert(false);
     setResults([]);
     setExistingSong(null);
     setTitle(editing?.title ?? '');
@@ -125,7 +139,6 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
     setThumbnailUrl(r.thumbnail_url);
     setQuery(r.title);
     setArtist((prev) => prev || r.channel_name);
-    void enrichFromYoutubeId(r.youtube_id);
   };
 
   const pickByUrl = () => {
@@ -143,36 +156,6 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       setTitle(id.replace(/-/g, ' '));
     }
     setThumbnailUrl(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
-    void enrichFromYoutubeId(id);
-  };
-
-  const enrichFromYoutubeId = async (id: string) => {
-    if (!id) return;
-    setEnriching(true);
-    setChordsAlert(false);
-    try {
-      const data = await musicApi.chordify(id);
-      if (data.status === 'unavailable') {
-        setChordsAlert(true);
-        return;
-      }
-      if (data.format_key) {
-        setOriginalKey((prev) => prev || data.format_key);
-        setChurchKey((prev) => prev || data.format_key);
-      }
-      if (data.derivedBpm) setBpm(String(Math.round(data.derivedBpm)));
-      const chords = data.chords_formatada ?? [];
-      if (chords.length > 0) {
-        setChordsJson(chords);
-        notifications.show({ color: 'green', message: t.music.chordsReady });
-      } else {
-        setChordsAlert(true);
-      }
-    } catch {
-      setChordsAlert(true);
-    } finally {
-      setEnriching(false);
-    }
   };
 
   // Pré-cadastro: o mesmo vídeo já pode ter sido cadastrado por outra igreja.
@@ -231,7 +214,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   const save = async () => {
     if (!title.trim() || !youtubeId.trim()) return;
     setSaving(true);
-    const payload = {
+    const payload: SongPayload = {
       title: title.trim(),
       artist: artist.trim(),
       band: bandId ? Number(bandId) : null,
@@ -243,11 +226,18 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       church_key: churchKey.trim(),
       bpm: bpm ? Number(bpm) : undefined,
       time_signature: timeSignature.trim() || '4/4',
-      chords: '',
-      chords_json: chordsJson,
       lyrics,
       tags: tags.trim(),
     };
+    // A extração de cifras agora é ASSÍNCRONA (worker local): o cadastro é
+    // rápido e a música entra na fila (PENDING). Só manda os acordes quando o
+    // usuário realmente os forneceu (ex.: pré-cadastro vindo do acervo), e
+    // apenas na criação — na edição preserva o chord_status existente.
+    const hasManualChords = chordsJson.length > 0;
+    if (!editing && hasManualChords) {
+      payload.chords_json = chordsJson;
+      payload.chords = '';
+    }
     try {
       if (editing) {
         await musicApi.updateSong(editing.id, payload);
@@ -258,7 +248,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       onSaved();
       onClose();
     } catch {
-      notifications.show({ color: 'red', message: t.music.chordsUnavailable });
+      notifications.show({ color: 'red', message: t.music.chordSaveError });
     } finally {
       setSaving(false);
     }
@@ -378,12 +368,6 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
           </Alert>
         ) : null}
 
-        {chordsAlert ? (
-          <Alert color="yellow" icon={<IconAlertTriangle size={18} />}>
-            {t.music.chordsUnavailable}
-          </Alert>
-        ) : null}
-
         <TextInput
           label={t.music.youtubeIdLabel}
           placeholder="dQw4w9WgXcQ"
@@ -407,15 +391,6 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
             ) : null
           }
         />
-
-        {enriching ? (
-          <Group gap={6}>
-            <Loader size={18} />
-            <Text size="sm" c="dimmed">
-              {t.music.enrichingChords}
-            </Text>
-          </Group>
-        ) : null}
 
         {thumbnailUrl ? (
           <Group gap={12} align="flex-start">
@@ -488,23 +463,33 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
               onChange={(e) => setChurchKey(e.currentTarget.value)}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 6, md: 4 }}>
-            <TextInput
-              label={t.music.originalKeyLabel}
-              placeholder="C"
-              value={originalKey}
-              onChange={(e) => setOriginalKey(e.currentTarget.value)}
-            />
-          </Grid.Col>
-          <Grid.Col span={{ base: 6, md: 4 }}>
-            <TextInput
-              label={t.music.bpmLabel}
-              placeholder="72"
-              value={bpm}
-              onChange={(e) => setBpm(e.currentTarget.value.replace(/\D/g, ''))}
-            />
-          </Grid.Col>
+          {editing ? (
+            <>
+              <Grid.Col span={{ base: 6, md: 4 }}>
+                <TextInput
+                  label={t.music.originalKeyLabel}
+                  placeholder="C"
+                  value={originalKey}
+                  onChange={(e) => setOriginalKey(e.currentTarget.value)}
+                />
+              </Grid.Col>
+              <Grid.Col span={{ base: 6, md: 4 }}>
+                <TextInput
+                  label={t.music.bpmLabel}
+                  placeholder="72"
+                  value={bpm}
+                  onChange={(e) => setBpm(e.currentTarget.value.replace(/\D/g, ''))}
+                />
+              </Grid.Col>
+            </>
+          ) : null}
         </Grid>
+
+        {!editing ? (
+          <Text size="xs" c="dimmed">
+            {t.music.chordKeysAutofill}
+          </Text>
+        ) : null}
 
         <Select
           label={t.music.bandForSong}

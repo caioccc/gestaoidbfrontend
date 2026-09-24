@@ -1,21 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActionIcon,
   Badge,
   Box,
   Button,
   Card,
   Center,
   Checkbox,
+  Code,
   Group,
   Loader,
   Menu,
   Modal,
+  Paper,
   SegmentedControl,
   Stack,
   Table,
   Text,
   Textarea,
   ThemeIcon,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -25,6 +29,7 @@ import {
   IconLink,
   IconQrcode,
   IconRefresh,
+  IconUserCheck,
   IconUserPlus,
   IconUsersGroup,
   IconX,
@@ -275,11 +280,11 @@ export default function SubmissionsTab() {
   return (
     <>
       {formLink && (
-        <Card withBorder radius="md" p="md" mb="md" data-testid="submissions-form-link">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Stack gap={2}>
+        <Paper withBorder p="md" radius="md" mb="lg" data-testid="submissions-form-link">
+          <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
+            <Stack gap={4} style={{ minWidth: 280, maxWidth: '100%', flex: 1 }}>
               <Group gap="xs">
-                <IconLink size={18} />
+                <IconLink size={18} color="var(--mantine-color-dimmed)" />
                 <Text size="sm" fw={700}>
                   {t.memberSubmissions.formLinkTitle}
                 </Text>
@@ -287,23 +292,21 @@ export default function SubmissionsTab() {
               <Text size="xs" c="dimmed">
                 {t.memberSubmissions.formLinkHint}
               </Text>
-              <Text size="sm" data-testid="submissions-form-link-url">
-                {formLink}
-              </Text>
-            </Stack>
-            <Group wrap="nowrap">
-              <Button
-                size="xs"
-                variant="default"
-                leftSection={<IconQrcode size={14} />}
-                onClick={() => setQrOpen(true)}
+              <Code
+                block={false}
+                c="dimmed"
+                style={{ wordBreak: 'break-all' }}
+                data-testid="submissions-form-link-url"
               >
-                {t.qrShare.qr}
-              </Button>
+                {formLink}
+              </Code>
+            </Stack>
+            <Group gap="xs" wrap="nowrap">
               <Button
-                size="xs"
                 variant="light"
+                size="xs"
                 leftSection={<IconCopy size={14} />}
+                data-testid="submissions-form-link-copy"
                 onClick={async () => {
                   await copyToClipboard(formLink);
                   setFormLinkCopied(true);
@@ -312,17 +315,31 @@ export default function SubmissionsTab() {
               >
                 {formLinkCopied ? t.memberSubmissions.copied : t.memberSubmissions.copy}
               </Button>
-              <Button
-                size="xs"
-                variant="default"
-                leftSection={<IconRefresh size={14} />}
-                onClick={() => setConfirmFormLinkRegen(true)}
-              >
-                {t.memberSubmissions.regenerate}
-              </Button>
+              <Tooltip label={t.qrShare.qr}>
+                <ActionIcon
+                  variant="default"
+                  size="md"
+                  radius="md"
+                  onClick={() => setQrOpen(true)}
+                  data-testid="submissions-form-link-qr"
+                >
+                  <IconQrcode size={18} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label={t.memberSubmissions.regenerate}>
+                <ActionIcon
+                  variant="default"
+                  size="md"
+                  radius="md"
+                  onClick={() => setConfirmFormLinkRegen(true)}
+                  data-testid="submissions-form-link-regen"
+                >
+                  <IconRefresh size={18} />
+                </ActionIcon>
+              </Tooltip>
             </Group>
           </Group>
-        </Card>
+        </Paper>
       )}
 
       <Group gap="xs" mb="md">
@@ -348,12 +365,19 @@ export default function SubmissionsTab() {
             <Loader />
           </Center>
         ) : items.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-              <IconUsersGroup size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.memberSubmissions.empty}</Text>
-          </Stack>
+          <Center py={60}>
+            <Stack align="center" gap="sm">
+              <ThemeIcon size={64} radius="xl" color="gray" variant="light">
+                <IconUserCheck size={32} />
+              </ThemeIcon>
+              <Text fw={600} size="md">
+                {t.memberSubmissions.emptyTitle}
+              </Text>
+              <Text size="sm" c="dimmed" ta="center" maw={340}>
+                {t.memberSubmissions.emptyHint}
+              </Text>
+            </Stack>
+          </Center>
         ) : (
           <>
             {selected.size > 0 && (

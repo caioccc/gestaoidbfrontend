@@ -1,37 +1,45 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActionIcon,
   Avatar,
-  Card,
-  Group,
-  Text,
-  Stack,
   Badge,
+  Box,
+  Button,
+  Card,
+  Center,
+  Checkbox,
+  Grid,
+  Group,
+  Loader,
+  Paper,
+  Progress,
+  Select,
+  SimpleGrid,
+  Stack,
   Table,
   Tabs,
-  Loader,
-  Center,
-  SimpleGrid,
-  Progress,
-  Button,
-  Grid,
+  Text,
   ThemeIcon,
-  Box,
-  Select,
-  Checkbox,
+  Tooltip,
+  Accordion,
 } from '@mantine/core';
 import { useRouter } from 'next/router';
 import {
-  IconDownload,
-  IconUsersGroup,
-  IconChartPie,
+  IconBrandWhatsapp,
   IconBuildingChurch,
-  IconRefresh,
   IconCake,
+  IconCalendar,
+  IconChartPie,
+  IconDownload,
+  IconRefresh,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import SendWhatsAppModal from '../components/SendWhatsAppModal';
+import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MinistryArea } from '../types';
@@ -86,12 +94,13 @@ function DistributionCard({
                     {item.count}
                   </Text>
                 </Group>
-                <Progress
-                  value={pct}
-                  size="xs"
-                  color={pct >= 50 ? 'teal' : pct >= 25 ? 'blue' : 'gray'}
-                  mt={2}
-                />
+                <Progress.Root size="sm" radius="xl" mt={2}>
+                  <Progress.Section
+                    value={pct}
+                    color={pct >= 50 ? 'teal' : pct >= 25 ? 'blue' : 'gray'}
+                    style={{ transition: 'width 400ms ease' }}
+                  />
+                </Progress.Root>
               </Box>
             );
           })}
@@ -232,14 +241,25 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
     );
   }
 
+  const items = [...grouped, { area: null, list: noArea }].filter(
+    (g) => g.list.length > 0
+  );
+  const defaultValue = items[0]
+    ? items[0].area
+      ? String(items[0].area.id)
+      : 'no-area'
+    : undefined;
+
   return (
-    <Stack gap="md">
-      {[...grouped, { area: null, list: noArea }]
-        .filter((g) => g.list.length > 0)
-        .map(({ area, list }) => (
-          <Card key={area?.id ?? 'no-area'} withBorder shadow="sm" p={0}>
-            <Group justify="space-between" px="md" py="sm" wrap="wrap">
-              <Group gap="sm">
+    <Accordion variant="separated" defaultValue={defaultValue}>
+      {items.map(({ area, list }) => (
+        <Accordion.Item
+          key={area?.id ?? 'no-area'}
+          value={area ? String(area.id) : 'no-area'}
+        >
+          <Accordion.Control>
+            <Group justify="space-between" wrap="nowrap" w="100%">
+              <Group gap="sm" wrap="nowrap">
                 <ThemeIcon size="md" radius="xl" color="teal" variant="light">
                   <IconBuildingChurch size={16} />
                 </ThemeIcon>
@@ -249,6 +269,8 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
                 {list.length} {t.memberReports.inArea}
               </Badge>
             </Group>
+          </Accordion.Control>
+          <Accordion.Panel>
             <Box visibleFrom="sm">
               <Table striped highlightOnHover>
                 <Table.Thead>
@@ -327,26 +349,51 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
                 </MobileItemCard>
               ))}
             </Stack>
-          </Card>
-        ))}
-    </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+      ))}
+    </Accordion>
   );
 }
 
 function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExport: () => void }) {
+  const active = members.filter((m) => m.status === 'ACTIVE').length;
+  const inactive = members.length - active;
   return (
     <Stack gap="md">
-      <Group justify="flex-end">
-        <Button
-          variant="default"
-          leftSection={<IconDownload size={16} />}
-          onClick={onExport}
-          data-testid="member-reports-export"
-          disabled={members.length === 0}
-        >
-          {t.memberReports.exportCsv}
-        </Button>
-      </Group>
+      <Paper withBorder p="sm" radius="md">
+        <Group justify="space-between" wrap="wrap" gap="xs">
+          <Group gap="lg" wrap="wrap">
+            <Text size="sm">
+              <Text span fw={600}>
+                {t.memberReports.total}:
+              </Text>{' '}
+              {members.length}
+            </Text>
+            <Text size="sm">
+              <Text span fw={600}>
+                {t.memberReports.active}:
+              </Text>{' '}
+              {active}
+            </Text>
+            <Text size="sm">
+              <Text span fw={600}>
+                {t.memberReports.inactive}:
+              </Text>{' '}
+              {inactive}
+            </Text>
+          </Group>
+          <Button
+            variant="default"
+            leftSection={<IconDownload size={16} />}
+            onClick={onExport}
+            data-testid="member-reports-export"
+            disabled={members.length === 0}
+          >
+            {t.memberReports.exportCsv}
+          </Button>
+        </Group>
+      </Paper>
       <Card withBorder shadow="sm" p={0}>
         {members.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
@@ -358,59 +405,88 @@ function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExp
         ) : (
           <>
             <Box visibleFrom="sm">
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>{t.membersPage.name}</Table.Th>
-                    <Table.Th>{t.membersPage.phone}</Table.Th>
-                    <Table.Th>{t.membersPage.email}</Table.Th>
-                    <Table.Th>{t.membersPage.bornInCity}</Table.Th>
-                    <Table.Th>{t.membersPage.educationLevel}</Table.Th>
-                  <Table.Th>{t.membersPage.maritalStatus}</Table.Th>
-                  <Table.Th>{t.membersPage.churchEntry}</Table.Th>
-                  <Table.Th>{t.membersPage.ministryAreas}</Table.Th>
-                  <Table.Th>{t.membersPage.status}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {members.map((m) => (
-                  <Table.Tr key={m.id}>
-                    <Table.Td>
-                      <Group gap="sm" wrap="nowrap">
-                        <Text fw={500} truncate maw={200}>
-                          {m.name}
-                        </Text>
-                        {m.card_number && (
-                          <Text size="xs" c="dimmed">
-                            #{m.card_number}
-                          </Text>
-                        )}
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>{m.phone || '—'}</Table.Td>
-                    <Table.Td>{m.email || '—'}</Table.Td>
-                    <Table.Td>{m.born_in_city || '—'}</Table.Td>
-                    <Table.Td>{m.education_level_display || '—'}</Table.Td>
-                    <Table.Td>{m.marital_status_display || '—'}</Table.Td>
-                    <Table.Td>{m.church_entry_display || '—'}</Table.Td>
-                    <Table.Td>
-                      {m.ministry_areas_display.length
-                        ? m.ministry_areas_display.map((a) => a.name).join(', ')
-                        : '—'}
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                        variant="light"
-                      >
-                        {m.status_display}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Box>
+              <Table.ScrollContainer minWidth={900}>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>{t.membersPage.name}</Table.Th>
+                      <Table.Th>{t.membersPage.contact}</Table.Th>
+                      <Table.Th>{t.membersPage.bornInCity}</Table.Th>
+                      <Table.Th>{t.membersPage.educationLevel}</Table.Th>
+                      <Table.Th>{t.membersPage.maritalStatus}</Table.Th>
+                      <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                      <Table.Th>{t.membersPage.ministryAreas}</Table.Th>
+                      <Table.Th>{t.membersPage.status}</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {members.map((m) => (
+                      <Table.Tr key={m.id}>
+                        <Table.Td>
+                          <Group gap="sm" wrap="nowrap">
+                            <Avatar size="sm" radius="xl" color="blue">
+                              {m.name
+                                ?.split(' ')
+                                .map((p) => p?.[0])
+                                .filter(Boolean)
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase()}
+                            </Avatar>
+                            <Stack gap={0} style={{ minWidth: 0 }}>
+                              <Text fw={600} size="sm" truncate maw={200}>
+                                {m.name}
+                              </Text>
+                              {m.card_number && (
+                                <Text size="xs" c="dimmed">
+                                  #{m.card_number}
+                                </Text>
+                              )}
+                            </Stack>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            <Text size="sm">{m.phone || '—'}</Text>
+                            <Text size="xs" c="dimmed">
+                              {m.email || '—'}
+                            </Text>
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>{m.born_in_city || '—'}</Table.Td>
+                        <Table.Td>{m.education_level_display || '—'}</Table.Td>
+                        <Table.Td>{m.marital_status_display || '—'}</Table.Td>
+                        <Table.Td>{m.church_entry_display || '—'}</Table.Td>
+                        <Table.Td>
+                          {m.ministry_areas_display.length ? (
+                            <Group gap={4} wrap="wrap">
+                              {m.ministry_areas_display.map((a) => (
+                                <Badge key={a.id} variant="light" color="blue" size="xs">
+                                  {a.name}
+                                </Badge>
+                              ))}
+                            </Group>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              —
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            variant="dot"
+                            size="sm"
+                            color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+                          >
+                            {m.status_display}
+                          </Badge>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            </Box>
           <Stack hiddenFrom="sm" gap="xs" p="sm">
             {members.map((m) => (
               <MobileItemCard
@@ -493,10 +569,12 @@ function BirthdaysTab({
   t: any;
   locale: string;
 }) {
+  const { church } = useCurrentChurch();
   const [month, setMonth] = useState<string | null>(
     String(new Date().getMonth() + 1)
   );
   const [activeOnly, setActiveOnly] = useState(true);
+  const [waMember, setWaMember] = useState<Member | null>(null);
 
   const monthLabel = (m: number) =>
     new Date(2000, m - 1, 1).toLocaleDateString(locale, { month: 'long' });
@@ -560,40 +638,42 @@ function BirthdaysTab({
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" wrap="wrap">
-        <Group gap="md">
-          <Select
-            data={Array.from({ length: 12 }, (_, i) => ({
-              value: String(i + 1),
-              label: monthLabel(i + 1),
-            }))}
-            value={month}
-            onChange={setMonth}
-            label={t.birthdays.month}
-            w={200}
-            maw="100%"
-          />
-          <Checkbox
-            label={t.birthdays.activeOnly}
-            checked={activeOnly}
-            onChange={(e) => setActiveOnly(e.currentTarget.checked)}
-            mt={30}
-          />
+      <Paper withBorder p="sm" radius="md">
+        <Group justify="space-between" wrap="wrap" gap="xs">
+          <Group gap="md" wrap="wrap">
+            <Select
+              data={Array.from({ length: 12 }, (_, i) => ({
+                value: String(i + 1),
+                label: monthLabel(i + 1),
+              }))}
+              value={month}
+              onChange={setMonth}
+              size="sm"
+              leftSection={<IconCalendar size={16} />}
+              w={200}
+              maw="100%"
+            />
+            <Checkbox
+              label={t.birthdays.activeOnly}
+              checked={activeOnly}
+              onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+            />
+          </Group>
+          <Button
+            size="sm"
+            variant="default"
+            leftSection={<IconDownload size={16} />}
+            onClick={exportCsv}
+            disabled={list.length === 0}
+          >
+            {t.birthdays.exportCsv}
+          </Button>
         </Group>
-        <Button
-          variant="default"
-          leftSection={<IconDownload size={16} />}
-          onClick={exportCsv}
-          disabled={list.length === 0}
-          mt={26}
-        >
-          {t.birthdays.exportCsv}
-        </Button>
-      </Group>
+      </Paper>
       <Card withBorder shadow="sm" p={0}>
         {list.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="grape" variant="light">
+            <ThemeIcon size={48} radius="xl" color="pink" variant="light">
               <IconCake size={24} />
             </ThemeIcon>
             <Text c="dimmed">{t.birthdays.none}</Text>
@@ -601,58 +681,80 @@ function BirthdaysTab({
         ) : (
           <>
             <Box visibleFrom="sm">
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>{t.birthdays.day}</Table.Th>
-                  <Table.Th>{t.membersPage.name}</Table.Th>
-                  <Table.Th>{t.birthdays.age}</Table.Th>
-                  <Table.Th>{t.membersPage.phone}</Table.Th>
-                  <Table.Th>{t.membersPage.email}</Table.Th>
-                  <Table.Th>{t.membersPage.status}</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {list.map((m) => {
-                  const age = exactAge(m.birth_date);
-                  return (
-                    <Table.Tr key={m.id}>
-                      <Table.Td>
-                        <Badge color="grape" variant="light" radius="xl">
-                          {new Date(`${m.birth_date}T00:00:00`).getDate()}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="sm" wrap="nowrap">
-                          <Text fw={500} truncate maw={260}>
-                            {m.name}
-                          </Text>
-                          {m.card_number && (
-                            <Text size="xs" c="dimmed">
-                              #{m.card_number}
-                            </Text>
-                          )}
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
-                      </Table.Td>
-                      <Table.Td>{m.phone || '—'}</Table.Td>
-                      <Table.Td>{m.email || '—'}</Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                          variant="light"
-                        >
-                          {m.status_display}
-                        </Badge>
-                      </Table.Td>
+              <Table.ScrollContainer minWidth={760}>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>{t.birthdays.day}</Table.Th>
+                      <Table.Th>{t.membersPage.name}</Table.Th>
+                      <Table.Th>{t.birthdays.age}</Table.Th>
+                      <Table.Th>{t.membersPage.phone}</Table.Th>
+                      <Table.Th>{t.membersPage.email}</Table.Th>
+                      <Table.Th>{t.membersPage.status}</Table.Th>
+                      <Table.Th ta="right">{t.common.actions}</Table.Th>
                     </Table.Tr>
-                  );
-                })}
-              </Table.Tbody>
-            </Table>
-          </Box>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {list.map((m) => {
+                      const age = exactAge(m.birth_date);
+                      return (
+                        <Table.Tr key={m.id}>
+                          <Table.Td>
+                            <ThemeIcon color="pink" radius="md" size="lg" variant="light">
+                              <Text fw={700} size="sm">
+                                {new Date(`${m.birth_date}T00:00:00`).getDate()}
+                              </Text>
+                            </ThemeIcon>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="sm" wrap="nowrap">
+                              <Text fw={500} truncate maw={260}>
+                                {m.name}
+                              </Text>
+                              {m.card_number && (
+                                <Text size="xs" c="dimmed">
+                                  #{m.card_number}
+                                </Text>
+                              )}
+                            </Group>
+                          </Table.Td>
+                          <Table.Td>
+                            {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
+                          </Table.Td>
+                          <Table.Td>{m.phone || '—'}</Table.Td>
+                          <Table.Td>{m.email || '—'}</Table.Td>
+                          <Table.Td>
+                            <Badge
+                              variant="dot"
+                              size="sm"
+                              color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+                            >
+                              {m.status_display}
+                            </Badge>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group justify="flex-end" gap={4}>
+                              <Tooltip label={t.membersPage.sendWhatsApp}>
+                                <ActionIcon
+                                  variant="light"
+                                  color="teal"
+                                  size="md"
+                                  radius="md"
+                                  onClick={() => setWaMember(m)}
+                                  data-testid={`birthday-wa-${m.id}`}
+                                >
+                                  <IconBrandWhatsapp size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      );
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            </Box>
           <Stack hiddenFrom="sm" gap="xs" p="sm">
             {list.map((m) => {
               const age = exactAge(m.birth_date);
@@ -673,7 +775,7 @@ function BirthdaysTab({
                 >
                   <Stack gap={4}>
                     <Group gap={6} wrap="nowrap" align="center">
-                      <Badge color="grape" variant="light" radius="xl" size="sm">
+                      <Badge color="pink" variant="light" radius="xl" size="sm">
                         {new Date(`${m.birth_date}T00:00:00`).getDate()}
                       </Badge>
                       <Text fw={600} truncate>
@@ -695,13 +797,24 @@ function BirthdaysTab({
                       {m.email || '—'}
                     </Text>
                     <Badge
-                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                      variant="light"
+                      color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+                      variant="dot"
                       size="sm"
                       style={{ width: 'fit-content' }}
                     >
                       {m.status_display}
                     </Badge>
+                    <ActionIcon
+                      variant="light"
+                      color="teal"
+                      size="sm"
+                      radius="md"
+                      mt={2}
+                      onClick={() => setWaMember(m)}
+                      data-testid={`birthday-wa-mobile-${m.id}`}
+                    >
+                      <IconBrandWhatsapp size={14} />
+                    </ActionIcon>
                   </Stack>
                 </MobileItemCard>
               );
@@ -710,9 +823,19 @@ function BirthdaysTab({
           </>
         )}
       </Card>
+
+      <SendWhatsAppModal
+        opened={!!waMember}
+        onClose={() => setWaMember(null)}
+        member={waMember}
+        churchName={church?.name || ''}
+        churchCity={church?.city || ''}
+      />
     </Stack>
   );
 }
+
+const VALID_REPORT_TABS = ['composition', 'areas', 'listing', 'birthdays'];
 
 export default function MembersReportsPage() {
   const { t, locale } = useLanguage();
@@ -741,10 +864,22 @@ export default function MembersReportsPage() {
   }, [load]);
 
   useEffect(() => {
-    if (router.query.tab === 'birthdays') {
-      setTab('birthdays');
+    const q = router.query.tab;
+    if (typeof q === 'string' && VALID_REPORT_TABS.includes(q)) {
+      setTab(q);
     }
   }, [router.query.tab]);
+
+  const handleTabChange = (value: string | null) => {
+    setTab(value);
+    if (value) {
+      router.push(
+        { pathname: router.pathname, query: { ...router.query, tab: value } },
+        undefined,
+        { shallow: true }
+      );
+    }
+  };
 
   const exportCsv = useMemo(
     () => () => {
@@ -802,18 +937,34 @@ export default function MembersReportsPage() {
           title={t.memberReports.title}
           description={t.memberReports.subtitle}
         >
-          <Tabs value={tab} onChange={setTab} variant="pills">
+          <Tabs value={tab} onChange={handleTabChange} variant="default">
             <Tabs.List>
-              <Tabs.Tab value="composition" data-testid="tab-composition">
+              <Tabs.Tab
+                value="composition"
+                data-testid="tab-composition"
+                leftSection={<IconChartPie size={16} />}
+              >
                 {t.memberReports.tabComposition}
               </Tabs.Tab>
-              <Tabs.Tab value="areas" data-testid="tab-areas">
+              <Tabs.Tab
+                value="areas"
+                data-testid="tab-areas"
+                leftSection={<IconBuildingChurch size={16} />}
+              >
                 {t.memberReports.tabAreas}
               </Tabs.Tab>
-              <Tabs.Tab value="listing" data-testid="tab-listing">
+              <Tabs.Tab
+                value="listing"
+                data-testid="tab-listing"
+                leftSection={<IconUsersGroup size={16} />}
+              >
                 {t.memberReports.tabListing}
               </Tabs.Tab>
-              <Tabs.Tab value="birthdays" data-testid="tab-birthdays">
+              <Tabs.Tab
+                value="birthdays"
+                data-testid="tab-birthdays"
+                leftSection={<IconCake size={16} />}
+              >
                 {t.birthdays.tab}
               </Tabs.Tab>
             </Tabs.List>

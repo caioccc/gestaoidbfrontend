@@ -6,11 +6,13 @@ import {
   Button,
   Card,
   Center,
+  Flex,
   Group,
   Loader,
   Menu,
   Modal,
-  SimpleGrid,
+  Paper,
+  ScrollArea,
   Stack,
   Text,
   ThemeIcon,
@@ -159,12 +161,13 @@ function SortableFunnelCard({
           : t.funnel.daysSince.replace('{n}', String(days));
 
   return (
-    <Card
+    <Paper
       ref={setNodeRef}
       withBorder
       radius="md"
-      p="xs"
-      shadow={isDragging ? 'md' : undefined}
+      p="sm"
+      shadow={isDragging ? 'md' : 'xs'}
+      mb="xs"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -172,83 +175,87 @@ function SortableFunnelCard({
       }}
       data-testid={`funnel-card-${member.id}`}
     >
-      <Group gap="xs" wrap="nowrap" align="flex-start">
-        <BoxHandler {...attributes} {...listeners} />
-        <Avatar src={member.photo || null} radius="xl" size="md" />
-        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-          <Text size="sm" fw={600} truncate>
+      <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+        <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <BoxHandler {...attributes} {...listeners} />
+          <Avatar src={member.photo || null} radius="xl" size="sm">
+            {member.name?.charAt(0)?.toUpperCase()}
+          </Avatar>
+          <Text size="sm" fw={600} lineClamp={1} style={{ minWidth: 0 }}>
             {member.name}
           </Text>
-          <Text size="xs" c="dimmed" truncate>
-            {member.phone || '—'}
-          </Text>
-          <Tooltip label={contactLabel} openDelay={300}>
-            <Badge
-              size="xs"
-              color={color}
-              variant="light"
-              radius="sm"
-              mt={2}
-              style={{ alignSelf: 'flex-start', maxWidth: '100%' }}
-              data-testid={`funnel-contact-${member.id}`}
+        </Group>
+        <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          <Tooltip label={t.membersPage.sendWhatsApp}>
+            <ActionIcon
+              variant="subtle"
+              color="teal"
+              size="sm"
+              onClick={() => onWhatsApp(member)}
+              data-testid={`funnel-wa-${member.id}`}
             >
-              {contactLabel}
-            </Badge>
+              <IconBrandWhatsapp size={16} />
+            </ActionIcon>
           </Tooltip>
-        </Stack>
-        <Tooltip label={t.membersPage.sendWhatsApp}>
-          <Button
-            variant="subtle"
-            color="green"
-            size="compact-sm"
-            px={4}
-            onClick={() => onWhatsApp(member)}
-            data-testid={`funnel-wa-${member.id}`}
-          >
-            <IconBrandWhatsapp size={16} />
-          </Button>
-        </Tooltip>
-        {isVisitor && (onEdit || onDelete || onPromote) ? (
-          <Menu shadow="md" width={200} position="bottom-end" withinPortal>
-            <Menu.Target>
-              <ActionIcon variant="subtle" size="sm" color="gray" data-testid={`funnel-menu-${member.id}`}>
-                <IconDotsVertical size={16} />
-              </ActionIcon>
-            </Menu.Target>
-            <Menu.Dropdown>
-              {stage === 'INTEGRATION' && onPromote ? (
-                <Menu.Item
-                  leftSection={<IconUserPlus size={16} />}
-                  onClick={() => onPromote(member)}
-                  data-testid={`funnel-promote-${member.id}`}
-                >
-                  {t.funnel.promote}
-                </Menu.Item>
-              ) : null}
-              {onEdit ? (
-                <Menu.Item
-                  leftSection={<IconPencil size={16} />}
-                  onClick={() => onEdit(member)}
-                  data-testid={`funnel-edit-${member.id}`}
-                >
-                  {t.common.edit}
-                </Menu.Item>
-              ) : null}
-              {onDelete ? (
-                <Menu.Item
-                  leftSection={<IconTrash size={16} />}
-                  color="red"
-                  onClick={() => onDelete(member)}
-                  data-testid={`funnel-delete-${member.id}`}
-                >
-                  {t.common.delete}
-                </Menu.Item>
-              ) : null}
-            </Menu.Dropdown>
-          </Menu>
-        ) : null}
+          {isVisitor && (onEdit || onDelete || onPromote) ? (
+            <Menu shadow="md" width={200} position="bottom-end" withinPortal>
+              <Menu.Target>
+                <ActionIcon variant="subtle" size="sm" color="gray" data-testid={`funnel-menu-${member.id}`}>
+                  <IconDotsVertical size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                {stage === 'INTEGRATION' && onPromote ? (
+                  <Menu.Item
+                    leftSection={<IconUserPlus size={16} />}
+                    onClick={() => onPromote(member)}
+                    data-testid={`funnel-promote-${member.id}`}
+                  >
+                    {t.funnel.promote}
+                  </Menu.Item>
+                ) : null}
+                {onEdit ? (
+                  <Menu.Item
+                    leftSection={<IconPencil size={16} />}
+                    onClick={() => onEdit(member)}
+                    data-testid={`funnel-edit-${member.id}`}
+                  >
+                    {t.common.edit}
+                  </Menu.Item>
+                ) : null}
+                {onDelete ? (
+                  <Menu.Item
+                    leftSection={<IconTrash size={16} />}
+                    color="red"
+                    onClick={() => onDelete(member)}
+                    data-testid={`funnel-delete-${member.id}`}
+                  >
+                    {t.common.delete}
+                  </Menu.Item>
+                ) : null}
+              </Menu.Dropdown>
+            </Menu>
+          ) : null}
+        </Group>
       </Group>
-    </Card>
+      <Stack gap={2} mt={6}>
+        <Text size="xs" c="dimmed" truncate>
+          {member.phone || '—'}
+        </Text>
+        <Tooltip label={contactLabel} openDelay={300}>
+          <Badge
+            size="xs"
+            color={color}
+            variant="outline"
+            radius="sm"
+            style={{ alignSelf: 'flex-start', maxWidth: '100%' }}
+            data-testid={`funnel-contact-${member.id}`}
+          >
+            {contactLabel}
+          </Badge>
+        </Tooltip>
+      </Stack>
+    </Paper>
   );
 }
 
@@ -264,7 +271,6 @@ function FunnelColumn({
   id,
   colorScheme,
   title,
-  color,
   count,
   emptyLabel,
   children,
@@ -272,44 +278,45 @@ function FunnelColumn({
   id: string;
   colorScheme: string;
   title: string;
-  color: string;
   count: number;
   emptyLabel: string;
   children: React.ReactNode;
 }) {
   const { setNodeRef } = useDroppable({ id });
   return (
-    <Stack
+    <Paper
       ref={setNodeRef}
-      gap="xs"
-      w="100%"
+      withBorder
+      radius="md"
+      p="sm"
+      w={290}
       style={{
-        borderRadius: 'var(--mantine-radius-md)',
+        flexShrink: 0,
         backgroundColor:
           colorScheme === 'dark'
             ? 'var(--mantine-color-dark-6)'
             : 'var(--mantine-color-gray-1)',
-        border: '1px solid var(--mantine-color-default-border)',
-        padding: 'var(--mantine-spacing-xs)',
         minHeight: 180,
       }}
     >
-      <Group justify="space-between" px={4}>
-        <Text size="sm" fw={700}>
+      <Group justify="space-between" mb="sm">
+        <Text size="sm" fw={600} truncate>
           {title}
         </Text>
-        <Badge color={color} variant="light" size="sm">
+        <Badge color="gray" variant="light" size="sm" style={{ flexShrink: 0 }}>
           {count}
         </Badge>
       </Group>
       {count === 0 ? (
-        <Text size="xs" c="dimmed" px={4}>
+        <Text size="xs" c="dimmed">
           {emptyLabel}
         </Text>
       ) : (
-        children
+        <Stack gap={0}>
+          {children}
+        </Stack>
       )}
-    </Stack>
+    </Paper>
   );
 }
 
@@ -693,41 +700,39 @@ export default function MembersFunnelTab({
           setDragStart(null);
         }}
       >
-        <SimpleGrid
-          cols={{ base: 1, sm: 2, md: 3, lg: 4, xl: 6 }}
-          spacing="md"
-        >
-          {FUNNEL_COLUMNS.map((stage) => (
-            <SortableContext
-              key={stage}
-              items={boards[stage].map((m) => simpleDragId(m.id))}
-              strategy={verticalListSortingStrategy}
-            >
-              <FunnelColumn
-                id={stage}
-                colorScheme={colorScheme}
-                title={t.funnel[stageToKey(stage)]}
-                color={STAGE_COLORS[stage]}
-                count={boards[stage].length}
-                emptyLabel={isVisitorStage(stage) ? t.funnel.visitorEmpty : t.funnel.empty}
+        <ScrollArea scrollbars="x" pb="md" type="never">
+          <Flex gap="md" align="flex-start">
+            {FUNNEL_COLUMNS.map((stage) => (
+              <SortableContext
+                key={stage}
+                items={boards[stage].map((m) => simpleDragId(m.id))}
+                strategy={verticalListSortingStrategy}
               >
-                {boards[stage].map((member) => (
-                  <SortableFunnelCard
-                    key={member.id}
-                    member={member}
-                    stage={stage}
-                    color={STAGE_COLORS[stage]}
-                    isVisitor={isVisitorStage(stage)}
-                    onWhatsApp={(m) => setWaMember(m)}
-                    onEdit={isVisitorStage(stage) ? openEditVisitor : undefined}
-                    onDelete={isVisitorStage(stage) ? (m) => setToDelete(m) : undefined}
-                    onPromote={isVisitorStage(stage) ? openPromote : undefined}
-                  />
-                ))}
-              </FunnelColumn>
-            </SortableContext>
-          ))}
-        </SimpleGrid>
+                <FunnelColumn
+                  id={stage}
+                  colorScheme={colorScheme}
+                  title={t.funnel[stageToKey(stage)]}
+                  count={boards[stage].length}
+                  emptyLabel={isVisitorStage(stage) ? t.funnel.visitorEmpty : t.funnel.empty}
+                >
+                  {boards[stage].map((member) => (
+                    <SortableFunnelCard
+                      key={member.id}
+                      member={member}
+                      stage={stage}
+                      color={STAGE_COLORS[stage]}
+                      isVisitor={isVisitorStage(stage)}
+                      onWhatsApp={(m) => setWaMember(m)}
+                      onEdit={isVisitorStage(stage) ? openEditVisitor : undefined}
+                      onDelete={isVisitorStage(stage) ? (m) => setToDelete(m) : undefined}
+                      onPromote={isVisitorStage(stage) ? openPromote : undefined}
+                    />
+                  ))}
+                </FunnelColumn>
+              </SortableContext>
+            ))}
+          </Flex>
+        </ScrollArea>
         <DragOverlay>
           {draggingMember ? (
             <Card withBorder radius="md" p="xs" shadow="lg">

@@ -321,86 +321,83 @@ export default function PrayerRequestsPage() {
           </Group>
         </PageHeader>
 
-        <Group gap="xs" wrap="wrap" mb="md">
+        <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="sm" mb="md">
           {stats.map((s) => (
-            <Box
+            <Paper
               key={s.key}
-              px="md"
-              py="xs"
-              style={{
-                border: '1px solid var(--mantine-color-default-border)',
-                borderRadius: 'var(--mantine-radius-md)',
-                background: 'var(--mantine-color-default)',
-              }}
+              withBorder
+              p="xs"
+              radius="md"
+              style={{ textAlign: 'center' }}
             >
-              <Stack gap={0} align="center">
-                <Text fw={700} size="xl" c={s.color}>
-                  {s.value}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {s.label}
-                </Text>
-              </Stack>
-            </Box>
+              <Text fw={700} size="xl" c={s.color}>
+                {s.value}
+              </Text>
+              <Text size="xs" c="dimmed" truncate>
+                {s.label}
+              </Text>
+            </Paper>
           ))}
-        </Group>
+        </SimpleGrid>
 
-        <Group gap="sm" mb="md" align="flex-end" wrap="wrap">
-          <TextInput
-            leftSection={<IconSearch size={16} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            placeholder={t.prayerRequestsPage.searchPlaceholder}
-            style={{ flex: 1, minWidth: 220 }}
-          />
-          <Select
-            data={statusOptions}
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v ?? 'ALL')}
-            allowDeselect={false}
-            w={200}
-            aria-label="Status"
-          />
-          <Select
-            data={categoryOptions}
-            value={categoryFilter}
-            onChange={(v) => setCategoryFilter(v ?? 'ALL')}
-            allowDeselect={false}
-            w={200}
-            aria-label="Category"
-          />
-          <Switch
-            label={t.prayerRequestsPage.wantsVisitOnly}
-            checked={wantsVisitOnly}
-            onChange={(e) => setWantsVisitOnly(e.currentTarget.checked)}
-          />
-          <Box style={{ flexShrink: 0 }}>
-            <SegmentedControl
-              value={viewMode}
-              onChange={(v) => setViewMode(v as 'list' | 'kanban')}
-              data={[
-                {
-                  value: 'list',
-                  label: (
-                    <Group gap={6} wrap="nowrap">
-                      <IconLayoutList size={15} />
-                      <Text size="sm">{t.prayerRequestsPage.viewToggle.list}</Text>
-                    </Group>
-                  ),
-                },
-                {
-                  value: 'kanban',
-                  label: (
-                    <Group gap={6} wrap="nowrap">
-                      <IconLayoutKanban size={15} />
-                      <Text size="sm">{t.prayerRequestsPage.viewToggle.kanban}</Text>
-                    </Group>
-                  ),
-                },
-              ]}
+        <Paper withBorder p="sm" radius="md" mb="md">
+          <Group gap="sm" align="flex-end" wrap="wrap">
+            <TextInput
+              leftSection={<IconSearch size={16} />}
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              placeholder={t.prayerRequestsPage.searchPlaceholder}
+              style={{ flex: 1, minWidth: 220 }}
             />
-          </Box>
-        </Group>
+            <Select
+              data={statusOptions}
+              value={statusFilter}
+              onChange={(v) => setStatusFilter(v ?? 'ALL')}
+              allowDeselect={false}
+              w={200}
+              aria-label="Status"
+            />
+            <Select
+              data={categoryOptions}
+              value={categoryFilter}
+              onChange={(v) => setCategoryFilter(v ?? 'ALL')}
+              allowDeselect={false}
+              w={200}
+              aria-label="Category"
+            />
+            <Switch
+              label={t.prayerRequestsPage.wantsVisitOnly}
+              checked={wantsVisitOnly}
+              onChange={(e) => setWantsVisitOnly(e.currentTarget.checked)}
+            />
+            <Box style={{ flexShrink: 0 }}>
+              <SegmentedControl
+                value={viewMode}
+                onChange={(v) => setViewMode(v as 'list' | 'kanban')}
+                data={[
+                  {
+                    value: 'list',
+                    label: (
+                      <Group gap={6} wrap="nowrap">
+                        <IconLayoutList size={15} />
+                        <Text size="sm">{t.prayerRequestsPage.viewToggle.list}</Text>
+                      </Group>
+                    ),
+                  },
+                  {
+                    value: 'kanban',
+                    label: (
+                      <Group gap={6} wrap="nowrap">
+                        <IconLayoutKanban size={15} />
+                        <Text size="sm">{t.prayerRequestsPage.viewToggle.kanban}</Text>
+                      </Group>
+                    ),
+                  },
+                ]}
+              />
+            </Box>
+          </Group>
+        </Paper>
 
         {loading ? (
           <Loader mt="xl" />
@@ -412,47 +409,59 @@ export default function PrayerRequestsPage() {
             </Text>
           </Stack>
         ) : viewMode === 'list' ? (
-          <Stack gap="sm">
+          <Stack gap="sm" maw={960}>
             {requests.map((r) => {
               const wa = buildWhatsAppLink(r.requester_phone, whatsappName(r));
               return (
-                <Card key={r.id} withBorder radius="md" p="sm">
-                  <Stack gap={6}>
-                    <Group justify="space-between" wrap="nowrap" align="center">
-                      <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                        <Avatar size={30} radius="xl" color={avatarColor(r.id)}>
-                          {getInitials(displayName(r))}
-                        </Avatar>
-                        <Text fw={600} size="sm" truncate style={{ minWidth: 0 }}>
+                <Paper key={r.id} withBorder p="md" radius="md" mb="sm" shadow="xs">
+                  <Stack gap={8}>
+                    <Group
+                      justify="space-between"
+                      align="flex-start"
+                      mb="xs"
+                      wrap="nowrap"
+                      gap="xs"
+                    >
+                      <Group gap="xs" wrap="wrap" style={{ minWidth: 0, flex: 1 }}>
+                        <Text fw={600} size="sm">
                           {displayName(r)}
                         </Text>
-                      </Group>
-                      <Group gap={6} wrap="wrap" justify="flex-end">
-                        <Badge variant="light" color="gray" size="sm">
+                        <Text size="xs" c="dimmed">
+                          {t.prayerRequestsPage.createdSince.replace(
+                            '{days}',
+                            String(r.elapsed_days)
+                          )}
+                        </Text>
+                        <Badge variant="light" color="gray" size="xs">
                           {r.category_display}
                         </Badge>
                         {r.wants_visit ? (
                           <Badge
                             variant="light"
-                            color="red"
-                            size="sm"
+                            color="pink"
+                            size="xs"
                             leftSection={<IconHeartHandshake size={10} />}
                           >
                             {t.prayerRequestsPage.requestsVisit}
                           </Badge>
                         ) : null}
-                        <Text size="xs" c="dimmed">
-                          {t.prayerRequestsPage.createdSince.replace('{days}', String(r.elapsed_days))}
-                        </Text>
                       </Group>
+                      <Badge
+                        variant="dot"
+                        size="sm"
+                        color={STATUS_COLOR[r.status]}
+                        style={{ flexShrink: 0 }}
+                      >
+                        {r.status_display}
+                      </Badge>
                     </Group>
 
                     <Text
                       size="sm"
-                      lineClamp={2}
-                      pl={10}
+                      mb="sm"
+                      lineClamp={3}
                       style={{
-                        borderLeft: '3px solid var(--mantine-color-gray-3)',
+                        whiteSpace: 'pre-wrap',
                         color: 'var(--mantine-color-gray-7)',
                         cursor: 'pointer',
                       }}
@@ -461,65 +470,29 @@ export default function PrayerRequestsPage() {
                       {r.description}
                     </Text>
 
-                    <Group gap="sm" wrap="wrap">
-                      {r.requester_phone ? (
-                        <Group gap={4}>
-                          <IconPhone size={13} style={{ color: 'var(--mantine-color-gray-5)' }} />
-                          <Text size="xs">{r.requester_phone}</Text>
-                        </Group>
-                      ) : null}
-                      {r.neighborhood ? (
-                        <Group gap={4}>
-                          <IconMapPin size={13} style={{ color: 'var(--mantine-color-gray-5)' }} />
-                          <Text size="xs">{r.neighborhood}</Text>
-                        </Group>
-                      ) : null}
-                      <Group gap={4}>
-                        <IconClock size={13} style={{ color: 'var(--mantine-color-gray-5)' }} />
-                        <Text size="xs">{r.preferred_period_display}</Text>
-                      </Group>
-                    </Group>
-
-                    <Divider my={2} />
-
-                    <Group justify="space-between" wrap="wrap">
+                    <Group justify="space-between" wrap="wrap" gap="xs">
                       <Group gap="xs" wrap="wrap">
-                        <Select
-                          value={r.status}
-                          onChange={(v) => v && changeStatus(r.id, v as PrayerRequestStatus)}
-                          data={statusSelectData}
-                          size="xs"
-                          w={180}
-                          allowDeselect={false}
-                          aria-label="Status"
-                        />
-                        {r.assigned_to_name ? (
-                          <Group gap={6}>
-                            <Avatar
-                              size={20}
-                              radius="xl"
-                              color={avatarColor(r.assigned_to ?? r.id)}
-                              styles={{ placeholder: { fontSize: 8 } }}
-                            >
-                              {getInitials(r.assigned_to_name)}
-                            </Avatar>
-                            <Text size="xs" c="dimmed" lineClamp={1} maw={120}>
-                              {r.assigned_to_name}
-                            </Text>
+                        {r.requester_phone ? (
+                          <Group gap={4}>
+                            <IconPhone
+                              size={13}
+                              style={{ color: 'var(--mantine-color-gray-5)' }}
+                            />
+                            <Text size="xs">{r.requester_phone}</Text>
                           </Group>
-                        ) : (
-                          <Group gap={6}>
-                            <Avatar size={20} radius="xl" color="gray">
-                              <IconUser size={12} />
-                            </Avatar>
-                            <Text size="xs" c="dimmed">
-                              —
-                            </Text>
+                        ) : null}
+                        {r.neighborhood ? (
+                          <Group gap={4}>
+                            <IconMapPin
+                              size={13}
+                              style={{ color: 'var(--mantine-color-gray-5)' }}
+                            />
+                            <Text size="xs">{r.neighborhood}</Text>
                           </Group>
-                        )}
+                        ) : null}
                       </Group>
 
-                      <Group gap={6}>
+                      <Group gap="xs" wrap="nowrap">
                         <Tooltip
                           label={
                             wa
@@ -529,23 +502,22 @@ export default function PrayerRequestsPage() {
                           disabled={!!wa}
                         >
                           <Box component="span" style={{ display: 'inline-flex' }}>
-                            <Button
-                              size="xs"
-                              color="green"
-                              variant="filled"
-                              px={8}
+                            <ActionIcon
+                              variant="light"
+                              color="teal"
+                              size="sm"
                               disabled={!wa}
                               onClick={() =>
                                 wa && window.open(wa, '_blank', 'noopener,noreferrer')
                               }
                             >
-                              <IconBrandWhatsapp size={15} />
-                            </Button>
+                              <IconBrandWhatsapp size={16} />
+                            </ActionIcon>
                           </Box>
                         </Tooltip>
                         <Button
                           size="xs"
-                          variant="filled"
+                          variant="light"
                           leftSection={<IconUserCheck size={14} />}
                           onClick={() => openDrawer(r)}
                         >
@@ -554,7 +526,7 @@ export default function PrayerRequestsPage() {
                       </Group>
                     </Group>
                   </Stack>
-                </Card>
+                </Paper>
               );
             })}
           </Stack>

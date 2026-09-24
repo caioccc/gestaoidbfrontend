@@ -523,8 +523,8 @@ function SidebarContent({
                           alignItems: "center",
                           gap: 10,
                           width: "100%",
-                          padding: "8px 12px",
-                          borderRadius: "var(--mantine-radius-sm)",
+                          padding: "6px 12px",
+                          borderRadius: "var(--mantine-radius-md)",
                           backgroundColor: active
                             ? "var(--mantine-primary-color-light)"
                             : "transparent",
@@ -532,10 +532,13 @@ function SidebarContent({
                             ? "var(--mantine-primary-color-light-color)"
                             : "var(--mantine-color-dimmed)",
                           fontWeight: active ? 600 : 400,
+                          boxShadow: active
+                            ? "inset 3px 0 0 var(--mantine-color-primary-6)"
+                            : undefined,
                         }}
                       >
                         <ThemeIcon
-                          variant={active ? "filled" : "subtle"}
+                          variant="subtle"
                           color={
                             active
                               ? "var(--mantine-primary-color-filled)"
@@ -583,7 +586,7 @@ function SidebarContent({
                                   gap: 10,
                                   width: "100%",
                                   padding: "6px 12px",
-                                  borderRadius: "var(--mantine-radius-sm)",
+                                  borderRadius: "var(--mantine-radius-md)",
                                   backgroundColor: childActive
                                     ? "var(--mantine-primary-color-light)"
                                     : "transparent",
@@ -591,6 +594,9 @@ function SidebarContent({
                                     ? "var(--mantine-primary-color-light-color)"
                                     : "var(--mantine-color-dimmed)",
                                   fontWeight: childActive ? 600 : 400,
+                                  boxShadow: childActive
+                                    ? "inset 3px 0 0 var(--mantine-color-primary-6)"
+                                    : undefined,
                                 }}
                               >
                                 <ThemeIcon
@@ -884,6 +890,23 @@ export default function Layout({
   const [opened, { toggle, close }] = useDisclosure(false);
   const isMobile = useMediaQuery("(max-width: 62em)");
   const { t } = useLanguage();
+  const { colorScheme } = useMantineColorScheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("sidebar-desktop-collapsed") === "1";
+  });
+  useEffect(() => {
+    window.localStorage.setItem(
+      "sidebar-desktop-collapsed",
+      desktopCollapsed ? "1" : "0"
+    );
+  }, [desktopCollapsed]);
+  const mainBackground =
+    mounted && colorScheme === "dark"
+      ? "var(--mantine-color-dark-8)"
+      : "var(--mantine-color-gray-0)";
 
   return (
     <AppShell
@@ -891,7 +914,7 @@ export default function Layout({
       navbar={{
         width: 270,
         breakpoint: "md",
-        collapsed: { mobile: !opened },
+        collapsed: { mobile: !opened, desktop: desktopCollapsed },
       }}
       padding="md"
       disabled={expanded}
@@ -906,9 +929,11 @@ export default function Layout({
         >
           <Group gap="xs" wrap="nowrap">
             <Burger
-              opened={opened}
-              onClick={toggle}
-              hiddenFrom="md"
+              opened={isMobile ? opened : !desktopCollapsed}
+              onClick={() => {
+                if (isMobile) toggle();
+                else setDesktopCollapsed((v) => !v);
+              }}
               size="sm"
             />
             <Flex align="center" gap={8}>
@@ -953,7 +978,7 @@ export default function Layout({
         </AppShell.Navbar>
       )}
 
-      <AppShell.Main>
+      <AppShell.Main style={{ background: mainBackground }}>
         {!expanded ? <ContentContextHeader /> : null}
         {children}
       </AppShell.Main>

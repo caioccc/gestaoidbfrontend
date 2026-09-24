@@ -21,6 +21,8 @@ import {
   Menu,
   ActionIcon,
   Pagination,
+  Paper,
+  SimpleGrid,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -43,6 +45,11 @@ import {
   IconShare2,
   IconDotsVertical,
   IconBrandWhatsapp,
+  IconHierarchy2,
+  IconSettings,
+  IconArrowsExchange,
+  IconClockCheck,
+  IconFileSpreadsheet,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
@@ -473,6 +480,7 @@ function MembersTab({
         <Group gap="sm" wrap="nowrap">
           <Avatar
             src={m.photo || null}
+            color="blue"
             radius="xl"
             size="sm"
             data-testid={`member-avatar-${m.id}`}
@@ -523,7 +531,11 @@ function MembersTab({
       </Table.Td>
       <Table.Td hiddenFrom="sm" />
       <Table.Td>
-        <Badge color={m.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
+        <Badge
+          color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+          variant="dot"
+          data-testid={`member-status-${m.id}`}
+        >
           {m.status === 'ACTIVE' ? t.membersPage.active : t.membersPage.inactive}
         </Badge>
       </Table.Td>
@@ -624,7 +636,7 @@ function MembersTab({
           </Button>
         </Group>
       </Group>
-      <Card withBorder shadow="sm" p="sm" mb="md">
+      <Paper withBorder radius="md" p="sm" mb="md">
         <Group gap="xs" wrap="wrap">
           <TextInput
             placeholder={t.membersPage.searchPlaceholder}
@@ -640,6 +652,7 @@ function MembersTab({
           <Select
             placeholder={t.membersPage.filterStatus}
             clearable
+            size="sm"
             data={statusFilterOptions}
             value={fStatus}
             onChange={(v) => {
@@ -652,6 +665,7 @@ function MembersTab({
           <Select
             placeholder={t.membersPage.filterArea}
             clearable
+            size="sm"
             data={areaFilterOptions}
             value={fArea}
             onChange={(v) => {
@@ -665,6 +679,7 @@ function MembersTab({
           <Select
             placeholder={t.membersPage.filterEducation}
             clearable
+            size="sm"
             data={educationFilterOptions}
             value={fEducation}
             onChange={(v) => {
@@ -678,6 +693,7 @@ function MembersTab({
           <Select
             placeholder={t.membersPage.filterMarital}
             clearable
+            size="sm"
             data={maritalFilterOptions}
             value={fMarital}
             onChange={(v) => {
@@ -690,6 +706,7 @@ function MembersTab({
           <Select
             placeholder={t.membersPage.filterEntry}
             clearable
+            size="sm"
             data={entryFilterOptions}
             value={fEntry}
             onChange={(v) => {
@@ -715,7 +732,7 @@ function MembersTab({
             ).replace('{total}', String(total))}
           </Text>
         </Group>
-      </Card>
+      </Paper>
       <Card withBorder shadow="sm" p={0}>
         {loading ? (
           <Center h={200}>
@@ -735,7 +752,7 @@ function MembersTab({
         ) : (
           <>
             <Box visibleFrom="lg">
-              <Table striped highlightOnHover>
+              <Table striped highlightOnHover verticalSpacing="sm">
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th w={36}>
@@ -807,8 +824,8 @@ function MembersTab({
                       {m.church_entry_display || '—'}
                     </Text>
                     <Badge
-                      color={m.status === 'ACTIVE' ? 'green' : 'gray'}
-                      variant="light"
+                      color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+                      variant="dot"
                       size="sm"
                       style={{ width: 'fit-content' }}
                     >
@@ -971,13 +988,25 @@ function AreasTab() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<MinistryArea | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [counts, setCounts] = useState<Record<number, number>>({});
 
   const load = useCallback(() => {
     setLoading(true);
-    accountsApi
-      .ministryAreas()
-      .then(setAreas)
-      .catch(() => setAreas([]))
+    Promise.all([accountsApi.ministryAreas(), accountsApi.members()])
+      .then(([areasData, members]) => {
+        setAreas(areasData);
+        const countByArea: Record<number, number> = {};
+        for (const m of members) {
+          for (const a of m.ministry_areas_display) {
+            countByArea[a.id] = (countByArea[a.id] || 0) + 1;
+          }
+        }
+        setCounts(countByArea);
+      })
+      .catch(() => {
+        setAreas([]);
+        setCounts({});
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -1044,40 +1073,54 @@ function AreasTab() {
     }
   };
 
-  const rows = areas.map((a) => (
-    <Table.Tr key={a.id} data-testid={`area-row-${a.id}`}>
-      <Table.Td>
-        <Group gap="sm" wrap="nowrap">
-          <ThemeIcon size="sm" radius="xl" color="teal" variant="light">
-            <IconBuildingChurch size={14} />
+  const cards = areas.map((a) => (
+    <Card
+      key={a.id}
+      withBorder
+      shadow="sm"
+      p="md"
+      data-testid={`area-card-${a.id}`}
+    >
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+          <ThemeIcon size="lg" radius="xl" color="teal" variant="light">
+            <IconBuildingChurch size={20} />
           </ThemeIcon>
-          <Text fw={600}>{a.name}</Text>
+          <Box style={{ minWidth: 0 }}>
+            <Text fw={600} truncate>
+              {a.name}
+            </Text>
+            <Text size="xs" c="dimmed">
+              {String(counts[a.id] ?? 0)} {t.membersPage.areaMembersCount}
+            </Text>
+          </Box>
         </Group>
-      </Table.Td>
-      <Table.Td>
-        <Group gap={4} justify="flex-end">
-          <Button
-            size="xs"
-            variant="subtle"
-            leftSection={<IconPencil size={14} />}
-            onClick={() => openEdit(a)}
-            data-testid={`area-edit-${a.id}`}
-          >
-            {t.common.edit}
-          </Button>
-          <Button
-            size="xs"
-            variant="subtle"
-            color="red"
-            leftSection={<IconTrash size={14} />}
-            onClick={() => setToDelete(a)}
-            data-testid={`area-delete-${a.id}`}
-          >
-            {t.common.delete}
-          </Button>
-        </Group>
-      </Table.Td>
-    </Table.Tr>
+        <Menu shadow="md" width={180} position="bottom-end">
+          <Menu.Target>
+            <ActionIcon variant="subtle" data-testid={`area-menu-${a.id}`}>
+              <IconDotsVertical size={16} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Item
+              leftSection={<IconPencil size={14} />}
+              onClick={() => openEdit(a)}
+              data-testid={`area-edit-${a.id}`}
+            >
+              {t.common.edit}
+            </Menu.Item>
+            <Menu.Item
+              leftSection={<IconTrash size={14} />}
+              color="red"
+              onClick={() => setToDelete(a)}
+              data-testid={`area-delete-${a.id}`}
+            >
+              {t.common.delete}
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Group>
+    </Card>
   ));
 
   return (
@@ -1112,15 +1155,7 @@ function AreasTab() {
             <Text c="dimmed">{t.membersPage.areasEmpty}</Text>
           </Stack>
         ) : (
-          <Table striped highlightOnHover>
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>{t.membersPage.areaName}</Table.Th>
-                <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>{rows}</Table.Tbody>
-          </Table>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>{cards}</SimpleGrid>
         )}
       </Card>
 
@@ -1178,6 +1213,15 @@ function AreasTab() {
   );
 }
 
+const VALID_MEMBERS_TABS = [
+  'members',
+  'areas',
+  'config',
+  'transfers',
+  'submissions',
+  'import',
+];
+
 export default function MembersPage() {
   const { t } = useLanguage();
   const router = useRouter();
@@ -1187,10 +1231,22 @@ export default function MembersPage() {
   const [importVersion, setImportVersion] = useState(0);
 
   useEffect(() => {
-    if (router.query.tab === 'transfers') {
-      setTab('transfers');
+    const q = router.query.tab;
+    if (typeof q === 'string' && VALID_MEMBERS_TABS.includes(q)) {
+      setTab(q);
     }
   }, [router.query.tab]);
+
+  const handleTabChange = (value: string | null) => {
+    setTab(value);
+    if (value) {
+      router.push(
+        { pathname: router.pathname, query: { ...router.query, tab: value } },
+        undefined,
+        { shallow: true }
+      );
+    }
+  };
 
   const handleRenewValidity = async (date: string | null) => {
     const payload = { ...(cardData.profile ?? {}), card_valid_until: date };
@@ -1202,24 +1258,48 @@ export default function MembersPage() {
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.membersPage.title} description={t.membersPage.subtitle}>
-          <Tabs value={tab} onChange={setTab} variant="pills">
+          <Tabs value={tab} onChange={handleTabChange} variant="default">
             <Tabs.List>
-              <Tabs.Tab value="members" data-testid="tab-members">
+              <Tabs.Tab
+                value="members"
+                data-testid="tab-members"
+                leftSection={<IconUsersGroup size={16} />}
+              >
                 {t.membersPage.tabsMembers}
               </Tabs.Tab>
-              <Tabs.Tab value="areas" data-testid="tab-areas">
+              <Tabs.Tab
+                value="areas"
+                data-testid="tab-areas"
+                leftSection={<IconHierarchy2 size={16} />}
+              >
                 {t.membersPage.tabsAreas}
               </Tabs.Tab>
-              <Tabs.Tab value="config" data-testid="tab-card-config">
+              <Tabs.Tab
+                value="config"
+                data-testid="tab-card-config"
+                leftSection={<IconSettings size={16} />}
+              >
                 {t.membersPage.tabsCardConfig}
               </Tabs.Tab>
-              <Tabs.Tab value="transfers" data-testid="tab-transfers">
+              <Tabs.Tab
+                value="transfers"
+                data-testid="tab-transfers"
+                leftSection={<IconArrowsExchange size={16} />}
+              >
                 {t.transfers.title}
               </Tabs.Tab>
-              <Tabs.Tab value="submissions" data-testid="tab-submissions">
+              <Tabs.Tab
+                value="submissions"
+                data-testid="tab-submissions"
+                leftSection={<IconClockCheck size={16} />}
+              >
                 {t.memberSubmissions.tabTitle}
               </Tabs.Tab>
-              <Tabs.Tab value="import" data-testid="tab-import">
+              <Tabs.Tab
+                value="import"
+                data-testid="tab-import"
+                leftSection={<IconFileSpreadsheet size={16} />}
+              >
                 {t.membersPage.tabsImport}
               </Tabs.Tab>
             </Tabs.List>

@@ -4,15 +4,14 @@ import {
   Badge,
   Box,
   Button,
-  Card,
   Center,
   Group,
   Loader,
   Modal,
   Paper,
+  SegmentedControl,
   SimpleGrid,
   Stack,
-  Tabs,
   Text,
   ThemeIcon,
   Tooltip,
@@ -70,9 +69,9 @@ function KpiCard({
   icon: React.ReactNode;
 }) {
   return (
-    <Card withBorder>
-      <Group gap="md" wrap="nowrap">
-        <ThemeIcon size={44} radius="md" variant="light">
+    <Paper withBorder p="sm" radius="md">
+      <Group gap="sm" wrap="nowrap">
+        <ThemeIcon size="lg" variant="light">
           {icon}
         </ThemeIcon>
         <Stack gap={0} style={{ minWidth: 0 }}>
@@ -89,7 +88,7 @@ function KpiCard({
           )}
         </Stack>
       </Group>
-    </Card>
+    </Paper>
   );
 }
 
@@ -118,6 +117,7 @@ export default function GrowthGroupsPage() {
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [simulation, setSimulation] = useState<SimulationPoint | null>(null);
   const [simResult, setSimResult] = useState<SimResult>({ covered: [], nearestId: null });
+  const [tab, setTab] = useState<'dashboard' | 'table'>('dashboard');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -269,26 +269,26 @@ export default function GrowthGroupsPage() {
           </Center>
         ) : (
           <Stack gap="md">
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }}>
+            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
               <KpiCard
                 label={t.growthGroups.kpiActive}
                 value={String(stats?.total_active ?? 0)}
-                icon={<IconHomeHeart size={22} />}
+                icon={<IconHomeHeart size={20} />}
               />
               <KpiCard
                 label={t.growthGroups.kpiLeaders}
                 value={String(stats?.total_leaders ?? 0)}
-                icon={<IconUsersGroup size={22} />}
+                icon={<IconUsersGroup size={20} />}
               />
               <KpiCard
                 label={t.growthGroups.kpiDay}
                 value={weekdayName(stats?.most_frequent_day ?? null)}
-                icon={<IconCalendarEvent size={22} />}
+                icon={<IconCalendarEvent size={20} />}
               />
               <KpiCard
                 label={t.growthGroups.kpiCoverage}
                 value={`${stats?.coverage ?? 0}/${stats?.total_active ?? 0}`}
-                icon={<IconHomeHeart size={22} />}
+                icon={<IconHomeHeart size={20} />}
                 hint={t.growthGroups.kpiCoverageValue.replace(
                   '{count}',
                   String(stats?.coverage ?? 0)
@@ -297,21 +297,31 @@ export default function GrowthGroupsPage() {
             </SimpleGrid>
 
             {overlapCount > 0 && (
-              <Alert color="red" icon={<IconAlertTriangle size={18} />}>
+              <Alert
+                color="orange"
+                variant="light"
+                radius="md"
+                icon={<IconAlertTriangle size={18} />}
+                title={t.growthGroups.overlapTitle}
+              >
                 {t.growthGroups.overlapAlert.replace('{count}', String(overlapCount))}
               </Alert>
             )}
 
-            <Tabs defaultValue="dashboard" keepMounted={false}>
-              <Tabs.List>
-                <Tabs.Tab value="dashboard">
-                  {t.growthGroups.dashboardTab}
-                </Tabs.Tab>
-                <Tabs.Tab value="table">{t.growthGroups.tableTab}</Tabs.Tab>
-              </Tabs.List>
+            <SegmentedControl
+              value={tab}
+              onChange={(value) => setTab(value as 'dashboard' | 'table')}
+              size="sm"
+              radius="md"
+              data={[
+                { value: 'dashboard', label: t.growthGroups.dashboardTab },
+                { value: 'table', label: t.growthGroups.tableTab },
+              ]}
+            />
 
-              <Tabs.Panel value="dashboard" pt="md">
-                <Stack gap="sm">
+            {tab === 'dashboard' ? (
+              <Stack gap="sm">
+                <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
                   <GrowthGroupsMap
                     groups={groups}
                     focusedId={focusedId}
@@ -320,96 +330,93 @@ export default function GrowthGroupsPage() {
                     onSimulationChange={setSimulation}
                     onCoverageChange={handleCoverage}
                   />
-                  {simulation && (
-                    <Paper withBorder p="md">
-                      <Stack gap="xs">
-                        {coveredCount > 0 ? (
-                          <>
-                            <Text size="sm" fw={600}>
-                              {t.growthGroups.simulationCovered.replace(
-                                '{count}',
-                                String(coveredCount)
-                              )}
-                            </Text>
-                            <Group gap={6}>
-                              {simResult.covered
-                                .map((id) => groups.find((g) => g.id === id))
-                                .filter((g): g is GrowthGroup => g != null)
-                                .map((g) => (
-                                  <Tooltip
-                                    key={g.id}
-                                    multiline
-                                    withArrow
-                                    position="right"
-                                    transitionProps={{ transition: 'pop' }}
-                                    label={
-                                      <Stack gap={2}>
-                                        <Text size="sm" fw={700}>
-                                          {g.name}
-                                        </Text>
-                                        <Text size="xs">
-                                          {t.growthGroups.leaderLabel}: {g.leader_name}
-                                        </Text>
-                                        <Text size="xs">
-                                          {g.weekday_display} às{' '}
-                                          {(g.time || '').slice(0, 5)}
-                                        </Text>
-                                        <Text size="xs">
-                                          {t.growthGroups.addressLabel}: {g.address}
-                                        </Text>
-                                        <Text size="xs">
-                                          {t.growthGroups.radiusLabel}:{' '}
-                                          {g.radius_meters} m
-                                        </Text>
-                                      </Stack>
-                                    }
+                </Paper>
+                {simulation && (
+                  <Paper withBorder p="md">
+                    <Stack gap="xs">
+                      {coveredCount > 0 ? (
+                        <>
+                          <Text size="sm" fw={600}>
+                            {t.growthGroups.simulationCovered.replace(
+                              '{count}',
+                              String(coveredCount)
+                            )}
+                          </Text>
+                          <Group gap={6}>
+                            {simResult.covered
+                              .map((id) => groups.find((g) => g.id === id))
+                              .filter((g): g is GrowthGroup => g != null)
+                              .map((g) => (
+                                <Tooltip
+                                  key={g.id}
+                                  multiline
+                                  withArrow
+                                  position="right"
+                                  transitionProps={{ transition: 'pop' }}
+                                  label={
+                                    <Stack gap={2}>
+                                      <Text size="sm" fw={700}>
+                                        {g.name}
+                                      </Text>
+                                      <Text size="xs">
+                                        {t.growthGroups.leaderLabel}: {g.leader_name}
+                                      </Text>
+                                      <Text size="xs">
+                                        {g.weekday_display} às{' '}
+                                        {(g.time || '').slice(0, 5)}
+                                      </Text>
+                                      <Text size="xs">
+                                        {t.growthGroups.addressLabel}: {g.address}
+                                      </Text>
+                                      <Text size="xs">
+                                        {t.growthGroups.radiusLabel}: {g.radius_meters} m
+                                      </Text>
+                                    </Stack>
+                                  }
+                                >
+                                  <Badge
+                                    variant="light"
+                                    color="green"
+                                    leftSection={<IconMapPin size={12} />}
+                                    style={{ cursor: 'help' }}
                                   >
-                                    <Badge
-                                      variant="light"
-                                      color="green"
-                                      leftSection={<IconMapPin size={12} />}
-                                      style={{ cursor: 'help' }}
-                                    >
-                                      {g.name}
-                                    </Badge>
-                                  </Tooltip>
-                                ))}
-                            </Group>
-                          </>
-                        ) : (
-                          <Text size="sm" c="dimmed">
-                            {t.growthGroups.simulationNotCovered}
-                          </Text>
-                        )}
-                        {nearest && nearestDist != null && coveredCount === 0 && (
-                          <Text size="xs" c="dimmed">
-                            {t.growthGroups.simulationNearest
-                              .replace('{name}', nearest.name)
-                              .replace('{meters}', String(nearestDist))}
-                          </Text>
-                        )}
-                      </Stack>
-                    </Paper>
-                  )}
-                </Stack>
-              </Tabs.Panel>
-
-              <Tabs.Panel value="table" pt="md">
-                <GrowthGroupsTable
-                  groups={filtered}
-                  loading={false}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  search={search}
-                  onSearchChange={setSearch}
-                  weekdayFilter={weekdayFilter ?? ''}
-                  onWeekdayFilterChange={setWeekdayFilter}
-                  onView={viewOnMap}
-                  onEdit={openEdit}
-                  onDelete={setToDelete}
-                />
-              </Tabs.Panel>
-            </Tabs>
+                                    {g.name}
+                                  </Badge>
+                                </Tooltip>
+                              ))}
+                          </Group>
+                        </>
+                      ) : (
+                        <Text size="sm" c="dimmed">
+                          {t.growthGroups.simulationNotCovered}
+                        </Text>
+                      )}
+                      {nearest && nearestDist != null && coveredCount === 0 && (
+                        <Text size="xs" c="dimmed">
+                          {t.growthGroups.simulationNearest
+                            .replace('{name}', nearest.name)
+                            .replace('{meters}', String(nearestDist))}
+                        </Text>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
+              </Stack>
+            ) : (
+              <GrowthGroupsTable
+                groups={filtered}
+                loading={false}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                search={search}
+                onSearchChange={setSearch}
+                weekdayFilter={weekdayFilter ?? ''}
+                onWeekdayFilterChange={setWeekdayFilter}
+                onView={viewOnMap}
+                onEdit={openEdit}
+                onDelete={setToDelete}
+              />
+            )}
           </Stack>
         )}
 

@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Button,
-  Card,
   Center,
   ColorInput,
   Group,
   Loader,
   Modal,
+  Paper,
   Select,
+  SimpleGrid,
   Stack,
   Switch,
   Text,
@@ -221,9 +222,9 @@ export default function LinksPage() {
           </Center>
         ) : (
           <Stack gap="md">
-            <Card withBorder shadow="sm" padding="lg">
+            <Paper withBorder p="md" radius="md" mb="lg" maw={900}>
               <Stack gap="md">
-                <Group justify="space-between">
+                <Group justify="space-between" wrap="wrap" gap="xs">
                   <Stack gap={0}>
                     <Text fw={700}>{t.linksPage.configTitle}</Text>
                     <Text size="xs" c="dimmed">
@@ -261,24 +262,25 @@ export default function LinksPage() {
                 </Group>
 
                 {config && (
-                  <Stack gap="md">
-                    <TextInput
-                      label={t.linksPage.slugLabel}
-                      value={config.slug}
-                      onChange={(e) =>
-                        setConfig({ ...config, slug: e.currentTarget.value })
-                      }
-                      leftSection={<IconLink size={15} />}
-                    />
-                    <ColorInput
-                      label={t.linksPage.themeLabel}
-                      format="hex"
-                      swatches={['#1c7ed6', '#228be6', '#40c057', '#f76707', '#e64980', '#7048e8']}
-                      value={config.theme_color}
-                      onChange={(v) => setConfig({ ...config, theme_color: v })}
-                      swatchesPerRow={6}
-                    />
-                    <Group grow>
+                  <>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <TextInput
+                        label={t.linksPage.slugLabel}
+                        value={config.slug}
+                        onChange={(e) =>
+                          setConfig({ ...config, slug: e.currentTarget.value })
+                        }
+                        leftSection={<IconLink size={16} />}
+                      />
+                      <ColorInput
+                        label={t.linksPage.themeLabel}
+                        format="hex"
+                        withEyeDropper
+                        swatches={['#1c7ed6', '#228be6', '#40c057', '#f76707', '#e64980', '#7048e8']}
+                        value={config.theme_color}
+                        onChange={(v) => setConfig({ ...config, theme_color: v })}
+                        swatchesPerRow={6}
+                      />
                       <TextInput
                         label={t.linksPage.defaultPixLabel}
                         value={config.default_pix_key || ''}
@@ -293,8 +295,8 @@ export default function LinksPage() {
                         value={config.default_pix_type || null}
                         onChange={(v) => setConfig({ ...config, default_pix_type: v })}
                       />
-                    </Group>
-                    <Group justify="space-between" align="center">
+                    </SimpleGrid>
+                    <Group justify="space-between" align="center" wrap="wrap" gap="xs">
                       <Group gap="xs">
                         <Button variant="light" leftSection={<IconCopy size={15} />} onClick={copyLink}>
                           {t.linksPage.copyLink}
@@ -311,50 +313,52 @@ export default function LinksPage() {
                         {t.linksPage.saveConfig}
                       </Button>
                     </Group>
-                  </Stack>
+                  </>
                 )}
               </Stack>
-            </Card>
+            </Paper>
 
-            <Group gap={6}>
-              <Text size="xs" c="dimmed">
-                {t.linksPage.reorderHint}
-              </Text>
-            </Group>
+            <Stack gap="xs" maw={900}>
+              <Group gap={6}>
+                <Text size="xs" c="dimmed">
+                  {t.linksPage.reorderHint}
+                </Text>
+              </Group>
 
-            {links.length === 0 ? (
-              <Center py="xl">
-                <Stack align="center" gap="sm">
-                  <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-                    <IconLink size={24} />
-                  </ThemeIcon>
-                  <Text c="dimmed">{t.linksPage.noLinks}</Text>
-                  <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openCreate}>
-                    {t.linksPage.addFirst}
-                  </Button>
-                </Stack>
-              </Center>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext items={links.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                  <Stack gap="xs">
-                    {links.map((link) => (
-                      <SortableLinkRow
-                        key={link.id}
-                        link={link}
-                        onEdit={openEdit}
-                        onToggleActive={toggleActive}
-                        onDelete={setToDelete}
-                      />
-                    ))}
+              {links.length === 0 ? (
+                <Center py="xl">
+                  <Stack align="center" gap="sm">
+                    <ThemeIcon size={48} radius="xl" color="gray" variant="light">
+                      <IconLink size={24} />
+                    </ThemeIcon>
+                    <Text c="dimmed">{t.linksPage.noLinks}</Text>
+                    <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openCreate}>
+                      {t.linksPage.addFirst}
+                    </Button>
                   </Stack>
-                </SortableContext>
-              </DndContext>
-            )}
+                </Center>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={links.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                    <Stack gap={0}>
+                      {links.map((link) => (
+                        <SortableLinkRow
+                          key={link.id}
+                          link={link}
+                          onEdit={openEdit}
+                          onToggleActive={toggleActive}
+                          onDelete={setToDelete}
+                        />
+                      ))}
+                    </Stack>
+                  </SortableContext>
+                </DndContext>
+              )}
+            </Stack>
           </Stack>
         )}
 

@@ -35,6 +35,7 @@ import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
 import SongModal from '../components/SongModal';
 import BandModal from '../components/BandModal';
+import SongChordStatusBadge, { isChordReady } from '../components/SongChordStatusBadge';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
@@ -61,13 +62,16 @@ function SongActions({
   onDelete: (s: Song) => void;
 }) {
   const { t } = useLanguage();
+  const ready = isChordReady(song.chord_status);
   return (
     <Group gap={2} wrap="nowrap" onClick={(e) => e.stopPropagation()}>
-      <Tooltip label={t.music.playerGo}>
-        <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => onPlay(song)}>
-          <IconPlayerPlay size={15} />
-        </ActionIcon>
-      </Tooltip>
+      {ready ? (
+        <Tooltip label={t.music.playerGo}>
+          <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => onPlay(song)}>
+            <IconPlayerPlay size={15} />
+          </ActionIcon>
+        </Tooltip>
+      ) : null}
       {canManage ? (
         <>
           <Tooltip label={t.music.editSong}>
@@ -255,9 +259,12 @@ export default function SongsPage() {
                         <Table.Td>
                           <Text fw={600} size="sm">{s.title}</Text>
                           <Text size="xs" c="dimmed">{s.tags}</Text>
-                          {s.band_name ? (
-                            <Badge variant="dot" color={s.band_color} mt={4}>{s.band_name}</Badge>
-                          ) : null}
+                          <Group gap={6} mt={4}>
+                            {s.band_name ? (
+                              <Badge variant="dot" color={s.band_color}>{s.band_name}</Badge>
+                            ) : null}
+                            <SongChordStatusBadge status={s.chord_status} detail={s.chord_error || undefined} />
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm">{s.artist}</Text>
@@ -304,16 +311,18 @@ export default function SongsPage() {
                         }}
                       >
                         <img src={s.thumbnail_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <ActionIcon
-                          variant="filled"
-                          color="blue"
-                          size="sm"
-                          radius="xl"
-                          style={{ position: 'absolute', right: 2, bottom: 2 }}
-                          onClick={() => play(s)}
-                        >
-                          <IconPlayerPlay size={12} />
-                        </ActionIcon>
+                        {isChordReady(s.chord_status) ? (
+                          <ActionIcon
+                            variant="filled"
+                            color="blue"
+                            size="sm"
+                            radius="xl"
+                            style={{ position: 'absolute', right: 2, bottom: 2 }}
+                            onClick={() => play(s)}
+                          >
+                            <IconPlayerPlay size={12} />
+                          </ActionIcon>
+                        ) : null}
                       </Box>
                     ) : (
                       <IconMusic size={24} style={{ color: 'var(--mantine-color-dimmed)' }} />
@@ -321,12 +330,14 @@ export default function SongsPage() {
                   }
                   actions={
                     <>
-                      <Menu.Item
-                        leftSection={<IconPlayerPlay size={16} />}
-                        onClick={() => play(s)}
-                      >
-                        {t.music.playerGo}
-                      </Menu.Item>
+                      {isChordReady(s.chord_status) ? (
+                        <Menu.Item
+                          leftSection={<IconPlayerPlay size={16} />}
+                          onClick={() => play(s)}
+                        >
+                          {t.music.playerGo}
+                        </Menu.Item>
+                      ) : null}
                       {canManageMusic ? (
                         <>
                           <Menu.Item
@@ -354,6 +365,7 @@ export default function SongsPage() {
                       {s.church_key ? <Badge variant="light" color="violet" size="sm">{formatMusicalKey(s.church_key)}</Badge> : null}
                       <Badge variant="light" size="sm">{t.music.bpmLabel}: {s.bpm ?? '—'}</Badge>
                       <Badge variant="light" size="sm">{t.music.timesPlayed}: {s.times_played}</Badge>
+                      <SongChordStatusBadge status={s.chord_status} detail={s.chord_error || undefined} size="sm" />
                     </Group>
                     {s.tags ? <Text size="xs" c="dimmed" truncate>{s.tags}</Text> : null}
                     {s.band_name ? (

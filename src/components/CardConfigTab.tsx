@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import {
   Button,
-  Card,
   ColorInput,
   Grid,
   Group,
+  Paper,
   SegmentedControl,
   Stack,
-  Text,
   TextInput,
   Textarea,
   Alert,
+  Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
@@ -48,6 +49,17 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
   const { t, locale } = useLanguage();
   const { config, contact, profile, refresh } = data;
   const [saving, setSaving] = useState(false);
+  const { colorScheme } = useMantineColorScheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isDark = mounted && colorScheme === 'dark';
+  const subSurface = isDark
+    ? 'var(--mantine-color-dark-6)'
+    : 'var(--mantine-color-gray-0)';
+  const stagingSurface = isDark
+    ? 'var(--mantine-color-dark-5)'
+    : 'var(--mantine-color-gray-1)';
 
   const form = useForm({
     initialValues: {
@@ -114,71 +126,85 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
   };
 
   return (
-    <Grid gap="lg" align="flex-start">
-      <Grid.Col span={{ base: 12, lg: 6 }}>
-        <Card withBorder shadow="sm" p="md">
-          <Stack gap="sm">
-            <Text fw={600}>{t.cardConfig.appearance}</Text>
-            <SegmentedControl
-              data-testid="member-card-theme"
-              fullWidth
-              value={form.values.card_theme}
-              onChange={(v) => form.setFieldValue('card_theme', v as CardTheme)}
-              data={[
-                { label: t.cardConfig.themeClassic, value: 'CLASSIC' },
-                { label: t.cardConfig.themeBlackPremium, value: 'BLACK_PREMIUM' },
-              ]}
-            />
-            <Group grow align="flex-start">
-              <ColorInput
-                label={t.cardConfig.primaryColor}
-                data-testid="cardconfig-primary"
-                {...form.getInputProps('card_primary_color')}
+    <Grid gap="xl" align="flex-start">
+      <Grid.Col span={{ base: 12, md: 7 }}>
+        <Paper withBorder radius="md" p="lg">
+          <Stack gap="md">
+            <Paper withBorder radius="md" p="sm" bg={subSurface}>
+              <Title order={6} mb="xs">
+                {t.cardConfig.appearance}
+              </Title>
+              <SegmentedControl
+                data-testid="member-card-theme"
+                fullWidth
+                value={form.values.card_theme}
+                onChange={(v) => form.setFieldValue('card_theme', v as CardTheme)}
+                data={[
+                  { label: t.cardConfig.themeClassic, value: 'CLASSIC' },
+                  { label: t.cardConfig.themeBlackPremium, value: 'BLACK_PREMIUM' },
+                ]}
               />
-              <ColorInput
-                label={t.cardConfig.secondaryColor}
-                data-testid="cardconfig-secondary"
-                {...form.getInputProps('card_secondary_color')}
+              <Group grow align="flex-start" mt="sm">
+                <ColorInput
+                  label={t.cardConfig.primaryColor}
+                  withEyeDropper
+                  data-testid="cardconfig-primary"
+                  {...form.getInputProps('card_primary_color')}
+                />
+                <ColorInput
+                  label={t.cardConfig.secondaryColor}
+                  withEyeDropper
+                  data-testid="cardconfig-secondary"
+                  {...form.getInputProps('card_secondary_color')}
+                />
+              </Group>
+            </Paper>
+
+            <Paper withBorder radius="md" p="sm" bg={subSurface}>
+              <Title order={6} mb="xs">
+                {t.cardConfig.validityTitle}
+              </Title>
+              <DateInput
+                label={t.cardConfig.validity}
+                description={t.cardConfig.validityHint}
+                data-testid="cardconfig-validity"
+                locale={locale}
+                valueFormat="DD/MM/YYYY"
+                clearable
+                value={form.values.card_valid_until}
+                onChange={(v) => form.setFieldValue('card_valid_until', toDate(v))}
               />
-            </Group>
+            </Paper>
 
-            <Text fw={600} mt="sm">{t.cardConfig.validityTitle}</Text>
-            <DateInput
-              label={t.cardConfig.validity}
-              description={t.cardConfig.validityHint}
-              data-testid="cardconfig-validity"
-              locale={locale}
-              valueFormat="DD/MM/YYYY"
-              clearable
-              value={form.values.card_valid_until}
-              onChange={(v) => form.setFieldValue('card_valid_until', toDate(v))}
-            />
-
-            <Text fw={600} mt="sm">{t.cardConfig.phrases}</Text>
-            <TextInput
-              label={t.cardConfig.frontPhrase}
-              description={t.cardConfig.frontPhraseHint}
-              data-testid="cardconfig-front-phrase"
-              {...form.getInputProps('card_front_phrase')}
-            />
-            <Textarea
-              label={t.cardConfig.backPhrase}
-              description={t.cardConfig.backPhraseHint}
-              minRows={3}
-              data-testid="cardconfig-back-phrase"
-              {...form.getInputProps('card_back_phrase')}
-            />
+            <Paper withBorder radius="md" p="sm" bg={subSurface}>
+              <Title order={6} mb="xs">
+                {t.cardConfig.phrases}
+              </Title>
+              <TextInput
+                label={t.cardConfig.frontPhrase}
+                description={t.cardConfig.frontPhraseHint}
+                data-testid="cardconfig-front-phrase"
+                {...form.getInputProps('card_front_phrase')}
+              />
+              <Textarea
+                label={t.cardConfig.backPhrase}
+                description={t.cardConfig.backPhraseHint}
+                minRows={3}
+                mt="sm"
+                data-testid="cardconfig-back-phrase"
+                {...form.getInputProps('card_back_phrase')}
+              />
+            </Paper>
 
             <Alert
               icon={<IconInfoCircle size={16} />}
               color="teal"
               variant="light"
-              mt="xs"
             >
               {t.cardConfig.flipHint}
             </Alert>
 
-            <Group justify="flex-end" mt="sm">
+            <Group justify="flex-end">
               <Button
                 leftSection={<IconDeviceFloppy size={16} />}
                 loading={saving}
@@ -189,12 +215,21 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
               </Button>
             </Group>
           </Stack>
-        </Card>
+        </Paper>
       </Grid.Col>
 
-      <Grid.Col span={{ base: 12, lg: 6 }}>
-        <Card withBorder shadow="sm" p="md" style={{ position: 'sticky', top: 12 }}>
-          <Text fw={600} mb="sm">{t.cardConfig.preview}</Text>
+      <Grid.Col span={{ base: 12, md: 5 }}>
+        <Paper
+          withBorder
+          radius="md"
+          p="xl"
+          shadow="md"
+          bg={stagingSurface}
+          style={{ position: 'sticky', top: '24px' }}
+        >
+          <Title order={6} mb="md">
+            {t.cardConfig.preview}
+          </Title>
           <MemberCard
             member={{
               id: 0,
@@ -241,7 +276,7 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
             config={previewConfig}
             churchContact={contact}
           />
-        </Card>
+        </Paper>
       </Grid.Col>
     </Grid>
   );

@@ -1,8 +1,10 @@
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Drawer,
+  Flex,
   Grid,
   Group,
   Loader,
@@ -25,6 +27,8 @@ import { useForm } from '@mantine/form';
 import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
+  IconBrandWhatsapp,
+  IconCheck,
   IconChevronLeft,
   IconChevronRight,
   IconCircleCheck,
@@ -35,6 +39,7 @@ import {
   IconPhone,
   IconPlus,
   IconRoute,
+  IconSearch,
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
@@ -749,6 +754,7 @@ export default function VisitationPage() {
       p="sm"
       radius="md"
       mb="xs"
+      shadow="xs"
       style={{ cursor: "pointer" }}
       onClick={() => {
         focusVisit(v.id);
@@ -765,45 +771,32 @@ export default function VisitationPage() {
           <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
             {v.member_name || v.target_name}
           </Text>
-          <BadgeView
-            status={v.status}
-            label={t.visitationPage.statusLabel[v.status]}
-          />
+          <Badge
+            size="xs"
+            variant="light"
+            style={{ flexShrink: 0 }}
+            color={
+              v.status === "PLANNED"
+                ? "orange"
+                : v.status === "COMPLETED"
+                  ? "teal"
+                  : "gray"
+            }
+          >
+            {t.visitationPage.statusLabel[v.status]}
+          </Badge>
         </Group>
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="dimmed" lineClamp={2}>
           {t.visitationPage.visitType[v.visit_type]} &middot;{" "}
           {formatDate(v.scheduled_date)}
+          {v.full_address ? ` — ${v.full_address}` : ""}
         </Text>
-        {v.full_address ? (
-          <Group gap={4} wrap="nowrap">
-            <IconMapPin
-              size={13}
-              style={{ color: "var(--mantine-color-gray-5)", flexShrink: 0 }}
-            />
-            <Text size="xs" c="dimmed" truncate>
-              {v.full_address}
-            </Text>
-          </Group>
-        ) : null}
-        {v.visited_by || v.notes ? (
-          <Text size="xs" c="teal.8" truncate>
-            {v.visited_by ? v.visited_by : ""}
-            {v.visited_by && v.notes ? " — " : ""}
-            {v.visited_by ? "" : v.notes}
-          </Text>
-        ) : null}
-        <Group gap={4} wrap="wrap" onClick={(e) => e.stopPropagation()}>
-          <ActionIcon
-            variant="default"
-            size="sm"
-            title={t.visitationPage.viewOnMap}
-            onClick={() => {
-              focusVisit(v.id);
-              if (isCompact) setView("map");
-            }}
-          >
-            <IconMap size={15} />
-          </ActionIcon>
+        <Group
+          gap={4}
+          justify="flex-end"
+          wrap="nowrap"
+          onClick={(e) => e.stopPropagation()}
+        >
           {v.maps_url ? (
             <ActionIcon
               component="a"
@@ -814,7 +807,7 @@ export default function VisitationPage() {
               size="sm"
               title={t.visitationPage.actions.route}
             >
-              <IconRoute size={15} />
+              <IconMapPin size={15} />
             </ActionIcon>
           ) : null}
           {v.member_whatsapp_url ? (
@@ -827,34 +820,23 @@ export default function VisitationPage() {
               size="sm"
               title={t.visitationPage.actions.whatsapp}
             >
-              <IconPhone size={15} />
+              <IconBrandWhatsapp size={15} />
             </ActionIcon>
           ) : null}
           {v.status === "PLANNED" ? (
-            <>
-              <ActionIcon
-                color="green"
-                variant="light"
-                size="sm"
-                title={t.visitationPage.actions.complete}
-                onClick={() => openComplete(v)}
-              >
-                <IconCircleCheck size={15} />
-              </ActionIcon>
-              <ActionIcon
-                color="orange"
-                variant="light"
-                size="sm"
-                title={t.visitationPage.actions.cancel}
-                onClick={() => setCancelTarget(v)}
-              >
-                <IconX size={15} />
-              </ActionIcon>
-            </>
+            <ActionIcon
+              color="green"
+              variant="light"
+              size="sm"
+              title={t.visitationPage.actions.complete}
+              onClick={() => openComplete(v)}
+            >
+              <IconCheck size={15} />
+            </ActionIcon>
           ) : null}
           <ActionIcon
             color="red"
-            variant="light"
+            variant="subtle"
             size="sm"
             title={t.visitationPage.actions.delete}
             onClick={() => setDeleteTarget(v)}
@@ -882,60 +864,65 @@ export default function VisitationPage() {
               {t.visitationPage.subtitle}
             </Text>
           </Stack>
-
-          <Group gap={4} align="center" wrap="nowrap">
-            <ActionIcon
-              variant="default"
-              onClick={() => moveMonth(-1)}
-              aria-label="previous"
-            >
-              <IconChevronLeft size={16} />
-            </ActionIcon>
-            <Select
-              value={String(month)}
-              onChange={(v) => v && setMonth(Number(v))}
-              data={monthOptions}
-              w={150}
-              allowDeselect={false}
-              size="xs"
-            />
-            <Select
-              value={String(year)}
-              onChange={(v) => v && setYear(Number(v))}
-              data={yearOptions}
-              w={90}
-              allowDeselect={false}
-              size="xs"
-            />
-            <ActionIcon
-              variant="default"
-              onClick={() => moveMonth(1)}
-              aria-label="next"
-            >
-              <IconChevronRight size={16} />
-            </ActionIcon>
-          </Group>
-
-          <MultiSelect
-            value={statusFilter}
-            onChange={(v) => setStatusFilter(v as PastoralVisitStatus[])}
-            data={statusOptions}
-            placeholder={t.visitationPage.statusFilterPlaceholder}
-            clearable
-            size="xs"
-            w={180}
-          />
-
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={() => {
-              resetForm();
-              setCreateOpen(true);
-            }}
-          >
-            {t.visitationPage.newVisit}
-          </Button>
         </Group>
+
+        <Paper withBorder p="sm" radius="md" mb="md">
+          <Group justify="space-between" wrap="wrap" gap="sm">
+            <Group gap={4} align="center" wrap="nowrap">
+              <ActionIcon
+                variant="default"
+                onClick={() => moveMonth(-1)}
+                aria-label="previous"
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <Select
+                value={String(month)}
+                onChange={(v) => v && setMonth(Number(v))}
+                data={monthOptions}
+                w={150}
+                allowDeselect={false}
+                size="xs"
+              />
+              <Select
+                value={String(year)}
+                onChange={(v) => v && setYear(Number(v))}
+                data={yearOptions}
+                w={90}
+                allowDeselect={false}
+                size="xs"
+              />
+              <ActionIcon
+                variant="default"
+                onClick={() => moveMonth(1)}
+                aria-label="next"
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+
+            <Group gap="sm" wrap="wrap">
+              <MultiSelect
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(v as PastoralVisitStatus[])}
+                data={statusOptions}
+                placeholder={t.visitationPage.statusFilterPlaceholder}
+                clearable
+                size="xs"
+                w={180}
+              />
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={() => {
+                  resetForm();
+                  setCreateOpen(true);
+                }}
+              >
+                {t.visitationPage.newVisit}
+              </Button>
+            </Group>
+          </Group>
+        </Paper>
 
         <SimpleGrid cols={{ base: 2, sm: 5 }} mb="md" spacing="sm">
           {stats.map((s) => (
@@ -1039,69 +1026,71 @@ export default function VisitationPage() {
             )}
           </>
         ) : (
-          <Group
-            align="stretch"
-            gap="md"
-            style={{ height: "calc(100vh - 220px)", minHeight: 550 }}
-            wrap="nowrap"
-          >
-            <Box
-              style={{
-                width: 380,
-                display: "flex",
-                flexDirection: "column",
-                minHeight: 0,
-                flexShrink: 0,
-              }}
-            >
+          <Flex gap="md" align="flex-start">
+            <Stack w={380} gap="xs" style={{ flexShrink: 0 }}>
               <TextInput
                 placeholder={t.visitationPage.searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.currentTarget.value)}
-                mb="xs"
                 size="xs"
+                leftSection={<IconSearch size={14} />}
               />
-              <ScrollArea
-                type="auto"
-                style={{ flex: 1, minHeight: 0 }}
-                scrollbarSize={6}
-              >
-                {loading ? (
-                  <Group p="xl" justify="center">
-                    <Loader />
-                  </Group>
-                ) : visits.length === 0 ? (
-                  <Stack p="xl" align="center" gap={4}>
-                    <Text c="dimmed">{t.visitationPage.empty}</Text>
-                    <Text c="dimmed" size="xs">
-                      {t.visitationPage.emptyHint}
-                    </Text>
-                  </Stack>
-                ) : filteredVisits.length === 0 ? (
-                  <Stack p="xl" align="center">
-                    <Text c="dimmed">{t.visitationPage.searchEmpty}</Text>
-                  </Stack>
-                ) : (
-                  <Stack gap={0} px={2} pb="xs">
-                    {filteredVisits.map(visitCard)}
-                  </Stack>
-                )}
-              </ScrollArea>
-            </Box>
+              <Box style={{ height: "calc(100vh - 240px)" }}>
+                <ScrollArea
+                  type="auto"
+                  offsetScrollbars
+                  style={{ height: "100%" }}
+                  scrollbarSize={6}
+                >
+                  {loading ? (
+                    <Group p="xl" justify="center">
+                      <Loader />
+                    </Group>
+                  ) : visits.length === 0 ? (
+                    <Stack p="xl" align="center" gap={4}>
+                      <Text c="dimmed">{t.visitationPage.empty}</Text>
+                      <Text c="dimmed" size="xs">
+                        {t.visitationPage.emptyHint}
+                      </Text>
+                    </Stack>
+                  ) : filteredVisits.length === 0 ? (
+                    <Stack p="xl" align="center">
+                      <Text c="dimmed">{t.visitationPage.searchEmpty}</Text>
+                    </Stack>
+                  ) : (
+                    <Stack gap={0} px={2} pb="xs">
+                      {filteredVisits.map(visitCard)}
+                    </Stack>
+                  )}
+                </ScrollArea>
+              </Box>
+            </Stack>
 
-            <Box style={{ flex: 1, minHeight: 0, minWidth: 0 }}>
-              <VisitationMap
-                visits={filteredVisits}
-                focusedId={focusedId}
-                focusNonce={focusNonce}
-                height="100%"
-                onSelect={(v) => focusVisit(v.id)}
-                onAction={handleMapAction}
-                labels={mapLabels}
-                legend={mapLegend}
-              />
+            <Box
+              style={{
+                flex: 1,
+                minWidth: 0,
+                height: "calc(100vh - 240px)",
+              }}
+            >
+              <Paper
+                withBorder
+                radius="md"
+                style={{ overflow: "hidden", height: "100%" }}
+              >
+                <VisitationMap
+                  visits={filteredVisits}
+                  focusedId={focusedId}
+                  focusNonce={focusNonce}
+                  height="100%"
+                  onSelect={(v) => focusVisit(v.id)}
+                  onAction={handleMapAction}
+                  labels={mapLabels}
+                  legend={mapLegend}
+                />
+              </Paper>
             </Box>
-          </Group>
+          </Flex>
         )}
 
         <Drawer

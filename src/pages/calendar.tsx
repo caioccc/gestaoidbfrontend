@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Group, Text, Stack, Button, Loader, ThemeIcon } from '@mantine/core';
+import { Paper, Group, Text, Stack, Button, Loader, ThemeIcon } from '@mantine/core';
 import { IconCake } from '@tabler/icons-react';
 import Link from 'next/link';
 import PageHeader from '../components/PageHeader';
@@ -32,18 +32,18 @@ function BirthdaysCard() {
   }, []);
 
   return (
-    <Card withBorder shadow="sm" p="md" mb="md">
-      <Group justify="space-between" wrap="wrap">
-        <Group gap="sm">
-          <ThemeIcon size="lg" radius="xl" color="grape" variant="light">
-            <IconCake size={20} />
+    <Paper withBorder radius="md" p="sm" mb="md">
+      <Group justify="space-between" wrap="nowrap">
+        <Group gap="sm" wrap="nowrap">
+          <ThemeIcon size="md" radius="xl" color="grape" variant="light">
+            <IconCake size={18} />
           </ThemeIcon>
-          <Stack gap={0}>
+          <Stack gap={2}>
             <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
               {t.birthdays.monthCard}
             </Text>
             <Group gap="xs">
-              <Text fw={800} size="lg">
+              <Text fw={700} size="md">
                 {count === null ? <Loader size={14} /> : count}
               </Text>
               <Text size="sm" c="dimmed">
@@ -64,7 +64,7 @@ function BirthdaysCard() {
           </Button>
         )}
       </Group>
-    </Card>
+    </Paper>
   );
 }
 
