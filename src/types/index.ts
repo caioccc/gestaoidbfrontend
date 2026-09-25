@@ -1729,7 +1729,17 @@ export interface Song {
   chord_error: string;
   chord_retries: number;
   chord_processed_at: string | null;
+  created_by: number | null;
+  created_by_name: string;
+  can_edit: boolean;
   created_at: string;
+}
+
+export interface PaginatedSongs {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Song[];
 }
 
 export interface SongHistoryItem {
@@ -1811,4 +1821,9 @@ export interface BandSetlist {
   created_at: string;
   updated_at: string;
   items: BandSetlistItem[];
+  /** Ownership por item: backend computa `can_edit_setlist` (created_by==eu
+   *  ou PASTOR/ADMIN); usado para liberar editar/excluir no frontend. */
+  can_edit?: boolean;
+  can_delete?: boolean;
+  can_manage?: boolean;
 }

@@ -19,6 +19,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
+import { MonthPickerInput } from '@mantine/dates';
 import {
   IconBrandWhatsapp,
   IconMusic,
@@ -122,7 +123,7 @@ function SetlistActions({
 export default function SetlistsPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { canManageMusic } = useRoleHelpers(user);
+  const { canManageMusic, canManageSetlists } = useRoleHelpers(user);
   const router = useRouter();
 
   const [month, setMonth] = useState(() => monthKey(new Date()));
@@ -140,7 +141,7 @@ export default function SetlistsPage() {
     try {
       setSetlists(
         await musicApi.bandSetlists({
-          month,
+          month: month || undefined,
           band: bandFilter ? Number(bandFilter) : undefined,
         }),
       );
@@ -156,17 +157,6 @@ export default function SetlistsPage() {
   useEffect(() => {
     void musicApi.bands().then(setBands).catch(() => setBands([]));
   }, []);
-
-  const [monthOptions] = useState(() => {
-    const now = new Date();
-    const opts: { value: string; label: string }[] = [];
-    for (let i = 2; i >= -6; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const key = monthKey(d);
-      opts.push({ value: key, label: `${MONTHS_PT[d.getMonth()]} ${d.getFullYear()}` });
-    }
-    return opts;
-  });
 
   const pageItems = setlists.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -196,16 +186,21 @@ export default function SetlistsPage() {
       <Layout>
         <PageHeader title={t.music.setlistsTitle} description={t.music.setlistsSubtitle}>
           <Group gap="sm">
-            <Select
-              value={month}
+            <MonthPickerInput
+              value={month ? `${month}-01` : null}
               onChange={(v) => {
                 if (v) {
-                  setMonth(v);
+                  setMonth(String(v).slice(0, 7));
+                  setPage(1);
+                } else {
+                  setMonth('');
                   setPage(1);
                 }
               }}
-              data={monthOptions}
-              w={220}
+              placeholder={t.music.selectMonth}
+              valueFormat="MMMM YYYY"
+              clearable
+              w={180}
               size="sm"
             />
             <Select
@@ -297,7 +292,7 @@ export default function SetlistsPage() {
                             <PlaySetlistButton setlist={s} />
                             <SetlistActions
                               setlist={s}
-                              canManage={!!canManageMusic}
+                              canManage={!!s.can_edit}
                               onEdit={openEdit}
                               onShare={setShareSetlist}
                               onDelete={(x) => void remove(x)}
@@ -352,7 +347,7 @@ export default function SetlistsPage() {
                       >
                         {t.music.setlistShare}
                       </Menu.Item>
-                      {canManageMusic ? (
+                      {s.can_edit ? (
                         <>
                           <Menu.Item
                             leftSection={<IconPencil size={16} />}

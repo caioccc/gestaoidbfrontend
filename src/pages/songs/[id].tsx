@@ -32,7 +32,7 @@ import ChordSyncPlayer from '../../components/ChordSyncPlayer';
 import LyricsSheet from '../../components/LyricsSheet';
 import SongChordStatusBadge from '../../components/SongChordStatusBadge';
 import { useLanguage } from '../../i18n';
-import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
 import { formatMusicalKey } from '../../utils/format';
 import type { Song, SongHistoryItem } from '../../types';
@@ -43,7 +43,6 @@ export default function SongDetailPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { canManageMusic } = useRoleHelpers(user);
   const id = Number(router.query.id);
 
   const [song, setSong] = useState<Song | null>(null);
@@ -123,22 +122,22 @@ export default function SongDetailPage() {
             <Button variant="default" leftSection={<IconArrowLeft size={16} />} onClick={() => router.push('/songs')} size="sm">
               {t.music.songsTitle}
             </Button>
-            {canManageMusic ? (
+            {song.chord_status === 'COMPLETED' || song.chord_status === 'MANUAL' ? (
+              <Button
+                variant="subtle"
+                leftSection={<IconRefresh size={16} />}
+                onClick={reprocessChord}
+                loading={reprocessing}
+                size="sm"
+              >
+                {t.music.chordReprocess}
+              </Button>
+            ) : null}
+            {song.can_edit ? (
               <>
                 <Button variant="light" leftSection={<IconPencil size={16} />} onClick={() => setEditOpen(true)} size="sm">
                   {t.music.editSong}
-                </Button>
-                {song.chord_status === 'COMPLETED' || song.chord_status === 'MANUAL' ? (
-                  <Button
-                    variant="subtle"
-                    leftSection={<IconRefresh size={16} />}
-                    onClick={reprocessChord}
-                    loading={reprocessing}
-                    size="sm"
-                  >
-                    {t.music.chordReprocess}
                   </Button>
-                ) : null}
                 <Tooltip label={t.common.delete}>
                   <Button variant="subtle" color="red" leftSection={<IconTrash size={16} />} onClick={removeSong} size="sm">
                     {t.common.delete}
@@ -173,6 +172,9 @@ export default function SongDetailPage() {
                 {t.music.timesPlayed}: {song.times_played}
                 {song.last_played ? ` • ${t.music.lastPlayed}: ${song.last_played.slice(0, 10)}` : ''}
               </Text>
+              {song.created_by_name ? (
+                <Text size="xs" c="dimmed">{t.music.createdByLabel}: {song.created_by_name}</Text>
+              ) : null}
             </Stack>
             {song.youtube_id ? (
               <Button

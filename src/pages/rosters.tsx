@@ -77,7 +77,7 @@ const STATUS_COLORS: Record<RosterAssignmentStatus, string> = {
 export default function RostersPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const { canManageMusic } = useRoleHelpers(user);
+  const { canManageMusic, canManageSetlists } = useRoleHelpers(user);
   const [month, setMonth] = useState(() => monthKey(new Date()));
   const [rosters, setRosters] = useState<VolunteerRoster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,7 +189,7 @@ export default function RostersPage() {
                 canManage={canManageMusic}
                 currentUserId={user?.id ?? 0}
                 onEdit={openEdit}
-                onSetlist={canManageMusic ? (rr) => setSetlistFor({ roster: rr }) : undefined}
+                onSetlist={canManageSetlists ? (rr) => setSetlistFor({ roster: rr }) : undefined}
                 onRefresh={load}
               />
             ))}

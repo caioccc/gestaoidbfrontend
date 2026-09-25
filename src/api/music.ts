@@ -6,6 +6,7 @@ import type {
   ChordifyData,
   Ministry,
   MinistryRole,
+  PaginatedSongs,
   RosterAssignment,
   RosterAssignmentStatus,
   RosterBoardRow,
@@ -217,6 +218,17 @@ export const musicApi = {
     q?: string;
     band?: number;
   }): Promise<Song[]> =>
+    apiClient.get('/api/music/songs/', { params: params ?? {} }).then((r) => r.data),
+
+  songsPage: (params?: {
+    page?: number;
+    page_size?: number;
+    ordering?: string;
+    key?: string;
+    tag?: string;
+    q?: string;
+    band?: number;
+  }): Promise<PaginatedSongs> =>
     apiClient.get('/api/music/songs/', { params: params ?? {} }).then((r) => r.data),
 
   song: (id: number): Promise<Song> =>

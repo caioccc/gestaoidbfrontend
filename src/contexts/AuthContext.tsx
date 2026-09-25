@@ -139,6 +139,7 @@ export function useRoleHelpers(user: UserSession | null) {
   const canIntercession = hasRole(...INTERCESSION_ROLES);
   const canManageMusic = hasRole(...MUSIC_MANAGER_ROLES);
   const canViewMusic = hasRole(...MUSIC_VIEW_ROLES);
+  const canManageSetlists = hasRole('PASTOR');
   const canManageChurch =
     isAdmin ||
     !!user?.can_manage_churches ||
@@ -153,6 +154,7 @@ export function useRoleHelpers(user: UserSession | null) {
     canIntercession,
     canManageMusic,
     canViewMusic,
+    canManageSetlists,
     canManageChurch,
     canApproveCongregations,
   };

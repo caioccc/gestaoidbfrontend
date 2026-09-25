@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActionIcon,
   Badge,
@@ -46,17 +46,29 @@ const MUSICAL_KEYS = [
   'C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B',
 ];
 
-const PAGE_SIZE = 10;
+const PAGE_SIZES = [10, 25, 50, 100];
+
+const ORDERING_OPTIONS = [
+  { value: 'random', translationKey: 'orderRandom' },
+  { value: 'times_played', translationKey: 'orderMostPlayed' },
+  { value: '-times_played', translationKey: 'orderLeastPlayed' },
+  { value: 'band', translationKey: 'orderBandAsc' },
+  { value: '-band', translationKey: 'orderBandDesc' },
+  { value: 'artist', translationKey: 'orderArtistAsc' },
+  { value: '-artist', translationKey: 'orderArtistDesc' },
+  { value: 'title', translationKey: 'orderTitleAsc' },
+  { value: '-title', translationKey: 'orderTitleDesc' },
+] as const;
 
 function SongActions({
   song,
-  canManage,
+  canEdit,
   onPlay,
   onEdit,
   onDelete,
 }: {
   song: Song;
-  canManage: boolean;
+  canEdit: boolean;
   onPlay: (s: Song) => void;
   onEdit: (s: Song) => void;
   onDelete: (s: Song) => void;
@@ -72,7 +84,7 @@ function SongActions({
           </ActionIcon>
         </Tooltip>
       ) : null}
-      {canManage ? (
+      {canEdit ? (
         <>
           <Tooltip label={t.music.editSong}>
             <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => onEdit(song)}>
@@ -94,29 +106,47 @@ export default function SongsPage() {
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const { canManageMusic } = useRoleHelpers(user);
+  const { canManageMusic, canViewMusic } = useRoleHelpers(user);
 
   const [songs, setSongs] = useState<Song[]>([]);
+  const [total, setTotal] = useState(0);
   const [bands, setBands] = useState<Band[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [keyFilter, setKeyFilter] = useState<string | null>(null);
   const [bandFilter, setBandFilter] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [ordering, setOrdering] = useState('random');
   const [modalOpen, setModalOpen] = useState(false);
   const [bandsOpen, setBandsOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchTerm(q), 300);
+    return () => window.clearTimeout(timer);
+  }, [q]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setSongs(await musicApi.songs({ q: q || undefined, key: keyFilter || undefined, band: bandFilter ? Number(bandFilter) : undefined }));
+      const res = await musicApi.songsPage({
+        page,
+        page_size: pageSize,
+        ordering,
+        q: searchTerm || undefined,
+        key: keyFilter || undefined,
+        band: bandFilter ? Number(bandFilter) : undefined,
+      });
+      setSongs(res.results);
+      setTotal(res.count);
     } catch {
       notifications.show({ color: 'red', message: 'Erro ao carregar repertório.' });
     } finally {
       setLoading(false);
     }
-  }, [q, keyFilter, bandFilter]);
+  }, [searchTerm, keyFilter, bandFilter, page, pageSize, ordering]);
 
   const loadBands = useCallback(async () => {
     try {
@@ -132,10 +162,13 @@ export default function SongsPage() {
     void loadBands();
   }, [loadBands]);
 
-  const pageItems = useMemo(
-    () => songs.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [songs, page],
-  );
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+
+  useEffect(() => {
+    if (total > 0 && page > totalPages) setPage(totalPages);
+  }, [total, totalPages, page]);
 
   const openAdd = () => {
     setEditingSong(null);
@@ -143,6 +176,10 @@ export default function SongsPage() {
   };
 
   const openEdit = (s: Song) => {
+    if (!s.can_edit) {
+      notifications.show({ color: 'red', message: t.music.editForbidden });
+      return;
+    }
     setEditingSong(s);
     setModalOpen(true);
   };
@@ -166,16 +203,18 @@ export default function SongsPage() {
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
       <Layout>
         <PageHeader title={t.music.songsTitle} description={t.music.songsSubtitle}>
-          {canManageMusic ? (
-            <Group gap="sm">
+          <Group gap="sm">
+            {canManageMusic ? (
               <Button variant="light" onClick={() => setBandsOpen(true)} size="sm">
                 {t.music.bandManage}
               </Button>
+            ) : null}
+            {canViewMusic ? (
               <Button leftSection={<IconPlus size={18} />} onClick={openAdd} size="sm">
                 {t.music.addSong}
               </Button>
-            </Group>
-          ) : null}
+            ) : null}
+          </Group>
         </PageHeader>
 
         <Group mb="md" gap="sm">
@@ -212,6 +251,30 @@ export default function SongsPage() {
             clearable
             w={120}
           />
+          <Select
+            aria-label={t.music.orderByLabel}
+            data={ORDERING_OPTIONS.map((o) => ({ value: o.value, label: t.music[o.translationKey] }))}
+            value={ordering}
+            onChange={(v) => {
+              if (v) {
+                setOrdering(v);
+                setPage(1);
+              }
+            }}
+            w={200}
+          />
+          <Select
+            aria-label={t.music.perPageLabel}
+            data={PAGE_SIZES.map((n) => ({ value: String(n), label: `${n}` }))}
+            value={String(pageSize)}
+            onChange={(v) => {
+              if (v) {
+                setPageSize(Number(v));
+                setPage(1);
+              }
+            }}
+            w={110}
+          />
         </Group>
 
         {loading ? (
@@ -237,7 +300,7 @@ export default function SongsPage() {
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {pageItems.map((s) => (
+                    {songs.map((s) => (
                       <Table.Tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => router.push(`/songs/${s.id}`)}>
                         <Table.Td w={48}>
                           {s.thumbnail_url ? (
@@ -257,7 +320,12 @@ export default function SongsPage() {
                           )}
                         </Table.Td>
                         <Table.Td>
-                          <Text fw={600} size="sm">{s.title}</Text>
+                          <Group gap={6}>
+                            <Text fw={600} size="sm">{s.title}</Text>
+                            {s.created_by === user?.id ? (
+                              <Badge variant="light" color="teal" size="xs">{t.music.mySong}</Badge>
+                            ) : null}
+                          </Group>
                           <Text size="xs" c="dimmed">{s.tags}</Text>
                           <Group gap={6} mt={4}>
                             {s.band_name ? (
@@ -265,6 +333,9 @@ export default function SongsPage() {
                             ) : null}
                             <SongChordStatusBadge status={s.chord_status} detail={s.chord_error || undefined} />
                           </Group>
+                          {s.created_by_name ? (
+                            <Text size="xs" c="dimmed">{t.music.createdByLabel}: {s.created_by_name}</Text>
+                          ) : null}
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm">{s.artist}</Text>
@@ -281,7 +352,7 @@ export default function SongsPage() {
                         <Table.Td w={110}>
                           <SongActions
                             song={s}
-                            canManage={!!canManageMusic}
+                            canEdit={!!s.can_edit}
                             onPlay={play}
                             onEdit={openEdit}
                             onDelete={(x) => void removeSong(x)}
@@ -295,7 +366,7 @@ export default function SongsPage() {
             </Box>
 
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {pageItems.map((s) => (
+              {songs.map((s) => (
                 <MobileItemCard
                   key={s.id}
                   media={
@@ -338,7 +409,7 @@ export default function SongsPage() {
                           {t.music.playerGo}
                         </Menu.Item>
                       ) : null}
-                      {canManageMusic ? (
+                      {s.can_edit ? (
                         <>
                           <Menu.Item
                             leftSection={<IconPencil size={16} />}
@@ -359,7 +430,12 @@ export default function SongsPage() {
                   }
                 >
                   <Stack gap={4}>
-                    <Text fw={600} truncate>{s.title}</Text>
+                    <Group gap={6}>
+                      <Text fw={600} truncate>{s.title}</Text>
+                      {s.created_by === user?.id ? (
+                        <Badge variant="light" color="teal" size="xs">{t.music.mySong}</Badge>
+                      ) : null}
+                    </Group>
                     <Text size="xs" c="dimmed" truncate>{s.artist || '—'}</Text>
                     <Group gap={4}>
                       {s.church_key ? <Badge variant="light" color="violet" size="sm">{formatMusicalKey(s.church_key)}</Badge> : null}
@@ -378,14 +454,26 @@ export default function SongsPage() {
               ))}
             </Stack>
 
-            {songs.length > PAGE_SIZE && (
-              <Group justify="center" py="sm">
-                <Pagination
-                  value={page}
-                  onChange={setPage}
-                  total={Math.max(1, Math.ceil(songs.length / PAGE_SIZE))}
-                  size="sm"
-                />
+            {songs.length > 0 && (
+              <Group justify="space-between" align="center" py="sm" px="md" wrap="wrap">
+                <Text size="sm" c="dimmed">
+                  {total > 0
+                    ? t.music.showingRange
+                        .replace('{start}', String(rangeStart))
+                        .replace('{end}', String(rangeEnd))
+                        .replace('{total}', String(total))
+                        .replace('{page}', String(page))
+                        .replace('{totalPages}', String(totalPages))
+                    : ''}
+                </Text>
+                {total > pageSize && (
+                  <Pagination
+                    value={page}
+                    onChange={setPage}
+                    total={totalPages}
+                    size="sm"
+                  />
+                )}
               </Group>
             )}
           </>

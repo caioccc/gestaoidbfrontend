@@ -28,7 +28,6 @@ interface SetlistModalProps {
 
 interface Row {
   song: number | null;
-  custom_key: string;
   notes: string;
 }
 
@@ -48,7 +47,6 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
         setRows(
           existingSetlist.items.map((s) => ({
             song: s.song,
-            custom_key: s.custom_key,
             notes: s.notes,
           })),
         );
@@ -60,7 +58,7 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
   }, [opened, existingSetlist]);
 
   const addRow = () => {
-    setRows((prev) => [...prev, { song: null, custom_key: '', notes: '' }]);
+    setRows((prev) => [...prev, { song: null, notes: '' }]);
   };
 
   const updateRow = (i: number, patch: Partial<Row>) => {
@@ -105,7 +103,6 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
       const payload = valid.map((r, i) => ({
         song: r.song!,
         order: i + 1,
-        custom_key: r.custom_key.trim(),
         notes: r.notes.trim(),
       }));
       await musicApi.upsertSetlist(rosterId, payload);
@@ -156,13 +153,6 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
                     onChange={(v) => updateRow(i, { song: v ? Number(v) : null })}
                     searchable
                     w={280}
-                    size="xs"
-                  />
-                  <TextInput
-                    placeholder={t.music.customKey}
-                    value={row.custom_key}
-                    onChange={(e) => updateRow(i, { custom_key: e.currentTarget.value })}
-                    w={80}
                     size="xs"
                   />
                   <TextInput

@@ -32,7 +32,6 @@ interface SetlistsModalProps {
 
 interface Row {
   songId: string;
-  customKey: string;
 }
 
 export default function SetlistsModal({ opened, onClose, editing, onSaved }: SetlistsModalProps) {
@@ -46,6 +45,7 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
   const [theme, setTheme] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [addValue, setAddValue] = useState<string | null>(null);
+  const [addSearch, setAddSearch] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -60,9 +60,10 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
       (editing?.items ?? [])
         .slice()
         .sort((a, b) => a.order - b.order)
-        .map((it) => ({ songId: String(it.song), customKey: it.custom_key })),
+        .map((it) => ({ songId: String(it.song) })),
     );
     setAddValue(null);
+    setAddSearch('');
   }, [opened, editing]);
 
   const remainingSongs = useMemo(
@@ -72,8 +73,9 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
 
   const onAdd = (value: string | null) => {
     if (!value) return;
-    setRows((prev) => (prev.some((r) => r.songId === value) ? prev : [...prev, { songId: value, customKey: '' }]));
+    setRows((prev) => (prev.some((r) => r.songId === value) ? prev : [...prev, { songId: value }]));
     setAddValue(null);
+    setAddSearch('');
   };
 
   const move = (index: number, delta: number) => {
@@ -101,7 +103,6 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
       items: rows.map((r, i) => ({
         song: Number(r.songId),
         order: i + 1,
-        custom_key: r.customKey.trim(),
       })),
     };
     try {
@@ -171,6 +172,8 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
             data={remainingSongs.map((s) => ({ value: String(s.id), label: `${s.title}${s.artist ? ` — ${s.artist}` : ''}` }))}
             value={addValue}
             onChange={onAdd}
+            searchValue={addSearch}
+            onSearchChange={setAddSearch}
             searchable
           />
 
@@ -188,13 +191,6 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
                       {song?.title ?? ''}
                       <Text span size="xs" c="dimmed"> {song?.artist ? `— ${song.artist}` : ''}</Text>
                     </Text>
-                    <TextInput
-                      placeholder={t.music.setlistSongCustomKey}
-                      value={row.customKey}
-                      onChange={(e) => setRows((prev) => prev.map((r, j) => (j === i ? { ...r, customKey: e.currentTarget.value } : r)))}
-                      w={92}
-                      size="xs"
-                    />
                     <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => move(i, -1)} disabled={i === 0}>
                       <IconArrowUp size={14} />
                     </ActionIcon>
