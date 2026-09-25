@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   ActionIcon,
   Badge,
@@ -15,6 +16,7 @@ import {
   Select,
   Stack,
   Table,
+  Tabs,
   Text,
   TextInput,
   Textarea,
@@ -1546,43 +1548,66 @@ function LoansTab() {
   );
 }
 
+const VALID_INVENTORY_TABS = ['loans', 'locations', 'items'];
+
 export default function InventoryPage() {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<string | null>('locations');
+  const router = useRouter();
+  const [tab, setTab] = useState<string | null>('loans');
+
+  useEffect(() => {
+    const q = router.query.tab;
+    if (typeof q === 'string' && VALID_INVENTORY_TABS.includes(q)) {
+      setTab(q);
+    }
+  }, [router.query.tab]);
+
+  const handleTabChange = (value: string | null) => {
+    setTab(value);
+    if (value) {
+      router.push(
+        { pathname: router.pathname, query: { ...router.query, tab: value } },
+        undefined,
+        { shallow: true }
+      );
+    }
+  };
 
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.inventoryPage.title} description={t.inventoryPage.subtitle}>
-          <Group gap="sm">
-            <Button
-              variant={tab === 'loans' ? 'filled' : 'default'}
-              onClick={() => setTab('loans')}
-              data-testid="tab-loans"
-            >
-              {t.inventoryPage.loansTab}
-            </Button>
-            <Button
-              variant={tab === 'locations' ? 'filled' : 'default'}
-              onClick={() => setTab('locations')}
-              data-testid="tab-locations"
-            >
-              {t.inventoryPage.locationsTab}
-            </Button>
-            <Button
-              variant={tab === 'items' ? 'filled' : 'default'}
-              onClick={() => setTab('items')}
-              data-testid="tab-items"
-            >
-              {t.inventoryPage.itemsTab}
-            </Button>
-          </Group>
+          <Tabs value={tab} onChange={handleTabChange} variant="default">
+            <Tabs.List>
+              <Tabs.Tab
+                value="loans"
+                data-testid="tab-loans"
+                leftSection={<IconTruckReturn size={16} />}
+              >
+                {t.inventoryPage.loansTab}
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="locations"
+                data-testid="tab-locations"
+                leftSection={<IconBuildingWarehouse size={16} />}
+              >
+                {t.inventoryPage.locationsTab}
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="items"
+                data-testid="tab-items"
+                leftSection={<IconBox size={16} />}
+              >
+                {t.inventoryPage.itemsTab}
+              </Tabs.Tab>
+            </Tabs.List>
+          </Tabs>
         </PageHeader>
 
-        {tab === 'locations' ? (
-          <LocationsTab />
-        ) : tab === 'items' ? (
+        {tab === 'items' ? (
           <ItemsTab />
+        ) : tab === 'locations' ? (
+          <LocationsTab />
         ) : (
           <LoansTab />
         )}

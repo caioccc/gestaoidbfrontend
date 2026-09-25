@@ -1801,6 +1801,8 @@ export interface BandSetlistItem {
   song_artist: string;
   song_church_key: string;
   song_bpm: number | null;
+  song_thumbnail_url: string;
+  song_youtube_id: string;
   order: number;
   custom_key: string;
   notes: string;

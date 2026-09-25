@@ -14,11 +14,11 @@ const STATUS_META: Record<
   ChordStatus,
   { color: string; labelKey: 'chordPendingBadge' | 'chordProcessing' | 'chordCompletedBadge' | 'chordFailedBadge' | 'chordManualBadge'; Icon: typeof IconClock }
 > = {
-  PENDING: { color: 'blue', labelKey: 'chordPendingBadge', Icon: IconClock },
+  PENDING: { color: 'gray', labelKey: 'chordPendingBadge', Icon: IconClock },
   PROCESSING: { color: 'cyan', labelKey: 'chordProcessing', Icon: IconLoader },
   COMPLETED: { color: 'green', labelKey: 'chordCompletedBadge', Icon: IconCheck },
   FAILED: { color: 'red', labelKey: 'chordFailedBadge', Icon: IconAlertTriangle },
-  MANUAL: { color: 'gray', labelKey: 'chordManualBadge', Icon: IconMusic },
+  MANUAL: { color: 'yellow', labelKey: 'chordManualBadge', Icon: IconMusic },
 };
 
 export function isChordReady(status?: ChordStatus | null): boolean {

@@ -53,6 +53,13 @@ export default function SongDetailPage() {
   const [stageMode, setStageMode] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
 
+  useEffect(() => {
+    const requestedTab = router.query.tab;
+    if (requestedTab === 'player' || requestedTab === 'lyrics' || requestedTab === 'history') {
+      setTab(requestedTab);
+    }
+  }, [router.query.tab]);
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
