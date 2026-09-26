@@ -9,8 +9,13 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { IconCopy, IconExternalLink, IconRefresh } from '@tabler/icons-react';
-import QrShareCard from './QrShareCard';
+import {
+  IconCopy,
+  IconDownload,
+  IconExternalLink,
+  IconRefresh,
+} from '@tabler/icons-react';
+import QrShareCard, { downloadQrPng } from './QrShareCard';
 import { useLanguage } from '../i18n';
 import { copyToClipboard } from '../utils/share';
 
@@ -38,6 +43,7 @@ export default function ShareLinkModal({
   const [copied, setCopied] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const qrRef = useRef<SVGSVGElement>(null);
 
   const getUrlRef = useRef(getUrl);
   getUrlRef.current = getUrl;
@@ -116,7 +122,7 @@ export default function ShareLinkModal({
           </Center>
         ) : (
           <>
-            <QrShareCard url={url} />
+            <QrShareCard ref={qrRef} url={url} />
             <Text
               size="xs"
               c="dimmed"
@@ -135,6 +141,15 @@ export default function ShareLinkModal({
                 data-testid="share-copy"
               >
                 {copied ? t.qrShare.copied : t.qrShare.copy}
+              </Button>
+              <Button
+                size="xs"
+                variant="default"
+                leftSection={<IconDownload size={14} />}
+                onClick={() => downloadQrPng(qrRef.current, 'qrcode-agenda.png')}
+                data-testid="share-download-qr"
+              >
+                {t.qrShare.downloadQr}
               </Button>
               <Button
                 size="xs"

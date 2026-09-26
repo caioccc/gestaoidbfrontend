@@ -32,7 +32,7 @@ function BirthdaysCard() {
   }, []);
 
   return (
-    <Paper withBorder radius="md" p="sm" mb="md">
+    <Paper withBorder radius="md" p="sm">
       <Group justify="space-between" wrap="nowrap">
         <Group gap="sm" wrap="nowrap">
           <ThemeIcon size="md" radius="xl" color="grape" variant="light">
@@ -72,6 +72,7 @@ export default function CalendarPage() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const { canSecretary, canFinance } = useRoleHelpers(user);
+  const [showBirthdays, setShowBirthdays] = useState(true);
 
   const gateway: CalendarEventsGateway = {
     list: () => calendarEventsApi.list(),
@@ -92,8 +93,13 @@ export default function CalendarPage() {
   return (
     <>
       <PageHeader title={t.calendarPage.title} />
-      <BirthdaysCard />
-      <CalendarEventsBoard gateway={gateway} locale={locale} />
+      <CalendarEventsBoard
+        gateway={gateway}
+        locale={locale}
+        showBirthdays={showBirthdays}
+        onToggleBirthdays={setShowBirthdays}
+        belowGrid={showBirthdays ? <BirthdaysCard /> : null}
+      />
     </>
   );
 }

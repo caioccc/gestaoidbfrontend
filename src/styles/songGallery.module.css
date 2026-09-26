@@ -1,0 +1,294 @@
+/* Card da visualização em Galeria do Banco de Repertório.
+
+   Repouso: só a miniatura 16:9 com o tom e a duração sobrepostos, mais o
+   título/artista abaixo. As ações rápidas ficam escondidas e entram no hover,
+   com elevação do card, zoom na miniatura e um gradiente para o overlay
+   translucent. Em telas de toque não existe hover, então a coluna de ações
+   fica sempre visível e o toque no card abre o modo de estudo. */
+
+.card {
+  position: relative;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.cardInteractive {
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+/* Envoltório da mídia: define a proporção 16:9 e é o contexto de
+   posicionamento das ações, para a coluna ficar centralizada na miniatura e
+   não no card inteiro. */
+.mediaWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  container-type: inline-size;
+  background: linear-gradient(135deg, var(--mantine-color-blue-6), var(--mantine-color-grape-6));
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: inherit;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 260ms ease;
+}
+
+.card:hover .thumb {
+  transform: scale(1.06);
+}
+
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.38) 0%,
+    rgba(0, 0, 0, 0.12) 45%,
+    rgba(0, 0, 0, 0.62) 100%
+  );
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.card:hover .overlay {
+  opacity: 1;
+}
+
+.playButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transform: scale(0.9);
+  transition: transform 180ms ease, background-color 180ms ease;
+}
+
+.card:hover .playButton {
+  transform: scale(1);
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* A coluna de ações precisa caber na altura da miniatura. Numa grade de 6
+   colunas a thumbnail tem ~95px, e cinco botões empilhados teria ~174px: o
+   cluster vira um bloco 2 colunas. Só quando a mídia é larga o bastante
+   (~360px, ou seja ~200px de altura) é que a coluna vertical cabe. */
+.actions {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, 30px);
+  justify-items: center;
+  align-items: center;
+  gap: 6px;
+  transform: translateY(-50%) translateX(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.card:hover .actions {
+  transform: translateY(-50%) translateX(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@container (min-width: 360px) {
+  .actions {
+    grid-template-columns: 30px;
+  }
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.actionButton:hover {
+  background-color: rgba(0, 0, 0, 0.68);
+  transform: scale(1.08);
+}
+
+/* Selos sobre a miniatura: tom (topo esquerdo) e banda (topo direito).
+   Mesma forma e tipografia; a banda recebe a cor cadastrada. */
+.keyBadge,
+.bandBadge {
+  position: absolute;
+  top: 8px;
+  z-index: 1;
+  max-width: 52%;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+}
+
+.keyBadge {
+  left: 8px;
+  background-color: rgba(0, 0, 0, 0.62);
+}
+
+.bandBadge {
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.62);
+}
+
+.duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.68);
+}
+
+/* Selo de status da cifra. Só aparece quando não há cifra utilizável
+   (PENDING / PROCESSING / FAILED), para o card em repouso não ficar
+   idêntico ao de uma música pronta — o clique não abriria nada. Cor sólida
+   com texto branco porque a variante "light" do Badge some sobre a foto. */
+.statusBadge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 60%;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: var(--mantine-font-size-xs);
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  backdrop-filter: blur(6px);
+}
+
+.statusPending {
+  background-color: var(--mantine-color-orange-6);
+}
+
+.statusProcessing {
+  background-color: var(--mantine-color-cyan-7);
+}
+
+.statusFailed {
+  background-color: var(--mantine-color-red-6);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+
+.title {
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitle {
+  font-size: var(--mantine-font-size-sm);
+  color: var(--mantine-color-dimmed);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sem hover não há evento: as ações ficam sempre acessíveis ao toque e o
+   card inteiro segue abrindo o modo de estudo. O overlay escuro continua
+   escondido para não manchar a miniatura em repouso no mobile. */
+@media (hover: none) {
+  .actions {
+    transform: translateY(-50%) translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .thumb,
+  .overlay,
+  .playButton,
+  .actions,
+  .actionButton {
+    transition: none;
+  }
+
+  .card:hover,
+  .card:hover .thumb,
+  .card:hover .playButton,
+  .actionButton:hover {
+    transform: none;
+  }
+}

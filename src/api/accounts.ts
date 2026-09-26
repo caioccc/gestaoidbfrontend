@@ -383,6 +383,9 @@ export const accountsApi = {
   createPrayerRequest: (payload: PrayerRequestPayload): Promise<PrayerRequest> =>
     apiClient.post('/api/accounts/prayer-requests/', payload).then((r) => r.data),
 
+  deletePrayerRequest: (id: number): Promise<void> =>
+    apiClient.delete(`/api/accounts/prayer-requests/${id}/`).then(() => undefined),
+
   preparePrayerWhatsApp: (id: number): Promise<PrayerVisitPreparedPayload> =>
     apiClient.post(`/api/accounts/prayer-requests/${id}/prepare-whatsapp/`).then((r) => r.data),
 

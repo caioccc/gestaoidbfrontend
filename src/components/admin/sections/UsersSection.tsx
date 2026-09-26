@@ -24,6 +24,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
+import { ListPagination, useListPagination } from '../../../components/ListPagination';
 import { useLanguage } from '../../../i18n';
 import { useAuth, useRoleHelpers } from '../../../contexts/AuthContext';
 import { accountsApi } from '../../../api/accounts';
@@ -71,6 +72,7 @@ export default function UsersSection({
   const [savingRoleId, setSavingRoleId] = useState<number | null>(null);
   const [toRemove, setToRemove] = useState<ChurchMembership | null>(null);
   const [removing, setRemoving] = useState(false);
+  const pagination = useListPagination(users);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -160,7 +162,7 @@ export default function UsersSection({
     }
   };
 
-  const rows = users.map((u) => (
+  const rows = pagination.pageItems.map((u) => (
     <Table.Tr key={u.id} data-testid={`user-row-${u.id}`}>
       <Table.Td>
         <Text fw={600}>
@@ -256,6 +258,18 @@ export default function UsersSection({
           </Table>
         )}
       </Card>
+
+      <ListPagination
+        page={pagination.page}
+        onPageChange={pagination.setPage}
+        pageSize={pagination.pageSize}
+        onPageSizeChange={pagination.changePageSize}
+        total={pagination.total}
+        totalPages={pagination.totalPages}
+        rangeStart={pagination.rangeStart}
+        rangeEnd={pagination.rangeEnd}
+        testId="admin-users-pagination"
+      />
 
       <Modal
         opened={opened}

@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActionIcon,
   Avatar,
   Badge,
   Button,
-  Card,
   Center,
+  Divider,
   Grid,
   Group,
+  Paper,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -16,19 +17,22 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/router';
 import {
-  IconArrowsRightLeft,
+  IconBox,
   IconBrandWhatsapp,
   IconBuildingChurch,
   IconCake,
   IconCalendarEvent,
   IconCalendarPlus,
+  IconChevronRight,
+  IconFileDownload,
   IconFilePlus,
   IconFileText,
   IconIdBadge,
   IconPackage,
-  IconReport,
+  IconUserCheck,
   IconUserPlus,
   IconUsers,
 } from '@tabler/icons-react';
@@ -37,30 +41,96 @@ import SendWhatsAppModal from './SendWhatsAppModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
-import { calendarEventsApi } from '../api/finance';
-import type { AppAlert, CalendarEvent, SecretaryActionItem, SecretaryActions } from '../types';
+import { calendarEventsApi, saveBlob } from '../api/finance';
+import { addDays, dateFromApi, dateToApi, eventOccursOn } from '../utils/calendarRecurrence';
+import type {
+  AppAlert,
+  CalendarEvent,
+  Loan,
+  SecretaryActionItem,
+  SecretaryActions,
+} from '../types';
 
 const pad = (n: number) => String(n).padStart(2, '0');
-const toISO = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const toShortDate = (iso: string) => {
   const [, m, d] = iso.split('-');
   return `${d}/${m}`;
 };
 
-interface FeedRow {
-  key: string;
-  icon: React.ReactNode;
-  color: string;
-  text: string;
-  href?: string;
+const UPCOMING_DAYS = 6;
+
+interface CultoRow {
+  id: number;
+  date: string;
+  typeLabel: string;
+  theme: string;
+  attendees: number;
+  visitors: number;
 }
 
-interface QuickTile {
+interface MinutesRow {
+  id: number;
+  date: string;
+  title: string;
+  pdf: string | null;
+  pdfName: string | null;
+}
+
+interface EventGroup {
+  date: string;
+  events: CalendarEvent[];
+}
+
+interface Kpi {
   key: string;
   label: string;
-  icon: React.ReactNode;
+  value: number;
   color: string;
-  href: string;
+  icon: React.ReactNode;
+  badge?: string;
+}
+
+interface SectionProps {
+  title: string;
+  hint?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  testId?: string;
+}
+
+function Section({ title, hint, action, children, testId }: SectionProps) {
+  return (
+    <Paper withBorder radius="md" p="md" data-testid={testId}>
+      <Group justify="space-between" align="flex-start" wrap="nowrap" mb="sm" gap="sm">
+        <Stack gap={2} style={{ minWidth: 0 }}>
+          <Title order={4} size="md">
+            {title}
+          </Title>
+          {hint ? (
+            <Text size="xs" c="dimmed">
+              {hint}
+            </Text>
+          ) : null}
+        </Stack>
+        {action}
+      </Group>
+      {children}
+    </Paper>
+  );
+}
+
+function Rows({ children }: { children: React.ReactNode }) {
+  const items = React.Children.toArray(children).filter(Boolean);
+  return (
+    <Stack gap={0}>
+      {items.map((child, index) => (
+        <React.Fragment key={index}>
+          {index > 0 ? <Divider my="xs" /> : null}
+          {child}
+        </React.Fragment>
+      ))}
+    </Stack>
+  );
 }
 
 export default function SecretaryDashboard() {
@@ -68,31 +138,35 @@ export default function SecretaryDashboard() {
   const { t } = useLanguage();
   const router = useRouter();
   const isIntercessao = user?.role === 'INTERCESSAO';
+  const sd = t.secretaryDashboard;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [alerts, setAlerts] = useState<AppAlert[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
   const [activeMembers, setActiveMembers] = useState(0);
-  const [openLoans, setOpenLoans] = useState(0);
   const [cultosMonth, setCultosMonth] = useState(0);
   const [minutesCount, setMinutesCount] = useState(0);
-  const [pendingTransfers, setPendingTransfers] = useState(0);
-  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [upcoming, setUpcoming] = useState<EventGroup[]>([]);
+  const [todayISO, setTodayISO] = useState('');
   const [secretaryActions, setSecretaryActions] = useState<SecretaryActions | null>(null);
   const [waAction, setWaAction] = useState<SecretaryActionItem | null>(null);
-  const [recentCultos, setRecentCultos] = useState<
-    { id: number; date: string; typeLabel: string; theme: string }[]
-  >([]);
-  const [recentMinutes, setRecentMinutes] = useState<
-    { id: number; date: string; title: string }[]
-  >([]);
+  const [recentCultos, setRecentCultos] = useState<CultoRow[]>([]);
+  const [recentMinutes, setRecentMinutes] = useState<MinutesRow[]>([]);
+  const [hour, setHour] = useState<number | null>(null);
+
+  useEffect(() => {
+    setHour(new Date().getHours());
+  }, []);
 
   useEffect(() => {
     let active = true;
     const today = new Date();
     const monthPrefix = `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
+    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     setLoading(true);
     setError(false);
+    setTodayISO(dateToApi(midnight) ?? '');
 
     Promise.all([
       accountsApi.alerts(),
@@ -100,52 +174,56 @@ export default function SecretaryDashboard() {
       accountsApi.loans(),
       accountsApi.worshipServices(),
       accountsApi.minutes(),
-      accountsApi.incomingTransfers(),
       calendarEventsApi.list(),
       accountsApi.secretaryActions(),
     ])
-      .then(([alertsRes, members, loans, cultos, minutes, transfers, events, actions]) => {
+      .then(([alertsRes, members, loanList, cultos, minutes, events, actions]) => {
         if (!active) return;
         setAlerts(alertsRes.alerts ?? []);
+        setLoans(loanList);
         setSecretaryActions(actions);
         setActiveMembers(members.filter((m) => m.status === 'ACTIVE').length);
-        setOpenLoans(loans.filter((l) => l.returned_at === null).length);
         setCultosMonth(cultos.filter((c) => c.date.startsWith(monthPrefix)).length);
         setMinutesCount(minutes.length);
-        setPendingTransfers(transfers.filter((x) => x.status === 'PENDING').length);
 
         setRecentCultos(
           [...cultos]
-            .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time) * -1)
-            .slice(0, 5)
+            .sort((a, b) => `${b.date}${b.time ?? ''}`.localeCompare(`${a.date}${a.time ?? ''}`))
+            .slice(0, 4)
             .map((c) => ({
               id: c.id,
               date: c.date,
               typeLabel: c.service_type_display,
               theme: c.theme,
+              attendees: c.attendees,
+              visitors: c.visitors,
             })),
         );
+
         setRecentMinutes(
           [...minutes]
             .sort((a, b) => b.meeting_date.localeCompare(a.meeting_date))
-            .slice(0, 5)
-            .map((m) => ({ id: m.id, date: m.meeting_date, title: m.title })),
+            .slice(0, 4)
+            .map((m) => ({
+              id: m.id,
+              date: m.meeting_date,
+              title: m.title,
+              pdf: m.pdf,
+              pdfName: m.pdf_name,
+            })),
         );
 
-        const day = today.getDate();
-        const month = today.getMonth() + 1;
-        const todayISO = toISO(today);
-        setTodayEvents(
-          events
-            .filter(
-              (ev) =>
-                ev.audience === 'GENERAL' &&
-                (ev.repeat_monthly
-                  ? ev.month === month && ev.day === day
-                  : ev.date === todayISO),
-            )
-            .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? '')),
-        );
+        const groups: EventGroup[] = [];
+        for (let i = 0; i <= UPCOMING_DAYS; i++) {
+          const day = addDays(midnight, i);
+          const list = events
+            .filter((ev) => ev.audience === 'GENERAL' && eventOccursOn(ev, day))
+            .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
+          if (list.length > 0) {
+            groups.push({ date: dateToApi(day) ?? '', events: list });
+          }
+        }
+        setUpcoming(groups);
       })
       .catch(() => active && setError(true))
       .finally(() => active && setLoading(false));
@@ -157,174 +235,77 @@ export default function SecretaryDashboard() {
   }, []);
 
   const firstName = user?.name?.split(' ')[0] ?? '';
+  const greetingTemplate =
+    hour === null
+      ? sd.greeting
+      : hour < 12
+        ? sd.greetingMorning
+        : hour < 18
+          ? sd.greetingAfternoon
+          : sd.greetingEvening;
   const headerTitle = firstName
-    ? t.secretaryDashboard.greeting.replace('{name}', firstName)
+    ? greetingTemplate.replace('{name}', firstName)
     : t.secretaryDashboard.title;
-  const sd = t.secretaryDashboard;
+  const churchName = user?.church?.name ?? '';
 
   const birthdayToday = alerts.filter((a) => a.type === 'birthday_today');
   const birthdayUpcoming = alerts.filter((a) => a.type === 'birthday_upcoming');
   const cardSoon = alerts.filter((a) => a.type === 'card_validity_soon');
   const cardExpired = alerts.filter((a) => a.type === 'card_validity_expired');
-  const loanAlerts = alerts.filter(
-    (a) =>
-      a.type === 'loan_return_today' ||
-      a.type === 'loan_return_soon' ||
-      a.type === 'loan_return_overdue',
-  );
+  const loanAlerts = isIntercessao
+    ? []
+    : alerts.filter(
+        (a) =>
+          a.type === 'loan_return_today' ||
+          a.type === 'loan_return_soon' ||
+          a.type === 'loan_return_overdue',
+      );
 
-  const feedRows: FeedRow[] = [];
+  const openLoans = loans.filter((l) => l.returned_at === null).length;
+  const overdueLoans = loans.filter((l) => l.status === 'overdue').length;
+  const visitors = secretaryActions?.new_visitors ?? [];
+  const careList = secretaryActions?.absent_pending_contact ?? [];
+  const cardsList = secretaryActions?.cards_expiring ?? [];
 
-  if (birthdayToday.length > 0) {
-    feedRows.push({
-      key: 'birthday-today',
-      icon: <IconCake size={18} />,
-      color: 'pink',
-      text: sd.feedBirthdays.replace(
-        '{names}',
-        birthdayToday.map((a) => a.member_name ?? '').filter(Boolean).join(', '),
-      ),
-      href: '/members-reports?tab=birthdays',
-    });
-  }
-  if (birthdayUpcoming.length > 0) {
-    feedRows.push({
-      key: 'birthday-upcoming',
-      icon: <IconCalendarEvent size={18} />,
-      color: 'blue',
-      text: sd.feedBirthdaysUpcoming.replace('{count}', String(birthdayUpcoming.length)),
-      href: '/members-reports?tab=birthdays',
-    });
-  }
-  if (cardSoon.length > 0) {
-    feedRows.push({
-      key: 'card-soon',
-      icon: <IconIdBadge size={18} />,
-      color: 'orange',
-      text: sd.feedCardsExpiring.replace('{count}', String(cardSoon.length)),
-      href: '/members',
-    });
-  }
-  if (cardExpired.length > 0) {
-    feedRows.push({
-      key: 'card-expired',
-      icon: <IconIdBadge size={18} />,
-      color: 'red',
-      text: sd.feedCardsExpired.replace('{count}', String(cardExpired.length)),
-      href: '/members',
-    });
-  }
-  loanAlerts.forEach((a) => {
-    if (isIntercessao) return;
-    const overdue = a.type === 'loan_return_overdue';
-    const todayL = a.type === 'loan_return_today';
-    const color = overdue ? 'red' : todayL ? 'orange' : 'blue';
-    const person = a.borrower_name ?? a.member_name ?? '';
-    const message = (overdue ? sd.feedLoanOverdue : todayL ? sd.feedLoanToday : sd.feedLoanSoon)
-      .replace('{item}', a.item_name ?? '')
-      .replace('{person}', person)
-      .replace('{date}', todayL ? '' : toShortDate(a.date));
-    feedRows.push({
-      key: `loan-${a.loan_id ?? a.item_id ?? a.date}`,
-      icon: <IconPackage size={18} />,
-      color,
-      text: message.trim(),
-      href: '/inventory',
-    });
-  });
-  todayEvents.forEach((ev) => {
-    const time = ev.start_time ? ev.start_time.slice(0, 5) : '';
-    feedRows.push({
-      key: `event-${ev.id}`,
-      icon: <IconCalendarEvent size={18} />,
-      color: 'violet',
-      text: time
-        ? sd.feedEvent.replace('{time}', time).replace('{title}', ev.title)
-        : ev.title,
-      href: '/calendar',
-    });
-  });
-
-  const allStatCards = [
-    { key: 'members', label: sd.statMembers, value: activeMembers, color: 'blue', icon: <IconUsers size={22} /> },
-    { key: 'loans', label: sd.statLoans, value: openLoans, color: 'green', icon: <IconPackage size={22} /> },
-    { key: 'cultos', label: sd.statCultos, value: cultosMonth, color: 'teal', icon: <IconBuildingChurch size={22} /> },
-    { key: 'minutes', label: sd.statMinutes, value: minutesCount, color: 'orange', icon: <IconFileText size={22} /> },
-    { key: 'birthdays', label: sd.statBirthdays, value: birthdayToday.length, color: 'pink', icon: <IconCake size={22} /> },
-    { key: 'cards', label: sd.statCardsExpiring, value: cardSoon.length + cardExpired.length, color: 'red', icon: <IconIdBadge size={22} /> },
-    { key: 'transfers', label: sd.statTransfers, value: pendingTransfers, color: 'indigo', icon: <IconArrowsRightLeft size={22} /> },
-  ];
-  const statCards = isIntercessao
-    ? allStatCards.filter((c) => ['cultos', 'minutes', 'birthdays'].includes(c.key))
-    : allStatCards;
-
-  const allQuickTiles: QuickTile[] = [
-    { key: 'members', label: sd.linkMembers, icon: <IconUsers size={24} />, color: 'blue', href: '/members' },
-    { key: 'calendar', label: sd.linkCalendar, icon: <IconCalendarEvent size={24} />, color: 'violet', href: '/calendar' },
-    { key: 'cultos', label: sd.linkCultos, icon: <IconBuildingChurch size={24} />, color: 'teal', href: '/cultos' },
-    { key: 'minutes', label: sd.linkMinutes, icon: <IconFileText size={24} />, color: 'orange', href: '/atas' },
-    { key: 'inventory', label: sd.linkInventory, icon: <IconPackage size={24} />, color: 'green', href: '/inventory' },
-    { key: 'reports', label: sd.linkReports, icon: <IconReport size={24} />, color: 'cyan', href: '/members-reports' },
-    { key: 'birthdays', label: sd.linkBirthdays, icon: <IconCake size={24} />, color: 'pink', href: '/members-reports?tab=birthdays' },
-    { key: 'transfers', label: sd.linkTransfers, icon: <IconArrowsRightLeft size={24} />, color: 'indigo', href: '/members?tab=transfers' },
-  ];
-  const quickTiles = isIntercessao
-    ? allQuickTiles.filter((t) => ['calendar', 'cultos', 'minutes'].includes(t.key))
-    : allQuickTiles;
-
-  const renderFeedRow = (row: FeedRow) => (
-    <UnstyledButton
-      key={row.key}
-      w="100%"
-      style={{
-        borderRadius: 'var(--mantine-radius-md)',
-        '&:hover': { backgroundColor: 'var(--mantine-color-gray-0)' },
-      }}
-      onClick={() => row.href && router.push(row.href)}
-    >
-      <Group gap="sm" wrap="nowrap" p="xs">
-        <ThemeIcon color={row.color} variant="light" size="sm">
-          {row.icon}
-        </ThemeIcon>
-        <Text size="sm" style={{ flex: 1, minWidth: 0 }}>
-          {row.text}
-        </Text>
-      </Group>
-    </UnstyledButton>
-  );
-
-  const quickActions = isIntercessao ? null : (
-    <Group gap="xs">
-      <Button
-        variant="light"
-        leftSection={<IconCalendarPlus size={18} />}
-        onClick={() => router.push('/cultos')}
-      >
-        {sd.quickCulto}
-      </Button>
-      <Button variant="light" leftSection={<IconFilePlus size={18} />} onClick={() => router.push('/atas')}>
-        {sd.quickAta}
-      </Button>
-      <Button variant="light" leftSection={<IconUserPlus size={18} />} onClick={() => router.push('/members')}>
-        {sd.quickMember}
-      </Button>
-      <Button variant="light" leftSection={<IconPackage size={18} />} onClick={() => router.push('/inventory')}>
-        {sd.quickLoan}
-      </Button>
-    </Group>
-  );
-
-  const actionGroups = secretaryActions
-    ? [
-        { key: 'birthdays', title: sd.actionsBirthdays, items: secretaryActions.birthdays_today, color: 'pink', icon: <IconCake size={16} /> },
-        { key: 'care', title: sd.actionsCare, items: secretaryActions.absent_pending_contact, color: 'orange', icon: <IconUsers size={16} /> },
-        { key: 'visitors', title: sd.actionsVisitors, items: secretaryActions.new_visitors, color: 'violet', icon: <IconUserPlus size={16} /> },
-        { key: 'cards', title: sd.actionsCards, items: secretaryActions.cards_expiring, color: 'red', icon: <IconIdBadge size={16} /> },
-      ]
-    : [];
-  const actionCount = actionGroups.reduce((acc, g) => acc + g.items.length, 0);
-
-  const churchName = user?.church?.name ?? '';
+  const kpis = useMemo<Kpi[]>(() => {
+    const list: Kpi[] = [
+      { key: 'members', label: sd.statMembers, value: activeMembers, color: 'blue', icon: <IconUsers size={20} /> },
+      { key: 'cultos', label: sd.statCultos, value: cultosMonth, color: 'cyan', icon: <IconBuildingChurch size={20} /> },
+      { key: 'visitors', label: sd.statVisitors, value: visitors.length, color: 'grape', icon: <IconUserCheck size={20} /> },
+    ];
+    if (!isIntercessao) {
+      list.push({
+        key: 'loans',
+        label: sd.statActiveLoans,
+        value: openLoans,
+        color: overdueLoans > 0 ? 'red' : 'orange',
+        icon: <IconBox size={20} />,
+        badge: overdueLoans > 0 ? `${overdueLoans} ${sd.badgeOverdue.toLowerCase()}` : undefined,
+      });
+    }
+    list.push(
+      { key: 'minutes', label: sd.statMinutes, value: minutesCount, color: 'gray', icon: <IconFileText size={20} /> },
+      {
+        key: 'birthdays',
+        label: sd.statBirthdaysWeek,
+        value: birthdayToday.length + birthdayUpcoming.length,
+        color: 'pink',
+        icon: <IconCake size={20} />,
+      },
+    );
+    return list;
+  }, [
+    activeMembers,
+    birthdayToday.length,
+    birthdayUpcoming.length,
+    cultosMonth,
+    isIntercessao,
+    minutesCount,
+    openLoans,
+    overdueLoans,
+    sd,
+    visitors.length,
+  ]);
 
   const removeActionItem = (memberId: number) => {
     setSecretaryActions((prev) => {
@@ -339,23 +320,252 @@ export default function SecretaryDashboard() {
     });
   };
 
+  const downloadPdf = (item: MinutesRow) => {
+    accountsApi
+      .minutesPdfDownload(item.id)
+      .then((blob) => saveBlob(blob, item.pdfName || 'ata.pdf'))
+      .catch(() => notifications.show({ message: sd.loadError, color: 'red' }));
+  };
+
+  const go = (href: string) => router.push(href);
+
+  const quickActions = isIntercessao ? null : (
+    <Group gap="xs" wrap="wrap">
+      <Button
+        color="blue"
+        leftSection={<IconUserPlus size={18} />}
+        onClick={() => go('/members')}
+        data-testid="sd-quick-member"
+      >
+        {sd.quickMember}
+      </Button>
+      <Button
+        variant="light"
+        color="cyan"
+        leftSection={<IconCalendarPlus size={18} />}
+        onClick={() => go('/cultos')}
+        data-testid="sd-quick-culto"
+      >
+        {sd.quickCulto}
+      </Button>
+      <Button
+        variant="light"
+        color="orange"
+        leftSection={<IconFilePlus size={18} />}
+        onClick={() => go('/atas')}
+        data-testid="sd-quick-ata"
+      >
+        {sd.quickAta}
+      </Button>
+      <Button
+        variant="light"
+        color="teal"
+        leftSection={<IconPackage size={18} />}
+        onClick={() => go('/inventory')}
+        data-testid="sd-quick-loan"
+      >
+        {sd.quickLoan}
+      </Button>
+    </Group>
+  );
+
+  const renderKpi = (kpi: Kpi) => (
+    <Paper key={kpi.key} withBorder radius="md" p="md" shadow="xs" data-testid={`sd-kpi-${kpi.key}`}>
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
+        <Stack gap={4} style={{ minWidth: 0 }}>
+          <Text fz="xl" fw={700} lh={1.1}>
+            {kpi.value}
+          </Text>
+          <Text size="xs" c="dimmed" lineClamp={2}>
+            {kpi.label}
+          </Text>
+        </Stack>
+        <ThemeIcon color={kpi.color} variant="light" radius="xl" size="lg">
+          {kpi.icon}
+        </ThemeIcon>
+      </Group>
+      {kpi.badge ? (
+        <Badge color="red" variant="light" size="xs" mt={8}>
+          {kpi.badge}
+        </Badge>
+      ) : null}
+    </Paper>
+  );
+
+  const renderContactRow = (
+    item: SecretaryActionItem,
+    groupKey: string,
+    trailing?: React.ReactNode
+  ) => (
+    <Group
+      key={`${groupKey}-${item.member_id}`}
+      gap="sm"
+      wrap="nowrap"
+      py={6}
+      data-testid={`sa-row-${groupKey}-${item.member_id}`}
+    >
+      <Avatar src={item.photo || null} radius="xl" size="sm">
+        {item.name?.charAt(0)?.toUpperCase()}
+      </Avatar>
+      <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+        <Text size="sm" fw={500} truncate>
+          {item.name}
+        </Text>
+        <Text size="xs" c="dimmed" truncate>
+          {item.phone || '—'}
+        </Text>
+      </Stack>
+      {trailing ?? (
+        <ActionIcon
+          variant="light"
+          color="green"
+          size="lg"
+          radius="xl"
+          onClick={() => setWaAction(item)}
+          aria-label={sd.welcomeContact}
+          data-testid={`sa-wa-${groupKey}-${item.member_id}`}
+        >
+          <IconBrandWhatsapp size={16} />
+        </ActionIcon>
+      )}
+    </Group>
+  );
+
+  const alertGroups = [
+    {
+      key: 'birthdays',
+      title: sd.alertsBirthdays,
+      icon: <IconCake size={16} />,
+      color: 'pink',
+      count: birthdayToday.length + birthdayUpcoming.length,
+      body: (
+        <Stack gap={2}>
+          {birthdayToday.slice(0, 4).map((a) => (
+            <Group key={`bt-${a.member_id ?? a.date}`} gap="xs" wrap="nowrap" py={2}>
+              <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                {a.member_name}
+              </Text>
+              <Badge color="pink" variant="light" size="xs">
+                {sd.badgeToday}
+              </Badge>
+            </Group>
+          ))}
+          {birthdayUpcoming.slice(0, 3).map((a) => (
+            <Group key={`bu-${a.member_id ?? a.date}`} gap="xs" wrap="nowrap" py={2}>
+              <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                {a.member_name}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {toShortDate(a.date)}
+              </Text>
+            </Group>
+          ))}
+        </Stack>
+      ),
+    },
+    {
+      key: 'loans',
+      title: sd.alertsLoans,
+      icon: <IconPackage size={16} />,
+      color: 'orange',
+      count: loanAlerts.length,
+      body: (
+        <Stack gap={2}>
+          {loanAlerts.slice(0, 5).map((a) => {
+            const overdue = a.type === 'loan_return_overdue';
+            const dueToday = a.type === 'loan_return_today';
+            return (
+              <Group
+                key={`loan-${a.loan_id ?? a.item_id ?? a.date}`}
+                gap="xs"
+                wrap="nowrap"
+                py={2}
+                data-testid={`sd-alert-${a.type}`}
+              >
+                <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                  {a.item_name}
+                </Text>
+                <Text size="xs" c="dimmed" truncate style={{ maxWidth: 110 }}>
+                  {a.borrower_name ?? a.member_name}
+                </Text>
+                <Badge color={overdue ? 'red' : dueToday ? 'orange' : 'blue'} variant="light" size="xs">
+                  {overdue ? sd.badgeOverdue : dueToday ? sd.badgeToday : toShortDate(a.date)}
+                </Badge>
+              </Group>
+            );
+          })}
+        </Stack>
+      ),
+    },
+    {
+      key: 'cards',
+      title: sd.alertsCards,
+      icon: <IconIdBadge size={16} />,
+      color: 'red',
+      count: cardSoon.length + cardExpired.length,
+      body: (
+        <Group gap="xs">
+          {cardSoon.length > 0 ? (
+            <Badge color="orange" variant="light" size="sm">
+              {cardSoon.length} {sd.badgeExpiring}
+            </Badge>
+          ) : null}
+          {cardExpired.length > 0 ? (
+            <Badge color="red" variant="light" size="sm">
+              {cardExpired.length} {sd.badgeExpired}
+            </Badge>
+          ) : null}
+          {cardsList.slice(0, 3).map((item) => (
+            <UnstyledButton
+              key={`card-${item.member_id}`}
+              onClick={() => setWaAction(item)}
+              data-testid={`sa-row-cards-${item.member_id}`}
+            >
+              <Text size="sm" c="dimmed" style={{ textDecoration: 'underline' }}>
+                {item.name}
+              </Text>
+            </UnstyledButton>
+          ))}
+        </Group>
+      ),
+    },
+    ...(!isIntercessao && careList.length > 0
+      ? [
+          {
+            key: 'care',
+            title: sd.alertsCare,
+            icon: <IconUsers size={16} />,
+            color: 'violet',
+            count: careList.length,
+            body: <Stack gap={0}>{careList.slice(0, 4).map((i) => renderContactRow(i, 'care'))}</Stack>,
+          },
+        ]
+      : []),
+  ].filter((g) => g.count > 0);
+
+  const alertCount = alertGroups.reduce((acc, g) => acc + g.count, 0);
+
   return (
     <>
-      <PageHeader title={headerTitle} description={sd.subtitle}>
+      <PageHeader title={headerTitle} description={churchName || sd.subtitle}>
         {quickActions}
       </PageHeader>
 
       {loading ? (
         <>
-          <SimpleGrid cols={{ base: 2, sm: 3, lg: 7 }} spacing="sm" mb="lg">
-            {statCards.map((c) => (
-              <Skeleton key={c.key} height={104} />
+          <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 6 }} spacing="md" mb="md">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} height={92} radius="md" />
             ))}
           </SimpleGrid>
-          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-            <Skeleton height={260} />
-            <Skeleton height={260} />
-          </SimpleGrid>
+          <Grid gap="md">
+            <Grid.Col span={{ base: 12, lg: 7 }}>
+              <Skeleton height={220} radius="md" />
+            </Grid.Col>
+            <Grid.Col span={{ base: 12, lg: 5 }}>
+              <Skeleton height={220} radius="md" />
+            </Grid.Col>
+          </Grid>
         </>
       ) : error ? (
         <Center py="xl">
@@ -363,214 +573,246 @@ export default function SecretaryDashboard() {
         </Center>
       ) : (
         <>
-          {secretaryActions && (
-            <Card withBorder radius="md" p="md" mb="lg" data-testid="secretary-actions">
-              <Group justify="space-between" mb="sm">
-                <Group gap="xs">
-                  <ThemeIcon color="green" variant="light" size="md">
-                    <IconBrandWhatsapp size={16} />
-                  </ThemeIcon>
-                  <Title order={4} size="md">
-                    {sd.actionsTitle}
-                  </Title>
-                </Group>
-                <Badge color="green" variant="light" size="lg" data-testid="secretary-actions-count">
-                  {actionCount}
-                </Badge>
-              </Group>
-              {actionCount === 0 ? (
-                <Text size="sm" c="dimmed">
-                  {sd.actionsEmpty}
-                </Text>
-              ) : (
-                <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md" mt="sm">
-                  {actionGroups.map((group) =>
-                    group.items.length === 0 ? null : (
-                      <Stack key={group.key} gap={4}>
-                        <Group gap={6} mb={2}>
-                          <ThemeIcon color={group.color} variant="light" size="sm">
-                            {group.icon}
-                          </ThemeIcon>
-                          <Text size="sm" fw={700}>
-                            {group.title}
-                          </Text>
-                          <Badge color={group.color} variant="light" size="xs" ml="auto">
-                            {group.items.length}
-                          </Badge>
-                        </Group>
-                        {group.items.map((item) => (
-                          <Group
-                            key={`${group.key}-${item.member_id}`}
-                            gap="xs"
-                            wrap="nowrap"
-                            p={6}
-                            style={{ borderRadius: 'var(--mantine-radius-md)' }}
-                            data-testid={`sa-row-${group.key}-${item.member_id}`}
-                          >
-                            <Avatar src={item.photo || null} radius="xl" size="sm">
-                              {item.name?.charAt(0)?.toUpperCase()}
-                            </Avatar>
-                            <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                              <Text size="sm" fw={500} truncate>
-                                {item.name}
-                              </Text>
-                              <Text size="xs" c="dimmed" truncate>
-                                {item.phone || '—'}
-                              </Text>
-                            </Stack>
-                            <ActionIcon
-                              variant="subtle"
-                              color="green"
-                              onClick={() => setWaAction(item)}
-                              data-testid={`sa-wa-${group.key}-${item.member_id}`}
-                            >
-                              <IconBrandWhatsapp size={16} />
-                            </ActionIcon>
-                          </Group>
-                        ))}
-                      </Stack>
-                    ),
-                  )}
-                </SimpleGrid>
-              )}
-            </Card>
-          )}
-
-          <SimpleGrid cols={{ base: 2, sm: 3, lg: 7 }} spacing="sm" mb="lg">
-            {statCards.map((card) => (
-              <Card key={card.key} withBorder shadow="sm" padding="lg">
-                <Stack gap={6} align="flex-start">
-                  <ThemeIcon color={card.color} variant="light" size="lg">
-                    {card.icon}
-                  </ThemeIcon>
-                  <Text fw={800} size="xl">
-                    {card.value}
-                  </Text>
-                  <Text size="xs" c="dimmed" lineClamp={2}>
-                    {card.label}
-                  </Text>
-                </Stack>
-              </Card>
-            ))}
+          <SimpleGrid
+            cols={{ base: 2, sm: 3, md: 4, lg: 6 }}
+            spacing="md"
+            mb="md"
+          >
+            {kpis.map(renderKpi)}
           </SimpleGrid>
 
-          <Grid mb="lg">
+          <Grid gap="md" mb="md">
             <Grid.Col span={{ base: 12, lg: 7 }}>
-              <Card withBorder radius="md" p="md" h="100%">
-                <Title order={4} mb="xs" size="md">
-                  {sd.todayTitle}
-                </Title>
-                {feedRows.length === 0 ? (
-                  <Center py="lg">
-                    <Text size="sm" c="dimmed">
-                      {sd.todayEmpty}
-                    </Text>
-                  </Center>
-                ) : (
-                  <Stack gap={2}>{feedRows.map(renderFeedRow)}</Stack>
-                )}
-              </Card>
+              <Stack gap="md">
+                <Section
+                  title={sd.welcomeTitle}
+                  hint={sd.welcomeHint}
+                  testId="secretary-actions"
+                  action={
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
+                      rightSection={<IconChevronRight size={14} />}
+                      onClick={() => go('/visitors')}
+                      data-testid="sd-visitors-funnel"
+                    >
+                      {sd.welcomeFunnel}
+                    </Button>
+                  }
+                >
+                  {visitors.length === 0 ? (
+                    <Center py="md">
+                      <Text size="sm" c="dimmed">
+                        {sd.welcomeEmpty}
+                      </Text>
+                    </Center>
+                  ) : (
+                    <Rows>
+                      {visitors.map((item) => renderContactRow(item, 'visitors'))}
+                    </Rows>
+                  )}
+                </Section>
+
+                <Section
+                  title={sd.alertsTitle}
+                  hint={sd.alertsHint}
+                  testId="secretary-alerts"
+                  action={
+                    <Badge
+                      color={alertCount > 0 ? 'orange' : 'gray'}
+                      variant="light"
+                      data-testid="secretary-actions-count"
+                    >
+                      {alertCount}
+                    </Badge>
+                  }
+                >
+                  {alertGroups.length === 0 ? (
+                    <Center py="md">
+                      <Text size="sm" c="dimmed">
+                        {sd.alertsEmpty}
+                      </Text>
+                    </Center>
+                  ) : (
+                    <Stack gap="md">
+                      {alertGroups.map((group) => (
+                        <Stack key={group.key} gap={4}>
+                          <Group gap={6}>
+                            <ThemeIcon color={group.color} variant="light" size="sm">
+                              {group.icon}
+                            </ThemeIcon>
+                            <Text size="sm" fw={700}>
+                              {group.title}
+                            </Text>
+                            <Badge color={group.color} variant="light" size="xs" ml="auto">
+                              {group.count}
+                            </Badge>
+                          </Group>
+                          {group.body}
+                        </Stack>
+                      ))}
+                    </Stack>
+                  )}
+                </Section>
+              </Stack>
             </Grid.Col>
+
             <Grid.Col span={{ base: 12, lg: 5 }}>
               <Stack gap="md">
-                <Card withBorder radius="md" p="md">
-                  <Group justify="space-between" mb="xs">
-                    <Title order={4} size="md">
-                      {sd.recentCultos}
-                    </Title>
-                    <Text
-                      size="xs"
-                      c="blue"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => router.push('/cultos')}
+                <Section
+                  title={sd.recentCultos}
+                  testId="sd-recent-cultos"
+                  action={
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
+                      rightSection={<IconChevronRight size={14} />}
+                      onClick={() => go('/cultos')}
                     >
                       {sd.viewAll}
-                    </Text>
-                  </Group>
+                    </Button>
+                  }
+                >
                   {recentCultos.length === 0 ? (
                     <Text size="sm" c="dimmed">
                       {sd.emptyCultos}
                     </Text>
                   ) : (
-                    <Stack gap={4}>
+                    <Rows>
                       {recentCultos.map((c) => (
-                        <Group key={c.id} gap="sm" wrap="nowrap" p={4}>
-                          <Text size="sm" c="dimmed" style={{ minWidth: 62 }}>
+                        <Group key={c.id} gap="sm" wrap="nowrap" py={8}>
+                          <Badge variant="light" color="cyan" size="sm" style={{ flexShrink: 0 }}>
                             {toShortDate(c.date)}
-                          </Text>
-                          <Text size="sm" c="blue" style={{ minWidth: 0, flex: 1, cursor: 'pointer' }} lineClamp={1} onClick={() => router.push('/cultos')}>
-                            {c.typeLabel}
-                          </Text>
-                          <Text size="xs" c="dimmed" lineClamp={1}>
-                            {c.theme}
-                          </Text>
+                          </Badge>
+                          <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="sm" fw={500} truncate>
+                              {c.typeLabel}
+                            </Text>
+                            {c.theme ? (
+                              <Text size="xs" c="dimmed" truncate>
+                                {c.theme}
+                              </Text>
+                            ) : null}
+                            <Text size="xs" c="dimmed">
+                              {sd.cultosStats
+                                .replace('{attendees}', String(c.attendees))
+                                .replace('{visitors}', String(c.visitors))}
+                            </Text>
+                          </Stack>
                         </Group>
                       ))}
-                    </Stack>
+                    </Rows>
                   )}
-                </Card>
-                <Card withBorder radius="md" p="md">
-                  <Group justify="space-between" mb="xs">
-                    <Title order={4} size="md">
-                      {sd.recentMinutes}
-                    </Title>
-                    <Text
-                      size="xs"
-                      c="blue"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => router.push('/atas')}
+                </Section>
+
+                <Section
+                  title={sd.recentMinutes}
+                  testId="sd-recent-minutes"
+                  action={
+                    <Button
+                      variant="subtle"
+                      size="compact-sm"
+                      rightSection={<IconChevronRight size={14} />}
+                      onClick={() => go('/atas')}
                     >
                       {sd.viewAll}
-                    </Text>
-                  </Group>
+                    </Button>
+                  }
+                >
                   {recentMinutes.length === 0 ? (
                     <Text size="sm" c="dimmed">
                       {sd.emptyMinutes}
                     </Text>
                   ) : (
-                    <Stack gap={4}>
+                    <Rows>
                       {recentMinutes.map((m) => (
-                        <Group key={m.id} gap="sm" wrap="nowrap" p={4}>
-                          <Text size="sm" c="dimmed" style={{ minWidth: 62 }}>
-                            {toShortDate(m.date)}
-                          </Text>
-                          <Text size="sm" lineClamp={1} style={{ minWidth: 0, flex: 1, cursor: 'pointer' }} c="blue" onClick={() => router.push('/atas')}>
-                            {m.title}
-                          </Text>
+                        <Group key={m.id} gap="sm" wrap="nowrap" py={8}>
+                          <ThemeIcon color="gray" variant="light" size="md" radius="md">
+                            <IconFileText size={16} />
+                          </ThemeIcon>
+                          <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                            <Text size="sm" fw={500} truncate>
+                              {m.title}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {toShortDate(m.date)}
+                            </Text>
+                          </Stack>
+                          {m.pdf ? (
+                            <ActionIcon
+                              variant="light"
+                              color="gray"
+                              onClick={() => downloadPdf(m)}
+                              aria-label={sd.minutesDownload}
+                              data-testid={`sd-minutes-pdf-${m.id}`}
+                            >
+                              <IconFileDownload size={16} />
+                            </ActionIcon>
+                          ) : null}
                         </Group>
                       ))}
-                    </Stack>
+                    </Rows>
                   )}
-                </Card>
+                </Section>
               </Stack>
             </Grid.Col>
           </Grid>
 
-          <Title order={3} tt="uppercase" size="sm" c="dimmed" mb="xs" fw={700}>
-            {sd.quickAccessTitle}
-          </Title>
-          <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
-            {quickTiles.map((tile) => (
-              <Card
-                key={tile.key}
-                component="a"
-                href={tile.href}
-                withBorder
-                radius="md"
-                p="md"
-                style={{ textDecoration: 'none' }}
+          <Section
+            title={sd.upcomingTitle}
+            hint={sd.upcomingHint}
+            testId="sd-upcoming-events"
+            action={
+              <Button
+                variant="subtle"
+                size="compact-sm"
+                rightSection={<IconChevronRight size={14} />}
+                onClick={() => go('/calendar')}
               >
-                <Group gap="sm">
-                  <ThemeIcon color={tile.color} variant="light">
-                    {tile.icon}
-                  </ThemeIcon>
-                  <Text size="sm" fw={600}>
-                    {tile.label}
-                  </Text>
-                </Group>
-              </Card>
-            ))}
-          </SimpleGrid>
+                {sd.viewCalendar}
+              </Button>
+            }
+          >
+            {upcoming.length === 0 ? (
+              <Center py="md">
+                <Text size="sm" c="dimmed">
+                  {sd.upcomingEmpty}
+                </Text>
+              </Center>
+            ) : (
+              <Stack gap="md">
+                {upcoming.map((group) => (
+                  <Stack key={group.date} gap={4}>
+                    <Text size="xs" fw={700} c="dimmed">
+                      {group.date === todayISO
+                        ? sd.eventsToday
+                        : group.date === dateToApi(addDays(dateFromApi(todayISO), 1))
+                          ? sd.eventsTomorrow
+                          : toShortDate(group.date)}
+                    </Text>
+                    <Stack gap={4}>
+                      {group.events.map((ev) => (
+                        <Group key={`${group.date}-${ev.id}`} gap="sm" wrap="nowrap">
+                          <ThemeIcon color="violet" variant="light" size="sm" radius="md">
+                            <IconCalendarEvent size={14} />
+                          </ThemeIcon>
+                          <Text size="sm" c="dimmed" style={{ minWidth: 42 }}>
+                            {ev.start_time ? ev.start_time.slice(0, 5) : '—'}
+                          </Text>
+                          <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+                            {ev.title}
+                          </Text>
+                          <Badge size="xs" variant="light" color="gray" style={{ flexShrink: 0 }}>
+                            {ev.category_display}
+                          </Badge>
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Stack>
+                ))}
+              </Stack>
+            )}
+          </Section>
         </>
       )}
 

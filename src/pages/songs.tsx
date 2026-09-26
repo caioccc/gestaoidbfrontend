@@ -29,6 +29,7 @@ import {
   IconLayoutGrid,
   IconList,
   IconMusic,
+  IconNotebook,
   IconPencil,
   IconPlayerPlay,
   IconPlus,
@@ -42,12 +43,13 @@ import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import SongModal from '../components/SongModal';
 import BandModal from '../components/BandModal';
-import SongChordStatusBadge, { isChordReady } from '../components/SongChordStatusBadge';
+import SongChordStatusBadge, { chordStatusMeta, isChordReady } from '../components/SongChordStatusBadge';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
-import { formatMusicalKey } from '../utils/format';
-import type { Band, Song } from '../types';
+import { formatDuration, formatMusicalKey } from '../utils/format';
+import galleryStyles from '../styles/songGallery.module.css';
+import type { Band, ChordStatus, Song } from '../types';
 
 type ViewMode = 'gallery' | 'list' | 'table';
 
@@ -65,6 +67,14 @@ const MUSICAL_KEYS = [
 ];
 
 const PAGE_SIZES = [10, 25, 50, 100];
+
+/** Só entra no card quem ainda não tem cifra utilizável. COMPLETED e MANUAL
+ *  são omitidos de propósito: nesses casos o Play já é o sinal. */
+const GALLERY_STATUS_CLASS: Partial<Record<ChordStatus, string>> = {
+  PENDING: galleryStyles.statusPending,
+  PROCESSING: galleryStyles.statusProcessing,
+  FAILED: galleryStyles.statusFailed,
+};
 
 const ORDERING_OPTIONS = [
   { value: 'random', translationKey: 'orderRandom' },
@@ -128,35 +138,48 @@ function SongKeyBadges({ song, size = 'sm' }: { song: Song; size?: 'xs' | 'sm' }
   );
 }
 
-function SongActionMenu({ song, onHistory, onEdit, onDelete }: {
+function SongActionMenu({ song, onHistory, onEdit, onDelete, appearance = 'default' }: {
   song: Song;
+  /** `overlay` usa o mesmo botão circular translúcido das ações da galeria. */
+  appearance?: 'default' | 'overlay';
 } & Omit<SongActionCallbacks, 'onPlay'>) {
   const { t } = useLanguage();
+  const isOverlay = appearance === 'overlay';
+
+  const target = isOverlay ? (
+    <button type="button" className={galleryStyles.actionButton} aria-label={t.common.actions}>
+      <IconDotsVertical size={17} />
+    </button>
+  ) : (
+    <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t.common.actions}>
+      <IconDotsVertical size={16} />
+    </ActionIcon>
+  );
 
   return (
     <Box onClick={(event) => event.stopPropagation()}>
-      <Menu shadow="md" position="bottom-end">
-        <Menu.Target>
-          <ActionIcon variant="subtle" color="gray" size="sm" aria-label={t.common.actions}>
-            <IconDotsVertical size={16} />
-          </ActionIcon>
-        </Menu.Target>
-        <Menu.Dropdown>
-          {song.can_edit ? (
-            <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => onEdit(song)}>
-              {t.music.editSong}
+      <Tooltip label={t.common.actions} position="left" withArrow disabled={!isOverlay}>
+        <Menu shadow="md" position={isOverlay ? 'left' : 'bottom-end'}>
+          <Menu.Target>
+            {target}
+          </Menu.Target>
+          <Menu.Dropdown>
+            {song.can_edit ? (
+              <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => onEdit(song)}>
+                {t.music.editSong}
+              </Menu.Item>
+            ) : null}
+            <Menu.Item leftSection={<IconHistory size={16} />} onClick={() => onHistory(song)}>
+              {t.music.executionHistory}
             </Menu.Item>
-          ) : null}
-          <Menu.Item leftSection={<IconHistory size={16} />} onClick={() => onHistory(song)}>
-            {t.music.executionHistory}
-          </Menu.Item>
-          {song.can_edit ? (
-            <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => onDelete(song)}>
-              {t.common.delete}
-            </Menu.Item>
-          ) : null}
-        </Menu.Dropdown>
-      </Menu>
+            {song.can_edit ? (
+              <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => onDelete(song)}>
+                {t.common.delete}
+              </Menu.Item>
+            ) : null}
+          </Menu.Dropdown>
+        </Menu>
+      </Tooltip>
     </Box>
   );
 }
@@ -207,132 +230,182 @@ function SongGalleryView({
   onOpen: (song: Song) => void;
 } & Omit<SongActionCallbacks, 'onPlay'>) {
   const { t } = useLanguage();
+  const router = useRouter();
 
   return (
     <SimpleGrid cols={{ base: 1, xs: 1, sm: 2, md: 3, lg: 4, xl: 6 }} spacing="md">
-      {songs.map((song) => (
-        <Card
-          key={song.id}
-          withBorder
-          radius="md"
-          padding={0}
-          onClick={isChordReady(song.chord_status) ? () => onOpen(song) : undefined}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100%',
-            overflow: 'hidden',
-            cursor: isChordReady(song.chord_status) ? 'pointer' : 'default',
-          }}
-        >
-          <Card.Section style={{ height: 170, overflow: 'hidden', position: 'relative' }}>
-            <Box
-              component="button"
-              type="button"
-              disabled={!isChordReady(song.chord_status)}
-              aria-label={isChordReady(song.chord_status) ? t.music.playerGo : undefined}
-              onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation();
-                if (isChordReady(song.chord_status)) onOpen(song);
-              }}
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: 0,
-                border: 0,
-                background: 'transparent',
-                cursor: isChordReady(song.chord_status) ? 'pointer' : 'default',
-              }}
-            >
-              <SongThumbnail song={song} height={170} />
-            </Box>
-            {isChordReady(song.chord_status) ? (
-              <Box
-                pos="absolute"
-                inset={0}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'none',
+      {songs.map((song) => {
+        const ready = isChordReady(song.chord_status);
+        const duration = formatDuration(song.duration_seconds);
+        const key = song.church_key || song.original_key;
+        const keyLabel = song.church_key
+          ? t.music.churchKeyShort
+          : t.music.originalKeyShort;
+        const youtubeUrl = song.youtube_id
+          ? `https://www.youtube.com/watch?v=${song.youtube_id}`
+          : null;
+        const statusMeta = ready ? null : chordStatusMeta(song.chord_status);
+        const StatusIcon = statusMeta?.Icon;
+        const statusLabel = statusMeta ? t.music[statusMeta.labelKey] : '';
+        const statusClass = statusMeta
+          ? GALLERY_STATUS_CLASS[song.chord_status as ChordStatus]
+          : undefined;
+
+        return (
+          <Card
+            key={song.id}
+            withBorder
+            radius="md"
+            padding={0}
+            className={`${galleryStyles.card} ${ready ? galleryStyles.cardInteractive : ''}`}
+            onClick={ready ? () => onOpen(song) : undefined}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              overflow: 'hidden',
+              cursor: ready ? 'pointer' : 'default',
+            }}
+          >
+            <div className={galleryStyles.mediaWrap}>
+              <button
+                type="button"
+                className={galleryStyles.media}
+                disabled={!ready}
+                aria-label={ready ? t.music.viewStudy : undefined}
+                onClick={(event: React.MouseEvent<HTMLButtonElement>) => {
+                  event.stopPropagation();
+                  if (ready) onOpen(song);
                 }}
               >
-                <Center
-                  w={46}
-                  h={46}
-                  style={{ borderRadius: '50%', background: 'rgba(0, 0, 0, 0.55)', color: 'white' }}
-                >
-                  <IconPlayerPlay size={22} />
-                </Center>
-              </Box>
-            ) : null}
-          </Card.Section>
-          <Stack gap="sm" p="md" style={{ flex: 1 }}>
-            <Stack gap={4}>
-              <Group gap={6} wrap="wrap">
-                <Text fw={600} lineClamp={2}>{song.title}</Text>
-                {song.created_by === userId ? (
-                  <Badge variant="light" color="teal" size="xs">{t.music.mySong}</Badge>
+                {song.thumbnail_url ? (
+                  <img
+                    className={galleryStyles.thumb}
+                    src={song.thumbnail_url}
+                    alt={`Capa de ${song.title}`}
+                    loading="lazy"
+                    draggable={false}
+                  />
+                ) : (
+                  <span className={galleryStyles.fallback}>
+                    <IconMusic size={42} color="white" style={{ opacity: 0.85 }} />
+                  </span>
+                )}
+
+                {key ? (
+                  <span className={galleryStyles.keyBadge}>
+                    {keyLabel}: {formatMusicalKey(key)}
+                  </span>
                 ) : null}
-              </Group>
-              <Text size="sm" c="dimmed" lineClamp={1}>{song.artist || '—'}</Text>
-            </Stack>
-            <SongKeyBadges song={song} size="xs" />
-            <Group gap={4} wrap="wrap">
-              {song.band_name ? (
-                <Badge variant="dot" color={song.band_color} size="xs">{song.band_name}</Badge>
-              ) : null}
-              <SongChordStatusBadge
-                status={song.chord_status}
-                detail={song.chord_error || undefined}
-                size="xs"
-              />
-            </Group>
-            {song.tags ? <Text size="xs" c="dimmed" lineClamp={1}>{song.tags}</Text> : null}
-          </Stack>
-          <Group
-            justify="space-between"
-            align="center"
-            wrap="nowrap"
-            p="sm"
-            style={{ borderTop: '1px solid var(--mantine-color-default-border)' }}
-          >
-            <Group gap={4} wrap="nowrap">
-              <Tooltip label={t.music.viewStudy}>
-                <ActionIcon
-                  variant="light"
-                  color="blue"
-                  size="sm"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpen(song);
-                  }}
-                >
-                  <IconEye size={16} />
-                </ActionIcon>
-              </Tooltip>
-              {song.youtube_id ? (
-                <Tooltip label={t.music.openYoutube}>
-                  <ActionIcon
-                    component="a"
-                    href={`https://www.youtube.com/watch?v=${song.youtube_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="light"
-                    color="red"
-                    size="sm"
-                    aria-label={t.music.openYoutube}
-                    onClick={(event) => event.stopPropagation()}
+                {song.band_name ? (
+                  <span
+                    className={galleryStyles.bandBadge}
+                    style={song.band_color ? { backgroundColor: song.band_color } : undefined}
                   >
-                    <IconBrandYoutube size={17} />
-                  </ActionIcon>
+                    {song.band_name}
+                  </span>
+                ) : null}
+                {duration ? (
+                  <span className={galleryStyles.duration}>{duration}</span>
+                ) : null}
+
+                {statusMeta && StatusIcon ? (
+                  <span
+                    className={`${galleryStyles.statusBadge} ${statusClass ?? ''}`}
+                    title={
+                      song.chord_error
+                        ? `${statusLabel}: ${song.chord_error}`
+                        : statusLabel
+                    }
+                  >
+                    <StatusIcon size={12} />
+                    {statusLabel}
+                  </span>
+                ) : null}
+
+                {ready ? (
+                  <span className={galleryStyles.overlay} aria-hidden="true">
+                    <span className={galleryStyles.playButton}>
+                      <IconPlayerPlay size={24} />
+                    </span>
+                  </span>
+                ) : null}
+              </button>
+
+              <div className={galleryStyles.actions}>
+                <Tooltip label={t.music.viewStudy} position="left" withArrow>
+                  <button
+                    type="button"
+                    className={galleryStyles.actionButton}
+                    aria-label={t.music.viewStudy}
+                    disabled={!ready}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (ready) onOpen(song);
+                    }}
+                    style={ready ? undefined : { opacity: 0.4, cursor: 'not-allowed' }}
+                  >
+                    <IconEye size={17} />
+                  </button>
                 </Tooltip>
-              ) : null}
-            </Group>
-            <SongActionMenu song={song} onHistory={onHistory} onEdit={onEdit} onDelete={onDelete} />
-          </Group>
-        </Card>
-      ))}
+
+                <Tooltip label={t.music.lyricsLabel} position="left" withArrow>
+                  <button
+                    type="button"
+                    className={galleryStyles.actionButton}
+                    aria-label={t.music.lyricsLabel}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      void router.push({
+                        pathname: '/songs/[id]',
+                        query: { id: String(song.id), tab: 'lyrics' },
+                      });
+                    }}
+                  >
+                    <IconNotebook size={17} />
+                  </button>
+                </Tooltip>
+
+                {youtubeUrl ? (
+                  <Tooltip label={t.music.openYoutube} position="left" withArrow>
+                    <button
+                      type="button"
+                      className={galleryStyles.actionButton}
+                      aria-label={t.music.openYoutube}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        window.open(youtubeUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <IconBrandYoutube size={17} />
+                    </button>
+                  </Tooltip>
+                ) : null}
+
+                <SongActionMenu
+                  song={song}
+                  onHistory={onHistory}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  appearance="overlay"
+                />
+              </div>
+            </div>
+
+            <div className={galleryStyles.meta}>
+              <span className={galleryStyles.title} title={song.title}>
+                {song.title}
+                {song.created_by === userId ? ` · ${t.music.mySong}` : ''}
+              </span>
+              <span className={galleryStyles.subtitle}>
+                {[song.artist || '—', song.bpm ? `${song.bpm} ${t.music.bpmLabel}` : null]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </span>
+            </div>
+          </Card>
+        );
+      })}
     </SimpleGrid>
   );
 }

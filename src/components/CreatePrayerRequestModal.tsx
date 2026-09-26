@@ -66,6 +66,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
   const [cepLoading, setCepLoading] = useState(false);
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -86,6 +87,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
     setCepLoading(false);
     setStreet('');
     setNumber('');
+    setComplement('');
     setNeighborhood('');
     setCity('');
     setState('');
@@ -142,6 +144,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
         cep: wantsVisit ? cep.replace(/\D/g, '') : '',
         street: wantsVisit ? street.trim() : '',
         number: wantsVisit ? number.trim() : '',
+        complement: wantsVisit ? complement.trim() : '',
         neighborhood: wantsVisit ? neighborhood.trim() : '',
         city: wantsVisit ? city.trim() : '',
         state: wantsVisit ? state.trim().toUpperCase() : '',
@@ -266,6 +269,15 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
                   value={number}
                   onChange={(e) => setNumber(e.currentTarget.value)}
                   maxLength={20}
+                />
+              </Grid.Col>
+              <Grid.Col span={6}>
+                <TextInput
+                  label={t.registerPage.complement}
+                  placeholder={t.prayerPublicModal.complementPlaceholder}
+                  value={complement}
+                  onChange={(e) => setComplement(e.currentTarget.value)}
+                  maxLength={100}
                 />
               </Grid.Col>
               <Grid.Col span={6}>

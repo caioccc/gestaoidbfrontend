@@ -31,6 +31,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { ListPagination, useListPagination } from '../components/ListPagination';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -72,6 +73,7 @@ export default function CultosPage() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<WorshipService | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const pagination = useListPagination(services);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -254,7 +256,7 @@ export default function CultosPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {services.map((s) => (
+                  {pagination.pageItems.map((s) => (
                     <Table.Tr key={s.id}>
                       <Table.Td>
                         <Group gap="xs" wrap="nowrap">
@@ -310,7 +312,7 @@ export default function CultosPage() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {services.map((s) => (
+              {pagination.pageItems.map((s) => (
                 <MobileItemCard
                   key={s.id}
                   testId={`culto-mobile-${s.id}`}
@@ -355,6 +357,18 @@ export default function CultosPage() {
             </Stack>
           </Card>
         )}
+
+        <ListPagination
+          page={pagination.page}
+          onPageChange={pagination.setPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.changePageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          testId="cultos-pagination"
+        />
 
         <Modal
           opened={opened}

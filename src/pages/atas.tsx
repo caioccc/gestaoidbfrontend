@@ -40,6 +40,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { ListPagination, useListPagination } from '../components/ListPagination';
 import { RichText } from '../components/RichText';
 import ShareLinkModal from '../components/ShareLinkModal';
 import AtaTemplateModal from '../components/AtaTemplateModal';
@@ -96,6 +97,7 @@ export default function MinutesPage() {
   const [removingPdf, setRemovingPdf] = useState(false);
   const [qrMinutes, setQrMinutes] = useState<ChurchMinutes | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const pagination = useListPagination(minutes);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -388,7 +390,7 @@ export default function MinutesPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {minutes.map((m) => (
+                  {pagination.pageItems.map((m) => (
                     <Table.Tr key={m.id} data-testid={`minute-row-${m.id}`}>
                       <Table.Td>
                         <Text size="sm" fw={500}>
@@ -429,7 +431,7 @@ export default function MinutesPage() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {minutes.map((m) => (
+              {pagination.pageItems.map((m) => (
                 <MobileItemCard
                   key={m.id}
                   testId={`minute-mobile-${m.id}`}
@@ -461,6 +463,18 @@ export default function MinutesPage() {
             </Stack>
           </Card>
         )}
+
+        <ListPagination
+          page={pagination.page}
+          onPageChange={pagination.setPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.changePageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          testId="minutes-pagination"
+        />
 
         <Modal
           opened={opened}

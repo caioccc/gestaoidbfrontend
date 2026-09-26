@@ -69,6 +69,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const [cepLoading, setCepLoading] = useState(false);
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
@@ -96,6 +97,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
     setCepLoading(false);
     setStreet('');
     setNumber('');
+    setComplement('');
     setNeighborhood('');
     setCity('');
     setState('');
@@ -106,6 +108,29 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const goTo = (key: (typeof STEP_KEYS)[number]) => {
     const idx = STEP_KEYS.indexOf(key);
     if (idx >= 0) setActive(idx);
+  };
+
+  // Complemento é a única exceção: fica sempre opcional, mesmo na visita.
+  const validateVisitStep = (): boolean => {
+    const missing: string[] = [];
+    if (cep.replace(/\D/g, '').length !== 8) missing.push(t.registerPage.cep);
+    if (!street.trim()) missing.push(t.registerPage.street);
+    if (!number.trim()) missing.push(t.registerPage.number);
+    if (!neighborhood.trim()) missing.push(t.prayerPublicModal.neighborhood);
+    if (!city.trim()) missing.push(t.registerPage.city);
+    if (state.trim().length !== 2) missing.push(t.registerPage.state);
+    if (!preferredPeriod) missing.push(t.prayerPublicModal.preferredPeriod);
+    if (missing.length) {
+      notifications.show({
+        color: 'red',
+        message: t.prayerPublicModal.requiredVisitFields.replace(
+          '{fields}',
+          missing.join(', ')
+        ),
+      });
+      return false;
+    }
+    return true;
   };
 
   const advance = () => {
@@ -127,6 +152,9 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
         });
         return;
       }
+    }
+    if (currentKey === 'visit' && !validateVisitStep()) {
+      return;
     }
     const idx = STEP_KEYS.indexOf(currentKey);
     if (idx < STEP_KEYS.length - 1) setActive(idx + 1);
@@ -175,6 +203,9 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
       notifications.show({ color: 'red', message: t.prayerPublicModal.requiredName });
       return;
     }
+    if (wantsVisit && !validateVisitStep()) {
+      return;
+    }
     setSubmitting(true);
     try {
       await accountsApi.publicCreatePrayerRequest(slug, {
@@ -187,6 +218,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
         cep: wantsVisit ? cep.replace(/\D/g, '') : '',
         street: wantsVisit ? street.trim() : '',
         number: wantsVisit ? number.trim() : '',
+        complement: wantsVisit ? complement.trim() : '',
         neighborhood: wantsVisit ? neighborhood.trim() : '',
         city: wantsVisit ? city.trim() : '',
         state: wantsVisit ? state.trim().toUpperCase() : '',
@@ -201,7 +233,14 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
     }
   };
 
-  const addressSummary = [street, number ? `nº ${number}` : '', neighborhood, city, state]
+  const addressSummary = [
+    street,
+    number ? `nº ${number}` : '',
+    complement,
+    neighborhood,
+    city,
+    state,
+  ]
     .filter(Boolean)
     .join(', ');
 
@@ -327,6 +366,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                       onAccept={(v) => setCep(v)}
                       onBlur={buscarCep}
                       style={{ flex: 1 }}
+                      required
                     />
                     {cepLoading ? <Loader size="sm" mb={8} /> : null}
                   </Group>
@@ -337,6 +377,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                         value={street}
                         onChange={(e) => setStreet(e.currentTarget.value)}
                         maxLength={200}
+                        required
                       />
                     </Grid.Col>
                     <Grid.Col span={4}>
@@ -345,6 +386,16 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                         value={number}
                         onChange={(e) => setNumber(e.currentTarget.value)}
                         maxLength={20}
+                        required
+                      />
+                    </Grid.Col>
+                    <Grid.Col span={6}>
+                      <TextInput
+                        label={t.registerPage.complement}
+                        placeholder={t.prayerPublicModal.complementPlaceholder}
+                        value={complement}
+                        onChange={(e) => setComplement(e.currentTarget.value)}
+                        maxLength={100}
                       />
                     </Grid.Col>
                     <Grid.Col span={6}>
@@ -354,6 +405,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                         value={neighborhood}
                         onChange={(e) => setNeighborhood(e.currentTarget.value)}
                         maxLength={120}
+                        required
                       />
                     </Grid.Col>
                     <Grid.Col span={4}>
@@ -362,6 +414,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                         value={city}
                         onChange={(e) => setCity(e.currentTarget.value)}
                         maxLength={100}
+                        required
                       />
                     </Grid.Col>
                     <Grid.Col span={2}>
@@ -372,6 +425,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                           setState(e.currentTarget.value.toUpperCase().slice(0, 2))
                         }
                         maxLength={2}
+                        required
                       />
                     </Grid.Col>
                   </Grid>
@@ -383,6 +437,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
                       setPreferredPeriod(v as PrayerRequestPreferredPeriod | null)
                     }
                     clearable
+                    required
                   />
                 </Stack>
               </Stepper.Step>

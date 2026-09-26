@@ -34,6 +34,7 @@ import {
 import type { ChordItem } from '../types';
 import { formatMusicalKey } from '../utils/format';
 import ChordTimeline from './ChordTimeline';
+import SongChordsTimeline from './SongChordsTimeline';
 import PlayerToolsBar from './PlayerToolsBar';
 
 interface ChordSyncPlayerProps {
@@ -65,7 +66,7 @@ function formatTime(s: number): string {
   return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
-type InstrumentMode = 'diagrams' | 'simple';
+type DisplayMode = 'diagrams' | 'simple' | 'grade';
 
 export default function ChordSyncPlayer({
   youtubeId,
@@ -91,7 +92,7 @@ export default function ChordSyncPlayer({
   const [duration, setDuration] = useState(0);
   const [active, setActive] = useState(-1);
   const [transpose, setTranspose] = useState(initialTranspose);
-  const [instrument, setInstrument] = useState<InstrumentMode>('diagrams');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('diagrams');
   const [playbackRate, setPlaybackRate] = useState(1);
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
@@ -106,6 +107,11 @@ export default function ChordSyncPlayer({
   const baseKey = (originalKey || churchKey || '').trim();
   const isOriginalKey = !!originalKey && transpose === 0;
   const displayedKey = formatMusicalKey(transposeKey(baseKey, transpose));
+
+  const beatsPerBar = useMemo(() => {
+    const num = Number.parseInt((timeSignature || '').trim().split('/')[0] || '', 10);
+    return Number.isFinite(num) && num > 0 ? num : 4;
+  }, [timeSignature]);
 
   const currentMatch = useMemo(
     () => chordAt(displayChords, progress),
@@ -283,11 +289,12 @@ export default function ChordSyncPlayer({
         <Group gap={6} wrap="nowrap">
           <SegmentedControl
             size="xs"
-            value={instrument}
-            onChange={(v) => setInstrument(v as InstrumentMode)}
+            value={displayMode}
+            onChange={(v) => setDisplayMode(v as DisplayMode)}
             data={[
               { value: 'diagrams', label: t.music.guitarDiagrams },
               { value: 'simple', label: t.music.simpleChords },
+              { value: 'grade', label: t.music.gradeRhythm },
             ]}
           />
           {onToggleStageMode ? (
@@ -400,13 +407,23 @@ export default function ChordSyncPlayer({
           <Card withBorder p="md">
             {canSync ? (
               <Stack gap={8}>
-                <ChordTimeline
-                  chords={displayChords}
-                  activeIndex={currentIdx}
-                  progress={progress}
-                  simpleMode={instrument === 'simple'}
-                  onSeek={seekTo}
-                />
+                {displayMode === 'grade' ? (
+                  <SongChordsTimeline
+                    chords={displayChords}
+                    currentTime={progress}
+                    bpm={bpm ?? null}
+                    beatsPerBar={beatsPerBar}
+                    onSeek={seekTo}
+                  />
+                ) : (
+                  <ChordTimeline
+                    chords={displayChords}
+                    activeIndex={currentIdx}
+                    progress={progress}
+                    simpleMode={displayMode === 'simple'}
+                    onSeek={seekTo}
+                  />
+                )}
                 <Text size="xs" c="dimmed" ta="center" truncate>
                   {title ? `${title} — ` : ''}
                   {t.music.transposeHint}

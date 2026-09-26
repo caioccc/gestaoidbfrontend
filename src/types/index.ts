@@ -221,8 +221,28 @@ export interface PublicCalendarEvent {
   repeat_monthly_ordinal: number | null;
 }
 
+export interface PublicCalendarChurch {
+  id: number;
+  name: string;
+  logo?: string | null;
+  slug: string;
+  public_links_enabled: boolean;
+  theme_color: string;
+  phone: string;
+  address: {
+    street: string;
+    number: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    cep: string;
+  };
+  latitude: number | null;
+  longitude: number | null;
+}
+
 export interface PublicCalendarPayload {
-  church: { id: number; name: string };
+  church: PublicCalendarChurch;
   events: PublicCalendarEvent[];
 }
 
@@ -1185,6 +1205,7 @@ export interface PrayerRequest {
   cep: string;
   street: string;
   number: string;
+  complement: string;
   neighborhood: string;
   city: string;
   state: string;
@@ -1210,6 +1231,7 @@ export interface PrayerRequestPayload {
   cep?: string;
   street?: string;
   number?: string;
+  complement?: string;
   neighborhood?: string;
   city?: string;
   state?: string;
@@ -1229,6 +1251,7 @@ export interface PrayerRequestPublicPayload {
   cep?: string;
   street?: string;
   number?: string;
+  complement?: string;
   neighborhood?: string;
   city?: string;
   state?: string;

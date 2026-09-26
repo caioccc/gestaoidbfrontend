@@ -25,6 +25,13 @@ export function isChordReady(status?: ChordStatus | null): boolean {
   return status === 'COMPLETED' || status === 'MANUAL';
 }
 
+/** Rótulo, cor e ícone de um status, para quem precisar do mesmo mapeamento
+ *  fora deste componente (ex.: selo sobre a miniatura na galeria). */
+export function chordStatusMeta(status?: ChordStatus | null) {
+  if (!status) return null;
+  return STATUS_META[status] ?? null;
+}
+
 export default function SongChordStatusBadge({
   status,
   detail,

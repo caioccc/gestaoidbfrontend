@@ -1,0 +1,116 @@
+/* Esteira rítmica de cifras: grade de tempos (beats) em compassos (measures).
+
+   Cada tempo é uma célula de largura fixa; o ataque de cada acorde ocupa a
+   primeira célula do seu-span e as seguintes ficam vazias, indicando
+   sustentação. A barra de compasso (primeiro tempo) usa traço mais grosso e
+   escuro para a contagem 4/4 ficar legível de relance. */
+
+.strip {
+  display: flex;
+  overflow-x: hidden;
+  height: 110px;
+  align-items: stretch;
+  background-color: var(--mantine-color-body);
+  border-radius: var(--mantine-radius-sm);
+}
+
+.track {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.beat {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 70px;
+  min-width: 70px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+  background-color: transparent;
+  color: var(--mantine-color-text);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 90ms linear;
+}
+
+.beat:hover {
+  background-color: light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6));
+}
+
+.measureStart {
+  border-left: 2px solid light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2));
+}
+
+.active {
+  background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+  color: light-dark(var(--mantine-color-dark-9), var(--mantine-color-dark-0));
+}
+
+.active:hover {
+  background-color: light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5));
+}
+
+.label {
+  font-size: var(--mantine-font-size-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+  background-color: var(--mantine-color-text);
+  box-shadow: 0 0 0 1px light-dark(rgba(255, 255, 255, 0.75), rgba(0, 0, 0, 0.55));
+}
+
+.pulse {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  border-radius: 9999;
+  background-color: var(--mantine-color-red-6);
+  animation: beatPulse 0.42s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes beatPulse {
+  0% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 0.15;
+    transform: scale(2.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 0.85;
+    transform: scale(1);
+  }
+
+  .beat {
+    transition: none;
+  }
+}

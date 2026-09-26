@@ -1,46 +1,49 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  SimpleGrid,
-  Card,
-  Text,
-  Group,
-  Stack,
-  Select,
-  Title,
-  ThemeIcon,
-  Paper,
-  Skeleton,
-  Loader,
-  Center,
-  Badge,
-} from '@mantine/core';
-import { BarChart, DonutChart } from '@mantine/charts';
-import {
-  IconArrowUpCircle,
-  IconArrowDownCircle,
-  IconScale,
-} from '@tabler/icons-react';
-import PageHeader from '../components/PageHeader';
-import { useLanguage } from '../i18n';
-import { DashboardSummary } from '../types';
-import { financeApi, fetchAllPages } from '../api/finance';
-import { formatBRL, toNumber } from '../utils/format';
-import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
-import SecretaryDashboard from '../components/SecretaryDashboard';
+import { Select } from '@mantine/core';
 import { useRouter } from 'next/router';
+import PageHeader from '../components/PageHeader';
+import SecretaryDashboard from '../components/SecretaryDashboard';
+import AdminView from '../components/dashboard/AdminView';
+import PastorView from '../components/dashboard/PastorView';
+import TreasurerView from '../components/dashboard/TreasurerView';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
+import { useLanguage } from '../i18n';
 
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
+const FIRST_YEAR = 2022;
+
+type DashboardView = 'ADMIN' | 'TESOUREIRO' | 'PASTOR';
+
+function buildYears(): number[] {
+  const current = new Date().getFullYear();
+  const first = Math.min(FIRST_YEAR, current - 1);
+  const last = current + 1;
+  return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+function resolveView(isAdmin: boolean, role: string | null): DashboardView | null {
+  if (isAdmin) return 'ADMIN';
+  if (role === 'TESOUREIRO') return 'TESOUREIRO';
+  if (role === 'PASTOR') return 'PASTOR';
+  return null;
+}
 
 export default function DashboardPage() {
   const { t } = useLanguage();
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const { canFinance } = useRoleHelpers(user);
-  const currentYear = new Date().getFullYear();
+  const { isAdmin, role } = useRoleHelpers(user);
+
+  const [year, setYear] = useState<number>(() => new Date().getFullYear());
+  const [hour, setHour] = useState<number | null>(null);
+
+  const years = useMemo(buildYears, []);
+  const view = useMemo(() => resolveView(isAdmin, role ?? null), [isAdmin, role]);
+
+  const staffWithoutChurch = !!user?.is_staff && !user.church;
 
   useEffect(() => {
     if (isLoading) return;
-    if (user?.is_staff && !user.church) {
+    if (staffWithoutChurch) {
       router.replace('/admin/churches');
     } else if (
       user?.role === 'MUSICO' ||
@@ -51,198 +54,53 @@ export default function DashboardPage() {
       router.replace('/calendar');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, user]);
-
-  const [year, setYear] = useState<number>(currentYear);
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [deptData, setDeptData] = useState<{ name: string; value: number; color: string }[]>([]);
-
-  const secretaryMode = !isLoading && !!user && !canFinance;
+  }, [isLoading, user, staffWithoutChurch]);
 
   useEffect(() => {
-    if (secretaryMode) return;
-    let active = true;
-    setLoading(true);
-    financeApi
-      .dashboardSummary(year)
-      .then((data) => active && setSummary(data))
-      .catch(() => active && setSummary(null))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [year, secretaryMode]);
+    setHour(new Date().getHours());
+  }, []);
 
-  useEffect(() => {
-    if (secretaryMode) return;
-    let active = true;
-    const start = `${year}-01-01`;
-    const end = `${year}-12-31`;
-    fetchAllPages((page) =>
-      financeApi.listEntries({ page, start_date: start, end_date: end })
-    )
-      .then((rows) => {
-        if (!active) return;
-        const byCat = new Map<string, number>();
-        rows.forEach((r) => {
-          const label = r.category_display || r.category || 'Outros';
-          byCat.set(label, (byCat.get(label) ?? 0) + toNumber(r.amount));
-        });
-        const colors = [
-          'blue', 'teal', 'orange', 'grape', 'indigo', 'pink',
-          'cyan', 'lime', 'yellow', 'red', 'violet',
-        ];
-        const total = Array.from(byCat.values()).reduce((a, b) => a + b, 0) || 1;
-        const data = Array.from(byCat.entries())
-          .sort((a, b) => b[1] - a[1])
-          .map(([label, value], i) => ({
-            name: label,
-            value: +(value / total * 100).toFixed(1),
-            color: colors[i % colors.length],
-          }));
-        setDeptData(data);
-      })
-      .catch(() => active && setDeptData([]));
-    return () => {
-      active = false;
-    };
-  }, [year]);
+  if (staffWithoutChurch || isLoading) return null;
 
-  const barData = useMemo(
-    () =>
-      (summary?.series ?? []).map((s) => ({
-        month: t.months[s.month - 1]?.slice(0, 3) ?? `M${s.month}`,
-        Entradas: s.entries,
-        Saídas: s.exits,
-      })),
-    [summary, t.months]
-  );
-
-  const statCards = [
-    {
-      label: t.dashboard.totalEntries,
-      value: summary?.total_entries ?? 0,
-      color: 'green',
-      icon: <IconArrowUpCircle size={22} />,
-    },
-    {
-      label: t.dashboard.totalExits,
-      value: summary?.total_exits ?? 0,
-      color: 'red',
-      icon: <IconArrowDownCircle size={22} />,
-    },
-    {
-      label: t.dashboard.netBalance,
-      value: summary?.balance ?? 0,
-      color: 'blue',
-      icon: <IconScale size={22} />,
-    },
-  ];
-
-  if (secretaryMode) {
-    return <SecretaryDashboard />;
-  }
+  if (!view) return <SecretaryDashboard />;
 
   const firstName = user?.name?.split(' ')[0] ?? '';
-  const headerTitle = firstName
+  const greeting = !hour
     ? t.dashboard.greeting.replace('{name}', firstName)
-    : t.dashboard.title;
+    : hour < 12
+      ? t.dashboardViews.greetingMorning.replace('{name}', firstName)
+      : hour < 18
+        ? t.dashboardViews.greetingAfternoon.replace('{name}', firstName)
+        : t.dashboardViews.greetingEvening.replace('{name}', firstName);
+
+  const description =
+    view === 'ADMIN'
+      ? t.dashboardViews.subtitleAdmin
+      : view === 'PASTOR'
+        ? t.dashboardViews.subtitlePastor
+        : t.dashboardViews.subtitleTreasurer;
+
+  const competence = hour === null ? null : `${t.months[new Date().getMonth()]} ${year}`;
 
   return (
     <>
-      <PageHeader title={headerTitle}>
+      <PageHeader
+        title={greeting || t.dashboard.title}
+        description={competence ? `${description} · ${competence}` : description}
+      >
         <Select
           data-testid="dashboard-year"
           label={t.dashboard.yearLabel}
           value={String(year)}
-          onChange={(v) => v && setYear(Number(v))}
-          data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+          onChange={(value) => value && setYear(Number(value))}
+          data={years.map((item) => ({ value: String(item), label: String(item) }))}
           w={130}
         />
       </PageHeader>
 
-      {loading ? (
-        <SimpleGrid cols={{ base: 1, sm: 3 }} mb="lg">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} height={110} />
-          ))}
-        </SimpleGrid>
-      ) : (
-        <SimpleGrid cols={{ base: 1, sm: 3 }} mb="lg">
-          {statCards.map((card) => (
-            <Card key={card.label} withBorder shadow="sm" padding="lg">
-              <Group justify="space-between" align="flex-start">
-                <Stack gap={2}>
-                  <Text size="sm" c="dimmed">
-                    {card.label}
-                  </Text>
-                  <Text fw={800} size="xl" c={card.color}>
-                    {formatBRL(card.value)}
-                  </Text>
-                </Stack>
-                <ThemeIcon color={card.color} variant="light" size="lg">
-                  {card.icon}
-                </ThemeIcon>
-              </Group>
-            </Card>
-          ))}
-        </SimpleGrid>
-      )}
-
-      <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
-        <Paper withBorder p="md" radius="md">
-          <Title order={4} mb="md">
-            {t.dashboard.entriesVsExits}
-          </Title>
-          {loading ? (
-            <Center h={280}>
-              <Loader />
-            </Center>
-          ) : (
-            <BarChart
-              h={280}
-              data={barData}
-              dataKey="month"
-              series={[
-                { name: 'Entradas', color: 'green.6' },
-                { name: 'Saídas', color: 'red.6' },
-              ]}
-              withLegend
-              tickLine="y"
-            />
-          )}
-        </Paper>
-
-        <Paper withBorder p="md" radius="md">
-          <Title order={4} mb="md">
-            {t.dashboard.entriesByDepartment}
-          </Title>
-          {deptData.length === 0 ? (
-            <Center h={280}>
-              <Text c="dimmed">{t.common.noData}</Text>
-            </Center>
-          ) : (
-            <Stack gap="md" align="center">
-              <DonutChart
-                h={220}
-                data={deptData}
-                withLabels
-                labelsType="percent"
-                paddingAngle={2}
-                thickness={30}
-              />
-              <Group gap="xs" wrap="wrap" justify="center">
-                {deptData.map((d) => (
-                  <Badge key={d.name} color={d.color} variant="light" size="sm">
-                    {d.name} · {d.value}%
-                  </Badge>
-                ))}
-              </Group>
-            </Stack>
-          )}
-        </Paper>
-      </SimpleGrid>
+      {view === 'ADMIN' ? <AdminView year={year} /> : null}
+      {view === 'TESOUREIRO' ? <TreasurerView year={year} /> : null}
+      {view === 'PASTOR' ? <PastorView year={year} /> : null}
     </>
   );
 }

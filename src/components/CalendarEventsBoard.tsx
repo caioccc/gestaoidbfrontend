@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Paper,
+  Popover,
   Group,
   Text,
   Button,
@@ -43,6 +44,13 @@ import {
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
+import {
+  addDays,
+  dateFromApi,
+  dateToApi,
+  eventOccursOn,
+  isoWeekday,
+} from '../utils/calendarRecurrence';
 import ShareLinkModal from './ShareLinkModal';
 import {
   CalendarEvent,
@@ -121,42 +129,34 @@ const CATEGORY_ORDER: CalendarEventCategory[] = [
   'ensaio',
 ];
 
+// Grupos de filtro rápido exibidos como badges clicáveis na barra superior.
+// `event` não aparece em nenhum dos grupos pedidos no design, então ganha grupo
+// próprio — sem ele nenhuma categoria ficaria inalcançável pelo filtro.
+const CATEGORY_FILTER_GROUPS: {
+  key: string;
+  color: string;
+  categories: CalendarEventCategory[];
+  financeOnly?: boolean;
+}[] = [
+  { key: 'cultos', color: 'orange', categories: ['culto'] },
+  { key: 'ministries', color: 'teal', categories: ['ensaio'] },
+  { key: 'leadership', color: 'blue', categories: ['meeting'] },
+  { key: 'events', color: 'violet', categories: ['event'] },
+  { key: 'finance', color: 'gray', categories: ['bill', 'deadline'], financeOnly: true },
+];
+
+const MAX_BADGES_PER_CELL = 2;
+
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const ISO_WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
 type CalendarView = 'month' | 'week' | 'day';
 type RecurrenceMode = 'oneoff' | 'monthly' | 'weekly';
 
-// Converte "YYYY-MM-DD" em um Date no horário LOCAL (evita deslocamento de fuso).
-function dateFromApi(value: string): Date {
-  const [y, m, d] = value.split('-').map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
-}
-
-// Formata um Date local como "YYYY-MM-DD" (evita toISOString/UTC).
-function dateToApi(d: Date | null): string | null {
-  if (!d) return null;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 function timeToApi(raw: string): string | null {
   const time = raw.trim();
   if (!time) return null;
   return time.length === 5 ? `${time}:00` : time;
-}
-
-// Dia da semana ISO: 0=Seg .. 6=Dom (getDay(): 0=Dom).
-function isoWeekday(jsDay: number): number {
-  return jsDay === 0 ? 6 : jsDay - 1;
-}
-
-function addDays(d: Date, days: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + days);
-  return out;
 }
 
 function formatShortDate(t: Record<string, any>, d: Date): string {
@@ -178,10 +178,16 @@ export default function CalendarEventsBoard({
   gateway,
   locale,
   readOnly = false,
+  showBirthdays = true,
+  onToggleBirthdays,
+  belowGrid,
 }: {
   gateway: CalendarEventsGateway;
   locale?: string;
   readOnly?: boolean;
+  showBirthdays?: boolean;
+  onToggleBirthdays?: (next: boolean) => void;
+  belowGrid?: React.ReactNode;
 }) {
   const { t } = useLanguage();
   const today = new Date();
@@ -197,10 +203,11 @@ export default function CalendarEventsBoard({
   const [detail, setDetail] = useState<CalendarEvent | null>(null);
   const [publicLink, setPublicLink] = useState<CalendarPublicLink | null>(null);
   const [origin, setOrigin] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [hiddenCategories, setHiddenCategories] = useState<CalendarEventCategory[]>(
+    []
+  );
+  const [overflowDay, setOverflowDay] = useState<string | null>(null);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -263,48 +270,26 @@ export default function CalendarEventsBoard({
     }
   }, []);
 
+  const isCategoryVisible = useCallback(
+    (category: CalendarEventCategory) => !hiddenCategories.includes(category),
+    [hiddenCategories]
+  );
+
+  const toggleCategory = (categories: CalendarEventCategory[]) => {
+    setHiddenCategories((prev) => {
+      const allHidden = categories.every((c) => prev.includes(c));
+      const next = new Set(prev);
+      categories.forEach((c) => (allHidden ? next.delete(c) : next.add(c)));
+      return Array.from(next);
+    });
+  };
+
   const itemsForDate = useMemo(
     () => (d: Date): BoardItem[] => {
       const out: BoardItem[] = [];
-      const iso = (date: Date) => dateToApi(date);
-      const dcursor = iso(d) || '';
       for (const ev of events) {
-        let hit = false;
-        if (ev.repeat_monthly) {
-          const nthWd = ev.repeat_monthly_weekday;
-          const nthOrd = ev.repeat_monthly_ordinal;
-          if (nthWd != null && nthOrd != null) {
-            const yr = d.getFullYear();
-            const mo = d.getMonth();
-            const occ: number[] = [];
-            const dim = new Date(yr, mo + 1, 0).getDate();
-            for (let k = 1; k <= dim; k++) {
-              if (isoWeekday(new Date(yr, mo, k).getDay()) === nthWd) occ.push(k);
-            }
-            const target = nthOrd === -1 ? occ[occ.length - 1] : occ[nthOrd - 1];
-            hit = target === d.getDate();
-          } else {
-            hit = ev.day === d.getDate();
-          }
-        } else if (ev.repeat_weekly) {
-          const wd = isoWeekday(d.getDay());
-          if (!(ev.weekdays || []).includes(wd)) continue;
-          if (ev.repeat_end_date && dcursor > ev.repeat_end_date) continue;
-          if (ev.date) {
-            const anchor = dateFromApi(ev.date);
-            if (d.getTime() < anchor.getTime()) continue;
-            const interval = ev.repeat_interval || 1;
-            const diffDays = Math.round((d.getTime() - anchor.getTime()) / 86400000);
-            if (diffDays % (7 * interval) !== 0) continue;
-          }
-          hit = true;
-        } else if (ev.date) {
-          const dd = dateFromApi(ev.date);
-          hit =
-            dd.getFullYear() === d.getFullYear() &&
-            dd.getMonth() === d.getMonth() &&
-            dd.getDate() === d.getDate();
-        }
+        if (!isCategoryVisible(ev.category)) continue;
+        const hit = eventOccursOn(ev, d);
         if (hit) {
           out.push({
             id: ev.id,
@@ -322,7 +307,7 @@ export default function CalendarEventsBoard({
         (a, b) => (a.time ?? '99:00').localeCompare(b.time ?? '99:00')
       );
     },
-    [events, categoryLabel]
+    [events, categoryLabel, isCategoryVisible]
   );
 
   const form = useForm<{
@@ -529,39 +514,6 @@ export default function CalendarEventsBoard({
     }
   };
 
-  const copyPublicLink = async () => {
-    if (!publicLink) return;
-    const href = `${origin}${publicLink.url}`;
-    try {
-      await navigator.clipboard.writeText(href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      notifications.show({
-        color: 'red',
-        message: 'Não foi possível copiar o link.',
-      });
-    }
-  };
-
-  const handleRegenerate = async () => {
-    if (!gateway.regeneratePublicLink) return;
-    setRegenerating(true);
-    try {
-      const link = await gateway.regeneratePublicLink();
-      setPublicLink(link);
-      setConfirmRegenerate(false);
-      notifications.show({ color: 'green', message: t.common.save });
-    } catch {
-      notifications.show({
-        color: 'red',
-        message: 'Não foi possível gerar um novo link.',
-      });
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
   const isToday = (day: number) =>
     day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
 
@@ -609,7 +561,7 @@ export default function CalendarEventsBoard({
   const renderEventBadges = (items: BoardItem[]) => {
     return (
       <>
-        {items.slice(0, 2).map((b) => (
+        {items.slice(0, MAX_BADGES_PER_CELL).map((b) => (
           <Badge
             key={b.key}
             size="xs"
@@ -627,6 +579,57 @@ export default function CalendarEventsBoard({
           </Badge>
         ))}
       </>
+    );
+  };
+
+  const renderOverflowPopover = (day: number, items: BoardItem[]) => {
+    if (items.length <= MAX_BADGES_PER_CELL) return null;
+    const key = `${year}-${month}-${day}`;
+    const hidden = items.slice(MAX_BADGES_PER_CELL);
+    return (
+      <Popover
+        key={key}
+        opened={overflowDay === key}
+        onChange={(next) => setOverflowDay(next ? key : null)}
+        width={280}
+        shadow="md"
+        withinPortal
+      >
+        <Popover.Target>
+          <Badge
+            size="xs"
+            variant="default"
+            color="gray"
+            radius="xl"
+            style={{ cursor: 'pointer', alignSelf: 'center' }}
+            data-testid={`calendar-overflow-${day}`}
+          >
+            +{hidden.length}
+          </Badge>
+        </Popover.Target>
+        <Popover.Dropdown onClick={() => setOverflowDay(null)}>
+          <Text size="xs" fw={700} c="dimmed" mb={4}>
+            {`${day}/${month + 1} — ${t.calendarEvents.allEvents}`}
+          </Text>
+          <Stack gap={6}>
+            {items.map((b) => (
+              <Group key={b.key} gap={6} wrap="nowrap" style={{ cursor: 'pointer' }}>
+                <Badge size="xs" color={b.color} variant="filled" style={{ flexShrink: 0 }}>
+                  {b.time ? b.time.slice(0, 5) : '—'}
+                </Badge>
+                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                  <Text size="sm" fw={500} truncate>
+                    {b.title}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {categoryLabel(b.ev.category)}
+                  </Text>
+                </Stack>
+              </Group>
+            ))}
+          </Stack>
+        </Popover.Dropdown>
+      </Popover>
     );
   };
 
@@ -780,6 +783,63 @@ export default function CalendarEventsBoard({
 
   const onOpenDetail = (ev: CalendarEvent) => setDetail(ev);
 
+  const visibleEvents = useMemo(
+    () => events.filter((ev) => isCategoryVisible(ev.category)),
+    [events, isCategoryVisible]
+  );
+
+  const canSharePublic = !readOnly && !!gateway.publicLink && gateway.canManageGeneral;
+
+  const filterGroups = CATEGORY_FILTER_GROUPS.filter(
+    (g) => !g.financeOnly || gateway.canManageFinance
+  );
+
+  const renderFilterBar = () => (
+    <Group gap={6} wrap="wrap" data-testid="calendar-category-filters">
+      <Text size="xs" fw={700} c="dimmed" tt="uppercase" mr={4}>
+        {t.calendarEvents.filtersTitle}
+      </Text>
+      {filterGroups.map((group) => {
+        const visible = group.categories.every(isCategoryVisible);
+        return (
+          <Badge
+            key={group.key}
+            size="lg"
+            radius="xl"
+            color={group.color}
+            variant={visible ? 'filled' : 'light'}
+            style={{ cursor: 'pointer' }}
+            onClick={() => toggleCategory(group.categories)}
+            data-testid={`calendar-filter-${group.key}`}
+          >
+            {group.key === 'cultos'
+              ? t.calendarEvents.filterCultos
+              : group.key === 'ministries'
+                ? t.calendarEvents.filterMinistries
+                : group.key === 'leadership'
+                  ? t.calendarEvents.filterLeadership
+                  : group.key === 'events'
+                    ? t.calendarEvents.filterEvents
+                    : t.calendarEvents.filterFinance}
+          </Badge>
+        );
+      })}
+      {onToggleBirthdays ? (
+        <Badge
+          size="lg"
+          radius="xl"
+          color="pink"
+          variant={showBirthdays ? 'filled' : 'light'}
+          style={{ cursor: 'pointer' }}
+          onClick={() => onToggleBirthdays(!showBirthdays)}
+          data-testid="calendar-filter-birthdays"
+        >
+          {t.calendarEvents.filterBirthdays}
+        </Badge>
+      ) : null}
+    </Group>
+  );
+
   return (
     <>
       <Group justify="space-between" mb="md" wrap="wrap">
@@ -801,12 +861,33 @@ export default function CalendarEventsBoard({
             ]}
           />
         </Group>
-        {canCreateAny && (
+        {canSharePublic ? (
+          <Group gap="xs">
+            <Button
+              variant="light"
+              color="grape"
+              data-testid="public-calendar-share"
+              leftSection={<IconLink size={16} />}
+              onClick={() => setQrOpen(true)}
+            >
+              {t.calendarEvents.sharePublic}
+            </Button>
+            {canCreateAny && (
+              <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
+                {t.calendarEvents.new}
+              </Button>
+            )}
+          </Group>
+        ) : canCreateAny ? (
           <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
             {t.calendarEvents.new}
           </Button>
-        )}
+        ) : null}
       </Group>
+
+      {filterGroups.length > 0 || onToggleBirthdays ? (
+        <Box mb="md">{renderFilterBar()}</Box>
+      ) : null}
 
       <Paper withBorder radius="md" p="md">
         {loading ? (
@@ -836,7 +917,7 @@ export default function CalendarEventsBoard({
                       : t.calendarEvents.noEventsDay
                   }
                   withArrow
-                  disabled={!items.length}
+                  disabled={!items.length || items.length > MAX_BADGES_PER_CELL}
                   multiline
                 >
                   <Paper
@@ -859,19 +940,7 @@ export default function CalendarEventsBoard({
                       <Text size="sm" fw={todayCell ? 800 : 600} ta="center">
                         {day}
                       </Text>
-                      {items.length > 2 && (
-                        <Text
-                          size="xs"
-                          c="dimmed"
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setView('day');
-                            setCursor(new Date(year, month, day));
-                          }}
-                        >
-                          +{items.length - 2}
-                        </Text>
-                      )}
+                      {renderOverflowPopover(day, items)}
                     </Group>
                     <Stack gap={2} px={2}>
                       {renderEventBadges(items)}
@@ -900,101 +969,28 @@ export default function CalendarEventsBoard({
         )}
       </Paper>
 
-      {canCreateAny && gateway.publicLink && gateway.canManageGeneral && publicLink && (
-        <Paper withBorder radius="md" p="sm" mt="md">
-          <Group justify="space-between" align="center" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-              <ThemeIcon size="md" radius="xl" color="grape" variant="light">
-                <IconLink size={18} />
-              </ThemeIcon>
-              <Stack gap={2} style={{ minWidth: 0 }}>
-                <Text size="sm" fw={700} truncate>
-                  {t.calendarEvents.publicLink.title}
-                </Text>
-                <Text size="xs" c="dimmed" truncate>
-                  {t.calendarEvents.publicLink.hint}
-                </Text>
-                <Code
-                  data-testid="public-calendar-link"
-                  style={{
-                    width: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {origin}
-                  {publicLink.url}
-                </Code>
-              </Stack>
-            </Group>
-            <Group wrap="nowrap" gap="xs">
-              <Tooltip label={t.qrShare.qr}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  data-testid="public-calendar-qr"
-                  leftSection={<IconQrcode size={14} />}
-                  onClick={() => setQrOpen(true)}
-                >
-                  {t.qrShare.qr}
-                </Button>
-              </Tooltip>
-              <Tooltip label={t.calendarEvents.publicLink.open}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  data-testid="public-calendar-open"
-                  component="a"
-                  href={`${origin}${publicLink.url}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  leftSection={<IconExternalLink size={14} />}
-                >
-                  {t.calendarEvents.publicLink.open}
-                </Button>
-              </Tooltip>
-              <Tooltip label={t.calendarEvents.publicLink.copy}>
-                <Button
-                  size="xs"
-                  variant="light"
-                  data-testid="public-calendar-copy"
-                  leftSection={<IconCopy size={14} />}
-                  onClick={copyPublicLink}
-                >
-                  {copied
-                    ? t.calendarEvents.publicLink.copied
-                    : t.calendarEvents.publicLink.copy}
-                </Button>
-              </Tooltip>
-              <Tooltip label={t.calendarEvents.publicLink.regenerate}>
-                <Button
-                  size="xs"
-                  variant="default"
-                  data-testid="public-calendar-regenerate"
-                  leftSection={<IconRefresh size={14} />}
-                  onClick={() => setConfirmRegenerate(true)}
-                >
-                  {t.calendarEvents.publicLink.regenerate}
-                </Button>
-              </Tooltip>
-            </Group>
-          </Group>
-        </Paper>
-      )}
+      {belowGrid ? <Box mt="md">{belowGrid}</Box> : null}
+
 
       <Paper withBorder radius="md" p="md" mt="md">
-        <Text size="sm" fw={700} mb="xs">
-          {t.calendarEvents.allEvents}
-        </Text>
-        {events.length === 0 ? (
+        <Group justify="space-between" mb="xs" gap="xs" wrap="wrap">
+          <Text size="sm" fw={700}>
+            {t.calendarEvents.allEvents}
+          </Text>
+          <Text size="xs" c="dimmed">
+            {t.calendarEvents.visibleCount
+              .replace('{shown}', String(visibleEvents.length))
+              .replace('{total}', String(events.length))}
+          </Text>
+        </Group>
+        {visibleEvents.length === 0 ? (
           <Text size="sm" c="dimmed">
             {readOnly ? t.publicCalendar.empty : t.calendarEvents.noEvents}
           </Text>
         ) : (
           <ScrollArea.Autosize mah={400} scrollbars="y">
             <Stack gap={6}>
-              {events.map((ev) => (
+              {visibleEvents.map((ev) => (
                 <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
                   <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
                     <Group gap="sm" wrap="nowrap">
@@ -1336,25 +1332,6 @@ export default function CalendarEventsBoard({
             </Button>
             <Button color="red" onClick={handleDelete}>
               {t.common.delete}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
-        opened={confirmRegenerate}
-        onClose={() => setConfirmRegenerate(false)}
-        title={t.calendarEvents.publicLink.regenerate}
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">{t.calendarEvents.publicLink.regenerateBody}</Text>
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setConfirmRegenerate(false)}>
-              {t.common.cancel}
-            </Button>
-            <Button color="red" onClick={handleRegenerate} loading={regenerating}>
-              {t.calendarEvents.publicLink.regenerate}
             </Button>
           </Group>
         </Stack>

@@ -34,6 +34,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { ListPagination, useListPagination } from '../components/ListPagination';
 import CertificateIssueModal from '../components/CertificateIssueModal';
 import CertificateTemplateModal from '../components/CertificateTemplateModal';
 import { useLanguage } from '../i18n';
@@ -81,6 +82,7 @@ function IssuedTab() {
   const [search, setSearch] = useState('');
   const [certsType, setCertsType] = useState<string>('');
   const [year, setYear] = useState<string>('');
+  const pagination = useListPagination(certificates);
 
   const years = useMemo(
     () =>
@@ -213,7 +215,7 @@ function IssuedTab() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {certificates.map((cert) => (
+                {pagination.pageItems.map((cert) => (
                   <Table.Tr key={cert.id}>
                     <Table.Td>
                       <Badge color="teal" variant="light" size="sm">
@@ -254,7 +256,7 @@ function IssuedTab() {
             </Table>
           </Box>
           <Stack hiddenFrom="sm" gap="xs" p="sm">
-            {certificates.map((cert) => (
+            {pagination.pageItems.map((cert) => (
               <MobileItemCard
                 key={cert.id}
                 testId={`cert-mobile-${cert.id}`}
@@ -295,11 +297,23 @@ function IssuedTab() {
                       .join(' · ')}
                   </Text>
                 </Stack>
-              </MobileItemCard>
-            ))}
+                </MobileItemCard>
+              ))}
           </Stack>
         </Card>
       )}
+
+      <ListPagination
+        page={pagination.page}
+        onPageChange={pagination.setPage}
+        pageSize={pagination.pageSize}
+        onPageSizeChange={pagination.changePageSize}
+        total={pagination.total}
+        totalPages={pagination.totalPages}
+        rangeStart={pagination.rangeStart}
+        rangeEnd={pagination.rangeEnd}
+        testId="certificates-pagination"
+      />
 
       <CertificateIssueModal
         opened={issueOpen}
@@ -349,6 +363,7 @@ function TemplatesTab() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<CertificateTemplate | null>(null);
   const [deleting, setDeleting] = useState<CertificateTemplate | null>(null);
+  const pagination = useListPagination(templates);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -426,7 +441,7 @@ function TemplatesTab() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {templates.map((tmpl) => (
+              {pagination.pageItems.map((tmpl) => (
                 <Table.Tr key={tmpl.id}>
                   <Table.Td>
                     <Group gap="sm" wrap="nowrap">
@@ -469,7 +484,7 @@ function TemplatesTab() {
           </Table>
         </Box>
         <Stack hiddenFrom="sm" gap="xs">
-          {templates.map((tmpl) => (
+          {pagination.pageItems.map((tmpl) => (
             <MobileItemCard
               key={tmpl.id}
               testId={`template-mobile-${tmpl.id}`}
@@ -512,6 +527,18 @@ function TemplatesTab() {
           </Stack>
         </>
       )}
+
+      <ListPagination
+        page={pagination.page}
+        onPageChange={pagination.setPage}
+        pageSize={pagination.pageSize}
+        onPageSizeChange={pagination.changePageSize}
+        total={pagination.total}
+        totalPages={pagination.totalPages}
+        rangeStart={pagination.rangeStart}
+        rangeEnd={pagination.rangeEnd}
+        testId="certificate-templates-pagination"
+      />
 
       <CertificateTemplateModal
         opened={modalOpen}

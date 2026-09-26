@@ -46,6 +46,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { ListPagination, useListPagination } from '../components/ListPagination';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { toISO, toSentenceCase, toUpperCamelWords, maskPhone } from '../utils/format';
@@ -219,6 +220,8 @@ function ItemsTab() {
     );
   });
 
+  const itemPagination = useListPagination(filtered);
+
   const itemActions = (item: MaterialItem) => (
     <Group gap={4} justify="flex-end" wrap="nowrap">
       {item.manual && (
@@ -255,7 +258,7 @@ function ItemsTab() {
     </Group>
   );
 
-  const rows = filtered.map((item) => {
+  const rows = itemPagination.pageItems.map((item) => {
     const loan = item.current_loan;
     return (
       <Table.Tr key={item.id} data-testid={`item-row-${item.id}`}>
@@ -393,7 +396,7 @@ function ItemsTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {filtered.map((item) => {
+              {itemPagination.pageItems.map((item) => {
                 const loan = item.current_loan;
                 return (
                   <MobileItemCard
@@ -459,6 +462,18 @@ function ItemsTab() {
           </>
         )}
       </Card>
+
+      <ListPagination
+        page={itemPagination.page}
+        onPageChange={itemPagination.setPage}
+        pageSize={itemPagination.pageSize}
+        onPageSizeChange={itemPagination.changePageSize}
+        total={itemPagination.total}
+        totalPages={itemPagination.totalPages}
+        rangeStart={itemPagination.rangeStart}
+        rangeEnd={itemPagination.rangeEnd}
+        testId="inventory-items-pagination"
+      />
 
       <Modal
         opened={opened}
@@ -593,6 +608,7 @@ function LocationsTab() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<StorageLocation | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const locationPagination = useListPagination(locations);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -691,7 +707,7 @@ function LocationsTab() {
     </Group>
   );
 
-  const rows = locations.map((loc) => (
+  const rows = locationPagination.pageItems.map((loc) => (
     <Table.Tr key={loc.id} data-testid={`location-row-${loc.id}`}>
       <Table.Td>
         <Group gap="sm" wrap="nowrap">
@@ -752,7 +768,7 @@ function LocationsTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {locations.map((loc) => (
+              {locationPagination.pageItems.map((loc) => (
                 <MobileItemCard
                   key={loc.id}
                   testId={`location-mobile-${loc.id}`}
@@ -774,6 +790,18 @@ function LocationsTab() {
           </>
         )}
       </Card>
+
+      <ListPagination
+        page={locationPagination.page}
+        onPageChange={locationPagination.setPage}
+        pageSize={locationPagination.pageSize}
+        onPageSizeChange={locationPagination.changePageSize}
+        total={locationPagination.total}
+        totalPages={locationPagination.totalPages}
+        rangeStart={locationPagination.rangeStart}
+        rangeEnd={locationPagination.rangeEnd}
+        testId="inventory-locations-pagination"
+      />
 
       <Modal
         opened={opened}
@@ -1042,6 +1070,8 @@ function LoansTab() {
     return [...open, ...returned];
   }, [visibleLoans]);
 
+  const loanPagination = useListPagination(sortedLoans);
+
   const loanWhatsApp = (loan: Loan, kind: 'receipt' | 'charge'): string | null => {
     if (!loan.contact_phone) return null;
     const msg =
@@ -1140,7 +1170,7 @@ function LoansTab() {
     );
   };
 
-  const loanRows = sortedLoans.map((loan) => {
+  const loanRows = loanPagination.pageItems.map((loan) => {
     const open = isOpen(loan);
     const overdue = isOverdue(loan);
     const dueToday = isDueToday(loan);
@@ -1299,7 +1329,7 @@ function LoansTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {sortedLoans.map((loan) => {
+              {loanPagination.pageItems.map((loan) => {
                 const open = isOpen(loan);
                 const overdue = isOverdue(loan);
                 const dueToday = isDueToday(loan);
@@ -1397,6 +1427,18 @@ function LoansTab() {
           </>
         )}
       </Card>
+
+      <ListPagination
+        page={loanPagination.page}
+        onPageChange={loanPagination.setPage}
+        pageSize={loanPagination.pageSize}
+        onPageSizeChange={loanPagination.changePageSize}
+        total={loanPagination.total}
+        totalPages={loanPagination.totalPages}
+        rangeStart={loanPagination.rangeStart}
+        rangeEnd={loanPagination.rangeEnd}
+        testId="inventory-loans-pagination"
+      />
 
       <Modal
         opened={opened}

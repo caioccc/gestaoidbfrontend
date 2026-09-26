@@ -21,6 +21,7 @@ import {
   Textarea,
   TextInput,
   Title,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { DateInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -59,6 +60,7 @@ import type {
   PastoralVisitType,
 } from '../types';
 import { formatDate, parseISODate, toISO } from '../utils/format';
+import attentionStyles from '../styles/attention.module.css';
 
 const VISIT_TYPES: PastoralVisitType[] = [
   "ROUTINE",
@@ -88,6 +90,7 @@ export default function VisitationPage() {
   const { t, locale } = useLanguage();
   const router = useRouter();
   const isCompact = useMediaQuery("(max-width: 991px)");
+  const { colorScheme } = useMantineColorScheme();
 
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
@@ -747,6 +750,19 @@ export default function VisitationPage() {
     [t],
   );
 
+  // Visita planejada é a que ainda exige ação da equipe, então recebe o mesmo
+  // tratamento do pedido de oração novo: borda colorida + pulso.
+  const plannedCardClass = (v: PastoralVisit) =>
+    v.status === "PLANNED"
+      ? `${attentionStyles.attentionCard} ${
+          colorScheme === "dark" ? attentionStyles.attentionCardDark : ""
+        }`
+      : undefined;
+  const attentionDotClass = () =>
+    `${attentionStyles.attentionDot} ${
+      colorScheme === "dark" ? attentionStyles.attentionDotDark : ""
+    }`;
+
   const visitCard = (v: PastoralVisit) => (
     <Paper
       key={v.id}
@@ -755,6 +771,9 @@ export default function VisitationPage() {
       radius="md"
       mb="xs"
       shadow="xs"
+      className={plannedCardClass(v)}
+      data-testid={`visit-card-${v.id}`}
+      data-planned={v.status === "PLANNED" ? "true" : undefined}
       style={{ cursor: "pointer" }}
       onClick={() => {
         focusVisit(v.id);
@@ -768,6 +787,9 @@ export default function VisitationPage() {
           wrap="nowrap"
           gap="xs"
         >
+          {v.status === "PLANNED" ? (
+            <span className={attentionDotClass()} style={{ marginTop: 6 }} aria-hidden />
+          ) : null}
           <Text fw={600} size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
             {v.member_name || v.target_name}
           </Text>

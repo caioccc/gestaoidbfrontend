@@ -41,6 +41,7 @@ import {
   IconPlus,
   IconPrinter,
   IconSearch,
+  IconTrash,
   IconUser,
   IconUserCheck,
 } from '@tabler/icons-react';
@@ -58,6 +59,7 @@ import type {
   PrayerRequestStatus,
 } from '../types';
 import { toSentenceCase, formatDateTime } from '../utils/format';
+import styles from '../styles/attention.module.css';
 
 const STATUS_COLOR: Record<PrayerRequestStatus, string> = {
   PENDING: 'orange',
@@ -134,7 +136,19 @@ export default function PrayerRequestsPage() {
   const [intercessors, setIntercessors] = useState<PrayerRequestAssignee[]>([]);
   const [archiveTarget, setArchiveTarget] = useState<PrayerRequest | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PrayerRequest | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // "Novo / Aguardando" é o que precisa de atenção: ganha borda colorida e
+  // pulso para não passar despercebido na triagem.
+  const isPendingAttention = (r: PrayerRequest) => r.status === 'PENDING';
+  const pendingCardClass = (r: PrayerRequest) =>
+    isPendingAttention(r)
+      ? `${styles.attentionCard} ${colorScheme === 'dark' ? styles.attentionCardDark : ''}`
+      : undefined;
+  const newDotClass = () =>
+    `${styles.attentionDot} ${colorScheme === 'dark' ? styles.attentionDotDark : ''}`;
 
   const load = () => {
     setLoading(true);
@@ -286,6 +300,22 @@ export default function PrayerRequestsPage() {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await accountsApi.deletePrayerRequest(deleteTarget.id);
+      setRequests((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      closeDrawer();
+      notifications.show({ color: 'green', message: t.prayerRequestsPage.actions.deleteDone });
+    } catch {
+      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const categoryOptions = [
     { value: 'ALL', label: t.prayerRequestsPage.allCategories },
     ...Object.entries(t.prayerRequestsPage.categoryLabel).map(([value, label]) => ({
@@ -397,6 +427,11 @@ export default function PrayerRequestsPage() {
               />
             </Box>
           </Group>
+          {statusFilter === 'ALL' ? (
+            <Text size="xs" c="dimmed" mt={6}>
+              {t.prayerRequestsPage.archivedHiddenHint}
+            </Text>
+          ) : null}
         </Paper>
 
         {loading ? (
@@ -413,7 +448,17 @@ export default function PrayerRequestsPage() {
             {requests.map((r) => {
               const wa = buildWhatsAppLink(r.requester_phone, whatsappName(r));
               return (
-                <Paper key={r.id} withBorder p="md" radius="md" mb="sm" shadow="xs">
+                <Paper
+                  key={r.id}
+                  withBorder
+                  p="md"
+                  radius="md"
+                  mb="sm"
+                  shadow="xs"
+                  className={pendingCardClass(r)}
+                  data-testid={`prayer-card-${r.id}`}
+                  data-pending={isPendingAttention(r) ? 'true' : undefined}
+                >
                   <Stack gap={8}>
                     <Group
                       justify="space-between"
@@ -423,9 +468,17 @@ export default function PrayerRequestsPage() {
                       gap="xs"
                     >
                       <Group gap="xs" wrap="wrap" style={{ minWidth: 0, flex: 1 }}>
+                        {isPendingAttention(r) ? (
+                          <span className={newDotClass()} aria-hidden />
+                        ) : null}
                         <Text fw={600} size="sm">
                           {displayName(r)}
                         </Text>
+                        {isPendingAttention(r) ? (
+                          <Badge color="orange" variant="filled" size="xs">
+                            {t.prayerRequestsPage.needsAttention}
+                          </Badge>
+                        ) : null}
                         <Text size="xs" c="dimmed">
                           {t.prayerRequestsPage.createdSince.replace(
                             '{days}',
@@ -577,11 +630,21 @@ export default function PrayerRequestsPage() {
                             withBorder
                             radius="md"
                             p="xs"
+                            className={pendingCardClass(r)}
                             style={{ cursor: 'pointer' }}
                             onClick={() => openDrawer(r)}
+                            data-testid={`prayer-kanban-card-${r.id}`}
+                            data-pending={isPendingAttention(r) ? 'true' : undefined}
                           >
                             <Stack gap={6}>
                               <Group gap="xs" wrap="nowrap" align="flex-start">
+                                {isPendingAttention(r) ? (
+                                  <span
+                                    className={newDotClass()}
+                                    style={{ marginTop: 8 }}
+                                    aria-hidden
+                                  />
+                                ) : null}
                                 <Avatar size={26} radius="xl" color={avatarColor(r.id)}>
                                   {getInitials(displayName(r))}
                                 </Avatar>
@@ -741,9 +804,15 @@ export default function PrayerRequestsPage() {
                   <Group gap={8} wrap="wrap">
                     <IconMapPin size={15} style={{ color: 'var(--mantine-color-gray-5)' }} />
                     <Text size="sm">
-                      {[drawerRequest.neighborhood, drawerRequest.city]
+                      {[
+                        [drawerRequest.street, drawerRequest.number].filter(Boolean).join(', '),
+                        drawerRequest.complement,
+                        [drawerRequest.neighborhood, drawerRequest.city]
+                          .filter(Boolean)
+                          .join(' — '),
+                      ]
                         .filter(Boolean)
-                        .join(' — ') || '—'}
+                        .join(' · ') || '—'}
                     </Text>
                   </Group>
                   <Group gap={8} wrap="wrap">
@@ -843,14 +912,25 @@ export default function PrayerRequestsPage() {
 
               <Divider my={2} />
 
-              <Button
-                variant="subtle"
-                color="gray"
-                leftSection={<IconArchive size={16} />}
-                onClick={() => setArchiveTarget(drawerRequest)}
-              >
-                {t.prayerRequestsPage.actions.archive}
-              </Button>
+              <Group justify="space-between" gap="xs" wrap="wrap">
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  leftSection={<IconArchive size={16} />}
+                  onClick={() => setArchiveTarget(drawerRequest)}
+                >
+                  {t.prayerRequestsPage.actions.archive}
+                </Button>
+                <Button
+                  variant="subtle"
+                  color="red"
+                  leftSection={<IconTrash size={16} />}
+                  onClick={() => setDeleteTarget(drawerRequest)}
+                  data-testid="prayer-delete"
+                >
+                  {t.prayerRequestsPage.actions.delete}
+                </Button>
+              </Group>
             </Stack>
           ) : null}
         </Drawer>
@@ -869,6 +949,31 @@ export default function PrayerRequestsPage() {
               </Button>
               <Button color="red" loading={archiving} onClick={confirmArchive}>
                 {t.prayerRequestsPage.actions.archive}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
+
+        <Modal
+          opened={!!deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          title={t.prayerRequestsPage.actions.delete}
+          centered
+        >
+          <Stack>
+            <Text size="sm">{t.prayerRequestsPage.actions.deleteConfirm}</Text>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setDeleteTarget(null)}>
+                {t.common.cancel}
+              </Button>
+              <Button
+                color="red"
+                loading={deleting}
+                onClick={confirmDelete}
+                leftSection={<IconTrash size={16} />}
+                data-testid="prayer-delete-confirm"
+              >
+                {t.prayerRequestsPage.actions.delete}
               </Button>
             </Group>
           </Stack>

@@ -29,6 +29,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { ListPagination, useListPagination } from '../components/ListPagination';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
@@ -70,6 +71,7 @@ export default function UsersPage() {
   const [savingRoleId, setSavingRoleId] = useState<number | null>(null);
   const [toRemove, setToRemove] = useState<ChurchMembership | null>(null);
   const [removing, setRemoving] = useState(false);
+  const pagination = useListPagination(users);
 
   const load = useCallback(() => {
     if (!churchId) return;
@@ -205,7 +207,7 @@ export default function UsersPage() {
       </Button>
     ) : null;
 
-  const rows = users.map((u) => (
+  const rows = pagination.pageItems.map((u) => (
     <Table.Tr key={u.id} data-testid={`user-row-${u.id}`}>
       <Table.Td>
         <Text fw={600}>
@@ -223,7 +225,7 @@ export default function UsersPage() {
     </Table.Tr>
   ));
 
-  const mobileCards = users.map((u) => (
+  const mobileCards = pagination.pageItems.map((u) => (
     <MobileItemCard
       key={u.id}
       testId={`user-mobile-${u.id}`}
@@ -312,6 +314,18 @@ export default function UsersPage() {
             </>
           )}
         </Card>
+
+        <ListPagination
+          page={pagination.page}
+          onPageChange={pagination.setPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.changePageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          testId="users-pagination"
+        />
 
         <Modal
           opened={opened}

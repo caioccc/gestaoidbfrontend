@@ -9,6 +9,7 @@ import {
   Center,
   Group,
   Loader,
+  Menu,
   Pagination,
   Paper,
   SegmentedControl,
@@ -23,9 +24,12 @@ import { Carousel } from '@mantine/carousel';
 import { notifications } from '@mantine/notifications';
 import { MonthPickerInput } from '@mantine/dates';
 import Autoplay from 'embla-carousel-autoplay';
+import { useInViewport, useReducedMotion } from '@mantine/hooks';
 import {
   IconBrandWhatsapp,
+  IconDotsVertical,
   IconEdit,
+  IconFileText,
   IconLayoutGrid,
   IconList,
   IconMusic,
@@ -46,6 +50,7 @@ import type { SupportedLocale } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { formatMusicalKey } from '../utils/format';
+import galleryStyles from '../styles/setlistGallery.module.css';
 import type { Band, BandSetlist, BandSetlistItem } from '../types';
 
 type SetlistViewMode = 'gallery' | 'list' | 'table';
@@ -165,7 +170,15 @@ function SetlistActions({
   );
 }
 
-function SetlistSlideMedia({ item, priority }: { item: BandSetlistItem; priority: boolean }) {
+function SetlistSlideMedia({
+  item,
+  priority,
+  showTitle = true,
+}: {
+  item: BandSetlistItem;
+  priority: boolean;
+  showTitle?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   const thumbnail = songThumbnail(item);
 
@@ -200,27 +213,43 @@ function SetlistSlideMedia({ item, priority }: { item: BandSetlistItem; priority
         w="100%"
         style={{ objectFit: 'cover', display: 'block' }}
       />
-      <Box
-        pos="absolute"
-        inset={0}
-        p="xs"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-end',
-          background: 'linear-gradient(transparent 55%, rgba(0, 0, 0, 0.72))',
-          pointerEvents: 'none',
-        }}
-      >
-        <Text c="white" size="xs" fw={600} lineClamp={1}>
-          {item.song_artist || item.song_title}
-        </Text>
-      </Box>
+      {showTitle ? (
+        <Box
+          pos="absolute"
+          inset={0}
+          p="xs"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            background: 'linear-gradient(transparent 55%, rgba(0, 0, 0, 0.72))',
+            pointerEvents: 'none',
+          }}
+        >
+          <Text c="white" size="xs" fw={600} lineClamp={1}>
+            {item.song_artist || item.song_title}
+          </Text>
+        </Box>
+      ) : null}
     </Box>
   );
 }
 
-function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: number }) {
+function SetlistEmptyMedia({ height }: { height: number | string }) {
   const { t } = useLanguage();
+  return (
+    <Center
+      h={height}
+      style={{ background: 'var(--mantine-color-gray-1)' }}
+    >
+      <Stack gap={4} align="center">
+        <IconMusic size={26} color="var(--mantine-color-dimmed)" />
+        <Text c="dimmed" size="xs">{t.music.setlistEmpty}</Text>
+      </Stack>
+    </Center>
+  );
+}
+
+function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: number }) {
   const autoplay = useRef(
     Autoplay({
       delay: 3500 + (setlist.id % 4) * 300,
@@ -231,17 +260,7 @@ function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: nu
   const items = sortedItems(setlist);
 
   if (items.length === 0) {
-    return (
-      <Center
-        h={height}
-        style={{ background: 'var(--mantine-color-gray-1)' }}
-      >
-        <Stack gap={4} align="center">
-          <IconMusic size={26} color="var(--mantine-color-dimmed)" />
-          <Text c="dimmed" size="xs">{t.music.setlistEmpty}</Text>
-        </Stack>
-      </Center>
-    );
+    return <SetlistEmptyMedia height={height} />;
   }
 
   return (
@@ -265,6 +284,60 @@ function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: nu
   );
 }
 
+type AutoplayApi = ReturnType<typeof Autoplay>;
+
+/** Capa da galeria: carrossel em tela cheia, com o autoplay controlado pelo card
+ *  (ele é quem sabe se a capa está visível na rolagem e se o ponteiro está
+ *  sobre ela). Os indicadores são decorativos — o card abre o setlist inteiro
+ *  no modo culto, então não fazem sentido como destino de teclado. */
+function SetlistGalleryCover({
+  setlist,
+  plugins,
+}: {
+  setlist: BandSetlist;
+  plugins: AutoplayApi[];
+}) {
+  const items = sortedItems(setlist);
+
+  if (items.length === 0) {
+    return <SetlistEmptyMedia height="100%" />;
+  }
+
+  return (
+    <div className={galleryStyles.cover}>
+      <Carousel
+        height="100%"
+        slideSize="100%"
+        emblaOptions={{ align: 'start', loop: items.length > 1 }}
+        plugins={plugins}
+        withControls={false}
+        withIndicators={items.length > 1}
+        aria-label={setlist.description}
+        styles={{
+          indicators: { bottom: 6, gap: 3 },
+          indicator: { width: 14, height: 3, boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.3)' },
+        }}
+        getIndicatorProps={() => ({ tabIndex: -1, 'aria-hidden': true })}
+      >
+        {items.map((item, index) => (
+          <Carousel.Slide key={item.id} h="100%">
+            <SetlistSlideMedia item={item} priority={index === 0} showTitle={false} />
+          </Carousel.Slide>
+        ))}
+      </Carousel>
+    </div>
+  );
+}
+
+function formatCompactDateLabel(iso: string, locale: SupportedLocale): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+  }).format(new Date(year, month - 1, day));
+}
+
 function SetlistGalleryCard({
   setlist,
   onEdit,
@@ -277,63 +350,214 @@ function SetlistGalleryCard({
   onDelete: (s: BandSetlist) => void;
 }) {
   const { t, locale } = useLanguage();
+  const router = useRouter();
   const items = sortedItems(setlist);
+  const hasSongs = items.length > 0;
+  const canEdit = !!setlist.can_edit;
+  const canDelete = !!(setlist.can_delete ?? setlist.can_edit);
+
+  const [exporting, setExporting] = useState(false);
+
+  /* O autoplay é dirigido aqui, e não pelo plugin, porque duas condições
+   * externas ao carousel o afetam: a capa só deve animar quando está visível
+   * na rolagem (senão são N timers ociosos), e precisa parar enquanto o ponteiro
+   * está sobre o card — o cluster de ações é irmão da capa, então o
+   * stopOnMouseEnter do Embla não dispara quando o usuário mira nos botões. */
+  const autoplay = useRef<AutoplayApi>(
+    Autoplay({
+      delay: 3500 + (setlist.id % 4) * 300,
+      stopOnFocusIn: true,
+    }),
+  );
+  const { ref: coverRef, inViewport: coverVisible } = useInViewport();
+  const [coverHovered, setCoverHovered] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (coverVisible && !coverHovered && !prefersReducedMotion) {
+      autoplay.current.play();
+    } else {
+      autoplay.current.stop();
+    }
+  }, [coverVisible, coverHovered, prefersReducedMotion]);
+
+  const copyLyricsForProjection = async () => {
+    if (!hasSongs || exporting) return;
+    setExporting(true);
+    try {
+      const songs = await Promise.all(items.map((item) => musicApi.song(item.song)));
+      const text = songs
+        .map((song, index) => {
+          const head = `${index + 1}. ${items[index].song_title}`;
+          const key = items[index].custom_key || song.church_key;
+          const headWithKey = key ? `${head} (${formatMusicalKey(key)})` : head;
+          const artist = song.artist ? ` - ${song.artist}` : '';
+          return `${headWithKey}${artist}\n\n${(song.lyrics ?? '').trim()}`;
+        })
+        .filter((block) => block.trim().length > 0)
+        .join('\n\n----------------------------\n\n');
+
+      if (!text) throw new Error('sem letras');
+      await navigator.clipboard.writeText(text);
+      notifications.show({ color: 'green', message: t.music.projectionCopied });
+    } catch {
+      notifications.show({ color: 'red', message: t.music.copyFailed });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const songSummary =
+    items
+      .slice(0, 3)
+      .map((item) => `${item.order}. ${item.song_title}`)
+      .join(' • ') + (items.length > 3 ? ' …' : '');
+
+  const credits = [
+    setlist.created_by_name ? `${t.music.setlistCreatedBy}: ${setlist.created_by_name}` : null,
+    setlist.band_name ? `${t.music.setlistBand}: ${setlist.band_name}` : null,
+  ]
+    .filter(Boolean)
+    .join(' • ');
 
   return (
     <Card
       withBorder
-      radius="lg"
+      radius="md"
+      padding={0}
+      className={`${galleryStyles.card} ${hasSongs ? galleryStyles.cardInteractive : ''}`}
+      onClick={hasSongs ? () => void router.push(`/setlists/${setlist.id}/play`) : undefined}
       style={{
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        height: '100%',
         overflow: 'hidden',
-        padding: 0,
+        cursor: hasSongs ? 'pointer' : 'default',
       }}
     >
-      <SetlistCarousel setlist={setlist} height={176} />
-      <Stack p="md" gap="sm" style={{ flex: 1 }}>
-        <Group align="flex-start" justify="space-between" wrap="nowrap" gap="sm">
-          <Box style={{ minWidth: 0 }}>
-            <Text fw={700} size="lg" truncate>{setlist.description}</Text>
-            <Text c="dimmed" size="sm">{formatDateLabel(setlist.date, locale)}</Text>
-          </Box>
-          <Badge variant="light" color="gray" style={{ flexShrink: 0 }}>
-            {setlist.items.length} {t.music.songCountLabel}
-          </Badge>
-        </Group>
-        <Group gap={6}>
-          {setlist.theme ? <Badge variant="light">{setlist.theme}</Badge> : null}
-          {setlist.band_name ? (
-            <Badge variant="dot" color={setlist.band_color}>{setlist.band_name}</Badge>
-          ) : null}
-        </Group>
-        <Text size="xs" c="dimmed" truncate>
-          {t.music.setlistCreatedBy}: {setlist.created_by_name || '—'}
-        </Text>
-        <Stack gap={2} style={{ flex: 1 }}>
-          {items.slice(0, 3).map((item) => (
-            <Text key={item.id} size="xs" c="dimmed" truncate>
-              {item.order}. {item.song_title}
-              {item.custom_key ? (
-                <Text span c="grape"> ({formatMusicalKey(item.custom_key)})</Text>
-              ) : ''}
-            </Text>
-          ))}
-          {items.length > 3 ? (
-            <Text size="xs" c="dimmed">+{items.length - 3} {t.music.songCountLabel}</Text>
-          ) : null}
-        </Stack>
-        <Group justify="space-between" mt="auto" wrap="nowrap">
-          <Text size="xs" c="dimmed">{setlist.band_name || t.music.noBand}</Text>
-          <SetlistQuickActions
+      <div
+        className={galleryStyles.mediaWrap}
+        ref={coverRef}
+        onPointerEnter={() => setCoverHovered(true)}
+        onPointerLeave={() => setCoverHovered(false)}
+      >
+        <div
+          className={galleryStyles.media}
+          role="button"
+          tabIndex={hasSongs ? 0 : -1}
+          aria-disabled={!hasSongs}
+          aria-label={hasSongs ? t.music.setlistPlay : t.music.setlistPlayEmptyTip}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (hasSongs) void router.push(`/setlists/${setlist.id}/play`);
+          }}
+          onKeyDown={(event) => {
+            if (!hasSongs) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              void router.push(`/setlists/${setlist.id}/play`);
+            }
+          }}
+        >
+          <SetlistGalleryCover
             setlist={setlist}
-            onEdit={onEdit}
-            onShare={onShare}
-            onDelete={onDelete}
+            plugins={hasSongs && items.length > 1 ? [autoplay.current] : []}
           />
-        </Group>
-      </Stack>
+
+          {setlist.theme ? (
+            <span className={galleryStyles.badgeTop}>{setlist.theme}</span>
+          ) : null}
+          <span className={galleryStyles.badgeCount}>
+            {items.length} {t.music.songCountLabel}
+          </span>
+          <span className={galleryStyles.badgeDate}>
+            {formatCompactDateLabel(setlist.date, locale)}
+          </span>
+
+          {hasSongs ? (
+            <span className={galleryStyles.overlay} aria-hidden="true">
+              <span className={galleryStyles.playButton}>
+                <IconPlayerPlayFilled size={18} />
+                <span className={galleryStyles.playLabel}>{t.music.setlistPlay}</span>
+              </span>
+            </span>
+          ) : null}
+        </div>
+
+        <div className={galleryStyles.actions}>
+          <Tooltip label={t.music.setlistShare} position="left" withArrow>
+            <button
+              type="button"
+              className={galleryStyles.actionButton}
+              aria-label={t.music.setlistShare}
+              onClick={(event) => {
+                event.stopPropagation();
+                onShare(setlist);
+              }}
+            >
+              <IconBrandWhatsapp size={17} />
+            </button>
+          </Tooltip>
+
+          <Tooltip label={t.music.copyProjection} position="left" withArrow>
+            <button
+              type="button"
+              className={galleryStyles.actionButton}
+              aria-label={t.music.copyProjection}
+              disabled={!hasSongs || exporting}
+              onClick={(event) => {
+                event.stopPropagation();
+                void copyLyricsForProjection();
+              }}
+            >
+              {exporting ? <Loader size={14} color="white" /> : <IconFileText size={17} />}
+            </button>
+          </Tooltip>
+
+          {canEdit ? (
+            <Tooltip label={t.music.setlistEdit} position="left" withArrow>
+              <button
+                type="button"
+                className={galleryStyles.actionButton}
+                aria-label={t.music.setlistEdit}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit(setlist);
+                }}
+              >
+                <IconPencil size={17} />
+              </button>
+            </Tooltip>
+          ) : null}
+
+          {canDelete ? (
+            <Tooltip label={t.common.delete} position="left" withArrow>
+              <Box onClick={(event: React.MouseEvent<HTMLDivElement>) => event.stopPropagation()}>
+                <Menu shadow="md" position="left">
+                  <Menu.Target>
+                    <button type="button" className={galleryStyles.actionButton} aria-label={t.common.delete}>
+                      <IconDotsVertical size={17} />
+                    </button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => onDelete(setlist)}>
+                      {t.common.delete}
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              </Box>
+            </Tooltip>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={galleryStyles.meta}>
+        <span className={galleryStyles.title} title={setlist.description}>
+          {setlist.description || '—'}
+        </span>
+        <span className={galleryStyles.subtitle}>{credits || '—'}</span>
+        {songSummary ? <span className={galleryStyles.summary}>{songSummary}</span> : null}
+      </div>
     </Card>
   );
 }
