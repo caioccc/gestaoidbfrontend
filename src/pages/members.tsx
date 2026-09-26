@@ -70,6 +70,7 @@ import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { accountsApi } from '../api/accounts';
 import { toUpperCamelWords } from '../utils/format';
+import { firstFieldError } from '../utils/apiError';
 import { cardValidityDate, formatCardDate } from '../utils/memberCard';
 import type { CardConfig, Member, MinistryArea } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
@@ -400,8 +401,11 @@ function MembersTab({
       await onRenewValidity?.(toISODate(renewDate));
       notifications.show({ color: 'green', message: t.membersPage.renewSaved });
       setRenewOpen(false);
-    } catch {
-      notifications.show({ color: 'red', message: t.membersPage.renewError });
+    } catch (err: any) {
+      notifications.show({
+        color: 'red',
+        message: firstFieldError(err?.response?.data, ['card_valid_until']) || t.membersPage.renewError,
+      });
     } finally {
       setRenewing(false);
     }
@@ -1249,8 +1253,9 @@ export default function MembersPage() {
   };
 
   const handleRenewValidity = async (date: string | null) => {
-    const payload = { ...(cardData.profile ?? {}), card_valid_until: date };
-    await accountsApi.updateProfile(payload);
+    // PATCH com um único campo: reenviar a resposta inteira do GET devolvia o
+    // logo como URL e derrubava o PUT com 400.
+    await accountsApi.patchProfile({ card_valid_until: date });
     cardData.refresh();
   };
 

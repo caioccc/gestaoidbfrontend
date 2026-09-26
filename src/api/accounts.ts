@@ -217,6 +217,12 @@ export const accountsApi = {
   updateProfile: (payload: Record<string, any>): Promise<any> =>
     apiClient.put('/api/accounts/profile/', payload).then((r) => r.data),
 
+  /** Atualiza só os campos enviados (partial=True no backend). Use para
+   *  formulários que cuidam de um recorte do perfil — evita reenviar a
+   *  resposta inteira do GET e sobrescrever edições feitas em outra tela. */
+  patchProfile: (payload: Record<string, any>): Promise<any> =>
+    apiClient.patch('/api/accounts/profile/', payload).then((r) => r.data),
+
   resetPassword: (newPassword: string): Promise<{ detail: string }> =>
     apiClient
       .post('/api/accounts/profile/reset-password/', { new_password: newPassword })

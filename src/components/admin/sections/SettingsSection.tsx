@@ -16,6 +16,7 @@ import PageHeader from '../../../components/PageHeader';
 import ChurchProfileForm from '../../../components/ChurchProfileForm';
 import { useLanguage } from '../../../i18n';
 import { accountsApi } from '../../../api/accounts';
+import { firstFieldError } from '../../../utils/apiError';
 import { ChurchType } from '../../../types';
 
 interface SettingsSectionProps {
@@ -71,7 +72,14 @@ export default function SettingsSection({
       notifications.show({
         color: 'red',
         title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
+        message:
+          firstFieldError(err?.response?.data, [
+            'name',
+            'logo',
+            'state',
+            'card_primary_color',
+            'card_secondary_color',
+          ]) || 'Não foi possível salvar.',
       });
     } finally {
       setSaving(false);

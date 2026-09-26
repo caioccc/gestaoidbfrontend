@@ -22,6 +22,7 @@ import { useLanguage } from '../i18n';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { accountsApi } from '../api/accounts';
 import { toSentenceCase } from '../utils/format';
+import { firstFieldError } from '../utils/apiError';
 import type { CardConfig, CardTheme } from '../types';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -47,7 +48,7 @@ interface CardConfigTabProps {
 
 export default function CardConfigTab({ churchName, data }: CardConfigTabProps) {
   const { t, locale } = useLanguage();
-  const { config, contact, profile, refresh } = data;
+  const { config, contact, refresh } = data;
   const [saving, setSaving] = useState(false);
   const { colorScheme } = useMantineColorScheme();
   const [mounted, setMounted] = useState(false);
@@ -103,8 +104,11 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
     if (res.hasErrors) return;
     setSaving(true);
     try {
+      // Só os campos de carteirinha, via PATCH. Enviar a resposta inteira do
+      // GET quebrava: o logo voltaria como URL, e o campo só aceita data URL
+      // base64 — o PUT inteiro também sobrescreveria name/city/cep com valores
+      // possivelmente defasados se outra tela tiver editado o perfil.
       const payload = {
-        ...(profile ?? {}),
         card_primary_color: form.values.card_primary_color.trim().toUpperCase(),
         card_secondary_color: form.values.card_secondary_color.trim().toUpperCase(),
         card_valid_until: toISO(form.values.card_valid_until),
@@ -112,13 +116,22 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
         card_back_phrase: toSentenceCase(form.values.card_back_phrase),
         card_theme: form.values.card_theme,
       };
-      await accountsApi.updateProfile(payload);
+      await accountsApi.patchProfile(payload);
       notifications.show({ color: 'green', message: t.cardConfig.saved });
       refresh();
     } catch (err: any) {
+      const body = err?.response?.data;
       notifications.show({
         color: 'red',
-        message: err?.response?.data?.detail || t.cardConfig.saveError,
+        message:
+          firstFieldError(body, [
+            'card_primary_color',
+            'card_secondary_color',
+            'card_valid_until',
+            'card_front_phrase',
+            'card_back_phrase',
+            'card_theme',
+          ]) || t.cardConfig.saveError,
       });
     } finally {
       setSaving(false);
