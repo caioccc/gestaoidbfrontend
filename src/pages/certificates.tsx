@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
   ActionIcon,
@@ -8,8 +8,10 @@ import {
   Card,
   Center,
   Group,
+  Indicator,
   Loader,
   Modal,
+  Paper,
   Select,
   Stack,
   Table,
@@ -19,8 +21,10 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
+import { YearPickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAdjustmentsHorizontal,
   IconCertificate,
   IconDownload,
   IconFileTypePdf,
@@ -38,6 +42,7 @@ import { ListPagination, useListPagination } from '../components/ListPagination'
 import CertificateIssueModal from '../components/CertificateIssueModal';
 import CertificateTemplateModal from '../components/CertificateTemplateModal';
 import { useLanguage } from '../i18n';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
 import { formatPtDate } from '../utils/certificate';
@@ -75,6 +80,7 @@ export default function CertificatesPage() {
 
 function IssuedTab() {
   const { t } = useLanguage();
+  const isCompact = useIsCompactList();
   const [certificates, setCertificates] = useState<EcclesiasticalCertificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [issueOpen, setIssueOpen] = useState(false);
@@ -82,20 +88,12 @@ function IssuedTab() {
   const [search, setSearch] = useState('');
   const [certsType, setCertsType] = useState<string>('');
   const [year, setYear] = useState<string>('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Rascunho do modal mobile/tablet; so vira filtro real em "Aplicar filtros".
+  const [dSearch, setDSearch] = useState('');
+  const [dType, setDType] = useState<string | null>(null);
+  const [dYear, setDYear] = useState<string | null>(null);
   const pagination = useListPagination(certificates);
-
-  const years = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          certificates
-            .map((c) => c.event_date.slice(0, 4))
-            .filter(Boolean)
-            .sort((a, b) => Number(b) - Number(a)),
-        ),
-      ),
-    [certificates],
-  );
 
   const load = useCallback(() => {
     setLoading(true);
@@ -115,6 +113,39 @@ function IssuedTab() {
     return () => window.clearTimeout(handle);
   }, [load]);
 
+  const hasFilters = search.trim() !== '' || !!certsType || !!year;
+  const activeFilterCount = [search.trim(), certsType, year].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearch('');
+    setCertsType('');
+    setYear('');
+    pagination.reset();
+  };
+
+  const openFilters = () => {
+    setDSearch(search);
+    setDType(certsType || null);
+    setDYear(year || null);
+    setFilterOpen(true);
+  };
+
+  const applyFilters = () => {
+    setSearch(dSearch);
+    setCertsType(dType ?? '');
+    setYear(dYear ?? '');
+    pagination.reset();
+    setFilterOpen(false);
+  };
+
+  const clearDraft = () => {
+    setDSearch('');
+    setDType(null);
+    setDYear(null);
+  };
+
+  const thisYear = () => String(new Date().getFullYear());
+
   const handleDownload = async (cert: EcclesiasticalCertificate) => {
     try {
       const blob = await accountsApi.certificatePdfDownload(cert.id);
@@ -130,6 +161,28 @@ function IssuedTab() {
     { value: 'MEMBERSHIP_COURSE', label: t.certificates.typeMembershipCourse },
     { value: 'CUSTOM', label: t.certificates.typeCustom },
   ];
+
+  const filterTrigger = (
+    <Indicator
+      inline
+      disabled={activeFilterCount === 0}
+      label={activeFilterCount}
+      size={16}
+      color="grape"
+      withBorder
+      data-testid="cert-filter-indicator"
+    >
+      <ActionIcon
+        variant="default"
+        size="md"
+        onClick={openFilters}
+        data-testid="cert-open-filters"
+        aria-label={t.certificates.filterTitle}
+      >
+        <IconAdjustmentsHorizontal size={16} />
+      </ActionIcon>
+    </Indicator>
+  );
 
   const certActions = (cert: EcclesiasticalCertificate) => (
     <Group gap={4} justify="flex-end" wrap="nowrap">
@@ -156,40 +209,105 @@ function IssuedTab() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-end">
-        <Group gap="sm">
-          <TextInput
-            placeholder={t.certificates.searchPlaceholder}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
-            leftSection={<IconSearch size={16} />}
-            w={260}
-          />
-          <Select
-            placeholder={t.certificates.allTypes}
-            data={typeOptions}
-            value={certsType || null}
-            onChange={(v) => setCertsType(v ?? '')}
-            clearable
-            w={210}
-          />
-          <Select
-            placeholder={t.certificates.allYears}
-            data={years.map((y) => ({ value: y, label: y }))}
-            value={year || null}
-            onChange={(v) => setYear(v ?? '')}
-            clearable
-            w={130}
-          />
+      <Box visibleFrom="lg">
+        <Group justify="flex-end">
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => setIssueOpen(true)}
+            data-testid="issue-certificate"
+          >
+            {t.certificates.issue}
+          </Button>
         </Group>
+      </Box>
+      <Group hiddenFrom="lg" gap="xs" wrap="nowrap" justify="space-between">
+        {filterTrigger}
         <Button
-          leftSection={<IconPlus size={16} />}
+          size="xs"
+          leftSection={<IconPlus size={14} />}
           onClick={() => setIssueOpen(true)}
-          data-testid="issue-certificate"
+          data-testid="issue-certificate-mobile"
+          style={{ flexShrink: 0 }}
         >
           {t.certificates.issue}
         </Button>
       </Group>
+
+      <Box visibleFrom="lg">
+        <Paper withBorder radius="md" p="sm">
+          <Group gap="xs" wrap="wrap" align="flex-end">
+            <TextInput
+              placeholder={t.certificates.searchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.currentTarget.value)}
+              leftSection={<IconSearch size={16} />}
+              style={{ flex: 1, minWidth: 200 }}
+              data-testid="cert-filter-search"
+            />
+            <Select
+              placeholder={t.certificates.allTypes}
+              data={typeOptions}
+              value={certsType || null}
+              onChange={(v) => setCertsType(v ?? '')}
+              clearable
+              size="sm"
+              w={200}
+              data-testid="cert-filter-type"
+            />
+            <YearPickerInput
+              label={t.common.year}
+              placeholder={t.certificates.allYears}
+              value={year ? `${year}-01-01` : null}
+              onChange={(v) => setYear(v ? String(v).slice(0, 4) : '')}
+              clearable
+              size="sm"
+              w={150}
+              data-testid="cert-filter-year"
+            />
+            <Button
+              variant="light"
+              size="xs"
+              onClick={() => setYear(thisYear())}
+              disabled={year === thisYear()}
+              data-testid="cert-filter-this-year"
+            >
+              {t.certificates.thisYear}
+            </Button>
+            <Button
+              variant="subtle"
+              size="xs"
+              onClick={clearFilters}
+              disabled={!hasFilters}
+              mb={1}
+              data-testid="cert-clear-filters"
+            >
+              {t.common.clearFilters}
+            </Button>
+          </Group>
+        </Paper>
+      </Box>
+
+      {hasFilters && (
+        <Group hiddenFrom="lg" gap="xs" wrap="nowrap" justify="space-between">
+          <Text size="xs" c="dimmed">
+            {t.common.showingRange
+              .replace('{start}', String(pagination.rangeStart))
+              .replace('{end}', String(pagination.rangeEnd))
+              .replace('{total}', String(pagination.total))
+              .replace('{page}', String(pagination.page))
+              .replace('{totalPages}', String(pagination.totalPages))}
+          </Text>
+          <Button
+            variant="subtle"
+            size="compact-xs"
+            onClick={clearFilters}
+            data-testid="cert-clear-filters-mobile"
+            style={{ flexShrink: 0 }}
+          >
+            {t.common.clearFilters}
+          </Button>
+        </Group>
+      )}
 
       {loading ? (
         <Center h={220}>
@@ -198,12 +316,26 @@ function IssuedTab() {
       ) : certificates.length === 0 ? (
         <Card withBorder>
           <Center h={160}>
-            <Text c="dimmed">{t.certificates.emptyIssued}</Text>
+            <Stack gap="sm" align="center">
+              <Text c="dimmed" data-testid="cert-empty">
+                {hasFilters ? t.certificates.filterEmpty : t.certificates.emptyIssued}
+              </Text>
+              {hasFilters && (
+                <Button
+                  variant="light"
+                  size="xs"
+                  onClick={clearFilters}
+                  data-testid="cert-empty-clear-filters"
+                >
+                  {t.common.clearFilters}
+                </Button>
+              )}
+            </Stack>
           </Center>
         </Card>
       ) : (
         <Card withBorder padding={0}>
-          <Box visibleFrom="sm">
+          <Box visibleFrom="lg">
             <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
               <Table.Thead>
                 <Table.Tr>
@@ -255,7 +387,7 @@ function IssuedTab() {
               </Table.Tbody>
             </Table>
           </Box>
-          <Stack hiddenFrom="sm" gap="xs" p="sm">
+          <Stack hiddenFrom="lg" gap="xs" p="sm">
             {pagination.pageItems.map((cert) => (
               <MobileItemCard
                 key={cert.id}
@@ -303,23 +435,93 @@ function IssuedTab() {
         </Card>
       )}
 
-      <ListPagination
-        page={pagination.page}
-        onPageChange={pagination.setPage}
-        pageSize={pagination.pageSize}
-        onPageSizeChange={pagination.changePageSize}
-        total={pagination.total}
-        totalPages={pagination.totalPages}
-        rangeStart={pagination.rangeStart}
-        rangeEnd={pagination.rangeEnd}
-        testId="certificates-pagination"
-      />
+      <Box visibleFrom="lg">
+        <ListPagination
+          page={pagination.page}
+          onPageChange={pagination.setPage}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.changePageSize}
+          total={pagination.total}
+          totalPages={pagination.totalPages}
+          rangeStart={pagination.rangeStart}
+          rangeEnd={pagination.rangeEnd}
+          testId="certificates-pagination"
+        />
+      </Box>
 
       <CertificateIssueModal
         opened={issueOpen}
         onClose={() => setIssueOpen(false)}
         onIssued={load}
       />
+
+      <Modal
+        opened={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        title={t.certificates.filterTitle}
+        size="lg"
+        centered
+        fullScreen={isCompact}
+        data-testid="cert-filter-modal"
+      >
+        <Stack gap="md">
+          <Stack gap="sm" style={{ overflowY: 'auto', flex: 1 }}>
+            <TextInput
+              label={t.certificates.filterSearch}
+              placeholder={t.certificates.searchPlaceholder}
+              leftSection={<IconSearch size={16} />}
+              value={dSearch}
+              onChange={(e) => setDSearch(e.currentTarget.value)}
+              data-testid="cert-draft-search"
+            />
+            <Select
+              label={t.certificates.filterType}
+              placeholder={t.certificates.allTypes}
+              data={typeOptions}
+              value={dType}
+              onChange={setDType}
+              clearable
+              data-testid="cert-draft-type"
+            />
+            <YearPickerInput
+              label={t.common.year}
+              placeholder={t.certificates.allYears}
+              value={dYear ? `${dYear}-01-01` : null}
+              onChange={(v) => setDYear(v ? String(v).slice(0, 4) : null)}
+              clearable
+              data-testid="cert-draft-year"
+            />
+            <Group gap="xs">
+              <Button
+                variant="light"
+                size="xs"
+                onClick={() => setDYear(thisYear())}
+                disabled={dYear === thisYear()}
+                data-testid="cert-draft-this-year"
+              >
+                {t.certificates.thisYear}
+              </Button>
+            </Group>
+          </Stack>
+          <Group gap="xs" wrap="nowrap">
+            <Button
+              variant="default"
+              style={{ flex: 1 }}
+              onClick={clearDraft}
+              data-testid="cert-draft-clear"
+            >
+              {t.common.clearFilters}
+            </Button>
+            <Button
+              style={{ flex: 1 }}
+              onClick={applyFilters}
+              data-testid="cert-draft-apply"
+            >
+              {t.common.applyFilters}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={!!deleting}
@@ -405,16 +607,31 @@ function TemplatesTab() {
   return (
     <Stack gap="md">
       <Group justify="flex-end">
-        <Button
-          leftSection={<IconPlus size={16} />}
-          onClick={() => {
-            setEditing(null);
-            setModalOpen(true);
-          }}
-          data-testid="new-template"
-        >
-          {t.certificates.newTemplate}
-        </Button>
+        <Box visibleFrom="lg">
+          <Button
+            leftSection={<IconPlus size={16} />}
+            onClick={() => {
+              setEditing(null);
+              setModalOpen(true);
+            }}
+            data-testid="new-template"
+          >
+            {t.certificates.newTemplate}
+          </Button>
+        </Box>
+        <Box hiddenFrom="lg" w="100%">
+          <Button
+            fullWidth
+            leftSection={<IconPlus size={14} />}
+            onClick={() => {
+              setEditing(null);
+              setModalOpen(true);
+            }}
+            data-testid="new-template-mobile"
+          >
+            {t.certificates.newTemplate}
+          </Button>
+        </Box>
       </Group>
 
       {loading ? (
@@ -429,7 +646,7 @@ function TemplatesTab() {
         </Card>
       ) : (
         <>
-          <Box visibleFrom="sm">
+          <Box visibleFrom="lg">
             <Table highlightOnHover verticalSpacing="sm" horizontalSpacing="md">
             <Table.Thead>
               <Table.Tr>
@@ -483,7 +700,7 @@ function TemplatesTab() {
             </Table.Tbody>
           </Table>
         </Box>
-        <Stack hiddenFrom="sm" gap="xs">
+        <Stack hiddenFrom="lg" gap="xs">
           {pagination.pageItems.map((tmpl) => (
             <MobileItemCard
               key={tmpl.id}

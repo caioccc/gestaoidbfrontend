@@ -7,7 +7,9 @@ import {
   Flex,
   Grid,
   Group,
+  Indicator,
   Loader,
+  Menu,
   Modal,
   MultiSelect,
   Paper,
@@ -25,7 +27,7 @@ import {
 } from '@mantine/core';
 import { DateInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { useDebouncedValue, useMediaQuery } from '@mantine/hooks';
+import { useDebouncedValue } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconBrandWhatsapp,
@@ -34,6 +36,7 @@ import {
   IconChevronRight,
   IconCircleCheck,
   IconCrosshair,
+  IconDownload,
   IconListDetails,
   IconMap,
   IconMapPin,
@@ -47,10 +50,14 @@ import {
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { accountsApi } from '../api/accounts';
+import { saveBlob } from '../api/finance';
 import AuthGuard from '../components/AuthGuard';
 import ChurchMap from '../components/ChurchMap';
+import FilterDrawer from '../components/FilterDrawer';
 import MaskedTextInput from '../components/MaskedTextInput';
+import MobileListToolbar from '../components/MobileListToolbar';
 import VisitationMap, { type VisitationAction } from '../components/VisitationMap';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { useLanguage } from '../i18n';
 import type {
   Member,
@@ -89,7 +96,7 @@ interface AddressParts {
 export default function VisitationPage() {
   const { t, locale } = useLanguage();
   const router = useRouter();
-  const isCompact = useMediaQuery("(max-width: 991px)");
+  const isCompact = useIsCompactList();
   const { colorScheme } = useMantineColorScheme();
 
   const today = new Date();
@@ -107,6 +114,12 @@ export default function VisitationPage() {
   const [focusNonce, setFocusNonce] = useState(0);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<PastoralVisitStatus[]>([]);
+  const [needsFollowupOnly, setNeedsFollowupOnly] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [neighborhoodFilter, setNeighborhoodFilter] = useState<string>("ALL");
+  const [visitedByFilter, setVisitedByFilter] = useState<string>("ALL");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [drawerVisit, setDrawerVisit] = useState<PastoralVisit | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -230,6 +243,18 @@ export default function VisitationPage() {
     return visits.filter((v) => {
       if (statusFilter.length > 0 && !statusFilter.includes(v.status))
         return false;
+      if (needsFollowupOnly && !v.needs_followup) return false;
+      if (typeFilter !== "ALL" && v.visit_type !== typeFilter) return false;
+      if (
+        neighborhoodFilter !== "ALL" &&
+        (v.neighborhood || "").trim() !== neighborhoodFilter
+      )
+        return false;
+      if (
+        visitedByFilter !== "ALL" &&
+        (v.visited_by || "").trim() !== visitedByFilter
+      )
+        return false;
       if (!q) return true;
       return (
         (v.member_name || v.target_name || "").toLowerCase().includes(q) ||
@@ -237,7 +262,99 @@ export default function VisitationPage() {
         (v.city || "").toLowerCase().includes(q)
       );
     });
-  }, [visits, search, statusFilter]);
+  }, [
+    visits,
+    search,
+    statusFilter,
+    needsFollowupOnly,
+    typeFilter,
+    neighborhoodFilter,
+    visitedByFilter,
+  ]);
+
+  const neighborhoodOptions = useMemo(() => {
+    const set = new Set<string>();
+    visits.forEach((v) => {
+      if (v.neighborhood) set.add(v.neighborhood.trim());
+    });
+    return [
+      { value: "ALL", label: t.visitationPage.filters.allNeighborhoods },
+      ...[...set].sort().map((n) => ({ value: n, label: n })),
+    ];
+  }, [visits, t]);
+
+  const visitorOptions = useMemo(() => {
+    const set = new Set<string>();
+    visits.forEach((v) => {
+      if (v.visited_by) set.add(v.visited_by.trim());
+    });
+    return [
+      { value: "ALL", label: t.visitationPage.filters.allVisitors },
+      ...[...set].sort().map((n) => ({ value: n, label: n })),
+    ];
+  }, [visits, t]);
+
+  const typeOptions = [
+    { value: "ALL", label: t.visitationPage.filters.allTypes },
+    ...VISIT_TYPES.map((ty) => ({
+      value: ty,
+      label: t.visitationPage.visitType[ty],
+    })),
+  ];
+
+  const filterCount =
+    statusFilter.length +
+    (needsFollowupOnly ? 1 : 0) +
+    (typeFilter !== "ALL" ? 1 : 0) +
+    (neighborhoodFilter !== "ALL" ? 1 : 0) +
+    (visitedByFilter !== "ALL" ? 1 : 0);
+
+  const resetVisitationFilters = () => {
+    setStatusFilter([]);
+    setNeedsFollowupOnly(false);
+    setTypeFilter("ALL");
+    setNeighborhoodFilter("ALL");
+    setVisitedByFilter("ALL");
+  };
+
+  const exportCsv = () => {
+    const esc = (v: string) => `"${(v ?? "").replace(/"/g, '""')}"`;
+    const header = [
+      t.visitationPage.name,
+      t.visitationPage.phone,
+      t.visitationPage.type,
+      t.visitationPage.status,
+      t.visitationPage.scheduled,
+      t.visitationPage.address,
+      t.visitationPage.complete.visitedBy,
+    ];
+    const lines = filteredVisits.map((v) =>
+      [
+        esc(v.member_name || v.target_name),
+        esc(v.target_phone),
+        esc(t.visitationPage.visitType[v.visit_type]),
+        esc(t.visitationPage.statusLabel[v.status]),
+        esc(v.scheduled_date),
+        esc([v.street, v.number, v.neighborhood, v.city].filter(Boolean).join(" ")),
+        esc(v.visited_by),
+      ].join(";"),
+    );
+    try {
+      const blob = new Blob(["\uFEFF" + [header.join(";"), ...lines].join("\r\n")], {
+        type: "text/csv;charset=utf-8;",
+      });
+      saveBlob(blob, `visitas-${year}-${String(month).padStart(2, "0")}.csv`);
+      notifications.show({
+        color: "green",
+        message: t.visitationPage.actions.exportedCsv,
+      });
+    } catch {
+      notifications.show({
+        color: "red",
+        message: t.visitationPage.actions.exportCsvError,
+      });
+    }
+  };
 
   const moveMonth = (delta: number) => {
     let m = month + delta;
@@ -888,7 +1005,87 @@ export default function VisitationPage() {
           </Stack>
         </Group>
 
-        <Paper withBorder p="sm" radius="md" mb="md">
+        {isCompact ? (
+          <Box mb="md">
+            <MobileListToolbar
+              searchValue={search}
+              onSearchChange={setSearch}
+              searchPlaceholder={t.visitationPage.searchPlaceholder}
+              filtersLabel={t.visitationPage.filters.title}
+              onOpenFilters={() => setFiltersOpen(true)}
+              filterCount={filterCount}
+              primary={
+                <Button
+                  size="sm"
+                  px="xs"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => {
+                    resetForm();
+                    setCreateOpen(true);
+                  }}
+                >
+                  {t.visitationPage.newVisit}
+                </Button>
+              }
+              menuChildren={
+                <>
+                  <Menu.Item
+                    leftSection={<IconListDetails size={15} />}
+                    onClick={() => setSummaryOpen(true)}
+                  >
+                    {t.visitationPage.summaryTitle}
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconDownload size={15} />}
+                    onClick={exportCsv}
+                  >
+                    {t.visitationPage.actions.exportCsv}
+                  </Menu.Item>
+                </>
+              }
+              menuLabel={t.visitationPage.title}
+              testId="visitation-toolbar"
+            />
+          </Box>
+        ) : null}
+
+        {isCompact ? (
+          <Group gap={4} align="center" wrap="nowrap" mb="md">
+            <ActionIcon
+              variant="default"
+              onClick={() => moveMonth(-1)}
+              aria-label="previous"
+            >
+              <IconChevronLeft size={16} />
+            </ActionIcon>
+            <Select
+              value={String(month)}
+              onChange={(v) => v && setMonth(Number(v))}
+              data={monthOptions}
+              w={150}
+              allowDeselect={false}
+              size="xs"
+            />
+            <Select
+              value={String(year)}
+              onChange={(v) => v && setYear(Number(v))}
+              data={yearOptions}
+              w={90}
+              allowDeselect={false}
+              size="xs"
+            />
+            <ActionIcon
+              variant="default"
+              onClick={() => moveMonth(1)}
+              aria-label="next"
+            >
+              <IconChevronRight size={16} />
+            </ActionIcon>
+          </Group>
+        ) : null}
+
+        {!isCompact ? (
+          <Paper withBorder p="sm" radius="md" mb="md">
           <Group justify="space-between" wrap="wrap" gap="sm">
             <Group gap={4} align="center" wrap="nowrap">
               <ActionIcon
@@ -944,7 +1141,8 @@ export default function VisitationPage() {
               </Button>
             </Group>
           </Group>
-        </Paper>
+          </Paper>
+        ) : null}
 
         <SimpleGrid cols={{ base: 2, sm: 5 }} mb="md" spacing="sm">
           {stats.map((s) => (
@@ -1114,6 +1312,51 @@ export default function VisitationPage() {
             </Box>
           </Flex>
         )}
+
+        <FilterDrawer
+          opened={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={t.visitationPage.filters.title}
+          clearLabel={t.common.clearFilters}
+          clearDisabled={filterCount === 0}
+          onClear={resetVisitationFilters}
+          testId="visitation-filters"
+        >
+          <MultiSelect
+            label={t.visitationPage.status}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as PastoralVisitStatus[])}
+            data={statusOptions}
+            placeholder={t.visitationPage.statusFilterPlaceholder}
+            clearable
+          />
+          <Select
+            label={t.visitationPage.form.visitType}
+            data={typeOptions}
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(v ?? "ALL")}
+            allowDeselect={false}
+          />
+          <Select
+            label={t.visitationPage.form.neighborhood}
+            data={neighborhoodOptions}
+            value={neighborhoodFilter}
+            onChange={(v) => setNeighborhoodFilter(v ?? "ALL")}
+            allowDeselect={false}
+          />
+          <Select
+            label={t.visitationPage.complete.visitedBy}
+            data={visitorOptions}
+            value={visitedByFilter}
+            onChange={(v) => setVisitedByFilter(v ?? "ALL")}
+            allowDeselect={false}
+          />
+          <Switch
+            label={t.visitationPage.filters.needsFollowupOnly}
+            checked={needsFollowupOnly}
+            onChange={(e) => setNeedsFollowupOnly(e.currentTarget.checked)}
+          />
+        </FilterDrawer>
 
         <Drawer
           opened={!!drawerVisit}
@@ -1542,6 +1785,35 @@ export default function VisitationPage() {
                 {t.visitationPage.actions.delete}
               </Button>
             </Group>
+          </Stack>
+        </Modal>
+
+        <Modal
+          opened={summaryOpen}
+          onClose={() => setSummaryOpen(false)}
+          title={t.visitationPage.summaryTitle}
+          centered
+          size="sm"
+        >
+          <Stack gap="xs">
+            <Group gap={4}>
+              <Text size="xs" fw={600} tt="uppercase" c="dimmed">
+                {t.visitationPage.competence}
+              </Text>
+              <Text size="sm">
+                {monthName(month)} {year}
+              </Text>
+            </Group>
+            {stats.map((s) => (
+              <Group key={s.key} justify="space-between" gap="xs">
+                <Text size="sm" c="dimmed">
+                  {s.label}
+                </Text>
+                <Text size="sm" fw={700} c={s.color}>
+                  {s.value}
+                </Text>
+              </Group>
+            ))}
           </Stack>
         </Modal>
       </>

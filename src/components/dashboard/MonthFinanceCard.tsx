@@ -4,6 +4,7 @@ import { IconArrowUpCircle, IconArrowDownCircle, IconScale } from '@tabler/icons
 import { useLanguage } from '../../i18n';
 import { formatBRL } from '../../utils/format';
 import { KpiCard, SectionCard } from './primitives';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export default function MonthFinanceCard({
   entries,
@@ -24,6 +25,7 @@ export default function MonthFinanceCard({
 }) {
   const { t } = useLanguage();
   const dv = t.dashboardViews;
+  const isMobile = useIsMobile();
 
   return (
     <SectionCard
@@ -33,7 +35,7 @@ export default function MonthFinanceCard({
       loading={loading}
       skeletonHeight={150}
     >
-      <Stack gap="md">
+      <Stack gap={isMobile ? 'sm' : 'md'}>
         <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
           <KpiCard
             label={dv.chartEntries}

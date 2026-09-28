@@ -8,6 +8,7 @@ import {
   Center,
   FileInput,
   Group,
+  Indicator,
   Loader,
   Modal,
   Paper,
@@ -20,11 +21,11 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
+import { DateInput, DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
-  IconCopy,
+  IconAdjustmentsHorizontal,
   IconFileText,
   IconFileTypePdf,
   IconLink,
@@ -33,6 +34,7 @@ import {
   IconPlus,
   IconQrcode,
   IconRefresh,
+  IconSearch,
   IconTrash,
   IconWand,
 } from '@tabler/icons-react';
@@ -49,6 +51,7 @@ import { accountsApi, ChurchMinutesPayload } from '../api/accounts';
 import { saveBlob } from '../api/finance';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { generateMinutesPdf } from '../utils/minutesPdf';
 import { toUpperCamelWords } from '../utils/format';
 import type { ChurchMinutes, MeetingType } from '../types';
@@ -82,6 +85,7 @@ interface MinutesFormValues {
 export default function MinutesPage() {
   const { t, locale } = useLanguage();
   const { church } = useCurrentChurch();
+  const isCompact = useIsCompactList();
   const [minutes, setMinutes] = useState<ChurchMinutes[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -98,19 +102,64 @@ export default function MinutesPage() {
   const [qrMinutes, setQrMinutes] = useState<ChurchMinutes | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const pagination = useListPagination(minutes);
+  const [fSearch, setFSearch] = useState('');
+  const [fRange, setFRange] = useState<[string | null, string | null]>([null, null]);
+  const [fType, setFType] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Rascunho do modal; só vira filtro real em "Aplicar filtros".
+  const [dSearch, setDSearch] = useState('');
+  const [dRange, setDRange] = useState<[string | null, string | null]>([null, null]);
+  const [dType, setDType] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .minutes()
+      .minutes({
+        ...(fRange[0] ? { start_date: fRange[0] } : {}),
+        ...(fRange[1] ? { end_date: fRange[1] } : {}),
+        ...(fType ? { meeting_type: fType as MeetingType } : {}),
+        ...(fSearch.trim() ? { search: fSearch.trim() } : {}),
+      })
       .then((items) => setMinutes(items))
       .catch(() => setMinutes([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [fRange, fType, fSearch]);
 
   useEffect(() => {
-    load();
+    const handle = window.setTimeout(load, 300);
+    return () => window.clearTimeout(handle);
   }, [load]);
+
+  const hasFilters = fSearch.trim() !== '' || !!fRange[0] || !!fRange[1] || !!fType;
+  const activeFilterCount = [fSearch.trim(), fRange[0] || fRange[1], fType].filter(Boolean).length;
+
+  const openFilters = () => {
+    setDSearch(fSearch);
+    setDRange(fRange);
+    setDType(fType);
+    setFilterOpen(true);
+  };
+
+  const applyFilters = () => {
+    setFSearch(dSearch);
+    setFRange(dRange);
+    setFType(dType);
+    pagination.reset();
+    setFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFSearch('');
+    setFRange([null, null]);
+    setFType(null);
+    pagination.reset();
+  };
+
+  const clearDraft = () => {
+    setDSearch('');
+    setDRange([null, null]);
+    setDType(null);
+  };
 
   const emptyValues = (): MinutesFormValues => ({
     title: '',
@@ -359,10 +408,75 @@ export default function MinutesPage() {
     <AuthGuard>
       <Layout>
         <PageHeader title={t.minutesPage.title} description={t.minutesPage.subtitle}>
-          <Button leftSection={<IconPlus size={18} />} onClick={openCreate} data-testid="add-minute">
-            {t.minutesPage.add}
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Box visibleFrom="lg">
+              <Indicator
+                inline
+                disabled={activeFilterCount === 0}
+                label={activeFilterCount}
+                size={16}
+                color="grape"
+                withBorder
+                data-testid="minutes-filter-indicator"
+              >
+                <Button
+                  variant="default"
+                  leftSection={<IconAdjustmentsHorizontal size={16} />}
+                  onClick={openFilters}
+                  data-testid="minutes-open-filters"
+                  aria-label={t.minutesPage.filterTitle}
+                >
+                  {t.common.filter}
+                </Button>
+              </Indicator>
+            </Box>
+            <Box hiddenFrom="lg">
+              <Indicator
+                inline
+                disabled={activeFilterCount === 0}
+                label={activeFilterCount}
+                size={16}
+                color="grape"
+                withBorder
+                data-testid="minutes-filter-indicator"
+              >
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  onClick={openFilters}
+                  data-testid="minutes-open-filters"
+                  aria-label={t.minutesPage.filterTitle}
+                >
+                  <IconAdjustmentsHorizontal size={16} />
+                </ActionIcon>
+              </Indicator>
+            </Box>
+            <Button leftSection={<IconPlus size={18} />} onClick={openCreate} data-testid="add-minute">
+              {t.minutesPage.add}
+            </Button>
+          </Group>
         </PageHeader>
+
+        {hasFilters && (
+          <Group gap="xs" mb="sm" wrap="wrap">
+            <Text size="xs" c="dimmed">
+              {t.common.showingRange
+                .replace('{start}', String(pagination.rangeStart))
+                .replace('{end}', String(pagination.rangeEnd))
+                .replace('{total}', String(pagination.total))
+                .replace('{page}', String(pagination.page))
+                .replace('{totalPages}', String(pagination.totalPages))}
+            </Text>
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              onClick={clearFilters}
+              data-testid="minutes-clear-filters"
+            >
+              {t.common.clearFilters}
+            </Button>
+          </Group>
+        )}
 
         {loading ? (
           <Center h="40vh">
@@ -373,7 +487,20 @@ export default function MinutesPage() {
             <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
               <IconFileText size={24} />
             </ThemeIcon>
-            <Text>{t.minutesPage.empty}</Text>
+            <Text data-testid="minutes-empty">
+              {hasFilters ? t.minutesPage.filterEmpty : t.minutesPage.empty}
+            </Text>
+            {hasFilters && (
+              <Button
+                variant="light"
+                size="xs"
+                mt="sm"
+                onClick={clearFilters}
+                data-testid="minutes-empty-clear-filters"
+              >
+                {t.common.clearFilters}
+              </Button>
+            )}
           </Card>
         ) : (
           <Card withBorder p={0}>
@@ -475,6 +602,65 @@ export default function MinutesPage() {
           rangeEnd={pagination.rangeEnd}
           testId="minutes-pagination"
         />
+
+        <Modal
+          opened={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          title={t.minutesPage.filterTitle}
+          size="lg"
+          centered
+          fullScreen={isCompact}
+          data-testid="minutes-filter-modal"
+        >
+          <Stack gap="md">
+            <Stack gap="sm" style={{ overflowY: 'auto', flex: 1 }}>
+              <TextInput
+                label={t.common.search}
+                placeholder={t.minutesPage.searchPlaceholder}
+                leftSection={<IconSearch size={16} />}
+                value={dSearch}
+                onChange={(e) => setDSearch(e.currentTarget.value)}
+                data-testid="minutes-draft-search"
+              />
+              <DatePickerInput
+                type="range"
+                label={t.minutesPage.filterRange}
+                valueFormat="DD/MM/YYYY"
+                value={dRange}
+                onChange={setDRange}
+                clearable
+                locale={locale}
+                data-testid="minutes-draft-range"
+              />
+              <Select
+                label={t.minutesPage.meetingType}
+                placeholder={t.minutesPage.meetingTypePlaceholder}
+                data={MEETING_TYPES}
+                value={dType}
+                onChange={setDType}
+                clearable
+                data-testid="minutes-draft-type"
+              />
+            </Stack>
+            <Group gap="xs" wrap="nowrap">
+              <Button
+                variant="default"
+                style={{ flex: 1 }}
+                onClick={clearDraft}
+                data-testid="minutes-draft-clear"
+              >
+                {t.common.clearFilters}
+              </Button>
+              <Button
+                style={{ flex: 1 }}
+                onClick={applyFilters}
+                data-testid="minutes-draft-apply"
+              >
+                {t.common.applyFilters}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         <Modal
           opened={opened}

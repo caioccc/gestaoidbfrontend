@@ -43,6 +43,8 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
+import FilterDrawer from '../components/FilterDrawer';
+import MobileListToolbar from '../components/MobileListToolbar';
 import SetlistsModal from '../components/SetlistsModal';
 import SetlistShareModal from '../components/SetlistShareModal';
 import { useLanguage } from '../i18n';
@@ -51,6 +53,7 @@ import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { formatMusicalKey } from '../utils/format';
 import galleryStyles from '../styles/setlistGallery.module.css';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import type { Band, BandSetlist, BandSetlistItem } from '../types';
 
 type SetlistViewMode = 'gallery' | 'list' | 'table';
@@ -818,6 +821,18 @@ export default function SetlistsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BandSetlist | null>(null);
   const [shareSetlist, setShareSetlist] = useState<BandSetlist | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isCompact = useIsCompactList();
+
+  const defaultMonth = monthKey(new Date());
+  const filterCount =
+    (bandFilter ? 1 : 0) + (month && month !== defaultMonth ? 1 : 0);
+
+  const resetFilters = () => {
+    setMonth(defaultMonth);
+    setBandFilter(null);
+    setPage(1);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -860,6 +875,36 @@ export default function SetlistsPage() {
     setModalOpen(true);
   };
 
+  const viewModeData = [
+    {
+      value: 'gallery',
+      label: (
+        <Center component="span" style={{ gap: 6 }}>
+          <IconLayoutGrid size={15} />
+          {t.music.galleryView}
+        </Center>
+      ),
+    },
+    {
+      value: 'list',
+      label: (
+        <Center component="span" style={{ gap: 6 }}>
+          <IconList size={15} />
+          {t.music.cardsView}
+        </Center>
+      ),
+    },
+    {
+      value: 'table',
+      label: (
+        <Center component="span" style={{ gap: 6 }}>
+          <IconTable size={15} />
+          {t.music.tableView}
+        </Center>
+      ),
+    },
+  ];
+
   const openEdit = (setlist: BandSetlist) => {
     if (!setlist.can_edit) return;
     setEditing(setlist);
@@ -882,6 +927,27 @@ export default function SetlistsPage() {
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
       <Layout>
         <PageHeader title={t.music.setlistsTitle} description={t.music.setlistsSubtitle}>
+          {isCompact ? (
+            <MobileListToolbar
+              filtersLabel={t.common.filter}
+              onOpenFilters={() => setFiltersOpen(true)}
+              filterCount={filterCount}
+              primary={
+                canManageMusic ? (
+                  <Button
+                    size="sm"
+                    px="xs"
+                    leftSection={<IconPlus size={14} />}
+                    onClick={openNew}
+                  >
+                    {t.music.newSetlist}
+                  </Button>
+                ) : null
+              }
+              menuLabel={t.music.setlistsTitle}
+              testId="setlists-toolbar"
+            />
+          ) : (
           <Group gap="sm" justify="flex-end" wrap="wrap">
             <MonthPickerInput
               value={month ? `${month}-01` : null}
@@ -913,35 +979,7 @@ export default function SetlistsPage() {
               onChange={(value) => setViewMode(value as SetlistViewMode)}
               size="xs"
               aria-label={t.music.viewModeLabel}
-              data={[
-                {
-                  value: 'gallery',
-                  label: (
-                    <Center component="span" style={{ gap: 6 }}>
-                      <IconLayoutGrid size={15} />
-                      {t.music.galleryView}
-                    </Center>
-                  ),
-                },
-                {
-                  value: 'list',
-                  label: (
-                    <Center component="span" style={{ gap: 6 }}>
-                      <IconList size={15} />
-                      {t.music.cardsView}
-                    </Center>
-                  ),
-                },
-                {
-                  value: 'table',
-                  label: (
-                    <Center component="span" style={{ gap: 6 }}>
-                      <IconTable size={15} />
-                      {t.music.tableView}
-                    </Center>
-                  ),
-                },
-              ]}
+              data={viewModeData}
             />
             {canManageMusic ? (
               <Button leftSection={<IconPlus size={16} />} onClick={openNew} size="sm">
@@ -949,7 +987,21 @@ export default function SetlistsPage() {
               </Button>
             ) : null}
           </Group>
+          )}
         </PageHeader>
+
+        {isCompact ? (
+          <Box mb="md">
+            <SegmentedControl
+              value={viewMode}
+              onChange={(value) => setViewMode(value as SetlistViewMode)}
+              size="xs"
+              fullWidth
+              aria-label={t.music.viewModeLabel}
+              data={viewModeData}
+            />
+          </Box>
+        ) : null}
 
         {loading ? (
           <Center py="xl"><Loader /></Center>
@@ -1008,6 +1060,38 @@ export default function SetlistsPage() {
             ) : null}
           </>
         )}
+
+        <FilterDrawer
+          opened={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={t.common.filter}
+          clearLabel={t.common.clearFilters}
+          clearDisabled={filterCount === 0}
+          onClear={resetFilters}
+          testId="setlists-filters"
+        >
+          <MonthPickerInput
+            label={t.music.selectMonth}
+            value={month ? `${month}-01` : null}
+            onChange={(value) => {
+              setMonth(value ? String(value).slice(0, 7) : '');
+              setPage(1);
+            }}
+            valueFormat="MMMM YYYY"
+            clearable
+          />
+          <Select
+            label={t.music.selectBand}
+            data={bands.map((band) => ({ value: String(band.id), label: band.name }))}
+            value={bandFilter}
+            onChange={(value) => {
+              setBandFilter(value);
+              setPage(1);
+            }}
+            clearable
+            searchable
+          />
+        </FilterDrawer>
 
         <SetlistsModal
           opened={modalOpen}

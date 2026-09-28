@@ -25,6 +25,11 @@ const theme = createTheme({
   primaryColor: 'blue',
   defaultRadius: 'md',
   fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  components: {
+    Select: { defaultProps: { comboboxProps: { hideDetached: false } } },
+    MultiSelect: { defaultProps: { comboboxProps: { hideDetached: false } } },
+    TagsInput: { defaultProps: { comboboxProps: { hideDetached: false } } },
+  },
 });
 
 const APP_ROUTES = [

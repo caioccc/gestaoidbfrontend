@@ -22,6 +22,7 @@ import { notifications } from '@mantine/notifications';
 import { IconArrowsMove, IconUpload, IconX, IconTrash } from '@tabler/icons-react';
 import { accountsApi, CertificateTemplatePayload } from '../api/accounts';
 import { useLanguage } from '../i18n';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { CERT_A4_H_MM, CERT_A4_W_MM } from '../utils/certificate';
 import type {
   CertificateFieldKey,
@@ -178,6 +179,7 @@ export default function CertificateTemplateModal({
   editing,
 }: CertificateTemplateModalProps) {
   const { t } = useLanguage();
+  const isCompact = useIsCompactList();
   const [name, setName] = useState('');
   const [certType, setCertType] = useState<CertificateType>('CUSTOM');
   const [layoutMode, setLayoutMode] = useState<'SYSTEM_DEFAULT' | 'CUSTOM_IMAGE' | 'BASE_PDF'>(
@@ -342,6 +344,7 @@ export default function CertificateTemplateModal({
       title={editing ? t.certificates.editTemplate : t.certificates.newTemplate}
       size="lg"
       centered
+      fullScreen={isCompact}
     >
       <Stack gap="md">
         <TextInput

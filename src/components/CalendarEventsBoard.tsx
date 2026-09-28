@@ -25,6 +25,8 @@ import {
   ScrollArea,
   Code,
   ThemeIcon,
+  Drawer,
+  Indicator,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -41,8 +43,10 @@ import {
   IconQrcode,
   IconClock,
   IconExternalLink,
+  IconAdjustmentsHorizontal,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import {
   addDays,
@@ -208,6 +212,10 @@ export default function CalendarEventsBoard({
     []
   );
   const [overflowDay, setOverflowDay] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  // Rascunho edito dentro do drawer; so vira filtro real em "Aplicar filtros".
+  const [draftHidden, setDraftHidden] = useState<CalendarEventCategory[] | null>(null);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -283,6 +291,38 @@ export default function CalendarEventsBoard({
       return Array.from(next);
     });
   };
+
+  const openFilterDrawer = () => {
+    setDraftHidden(hiddenCategories);
+    setFilterDrawerOpen(true);
+  };
+
+  const applyFilterDrawer = () => {
+    if (draftHidden) setHiddenCategories(draftHidden);
+    setFilterDrawerOpen(false);
+  };
+
+  const toggleDraftCategory = (categories: CalendarEventCategory[]) => {
+    setDraftHidden((prev) => {
+      const current = prev ?? [];
+      const allHidden = categories.every((c) => current.includes(c));
+      const next = new Set(current);
+      categories.forEach((c) => (allHidden ? next.delete(c) : next.add(c)));
+      return Array.from(next);
+    });
+  };
+
+  const markAllDraft = () => {
+    const all = filterGroups.flatMap((g) => g.categories);
+    setDraftHidden(all);
+  };
+
+  const clearAllDraft = () => {
+    setDraftHidden([]);
+  };
+
+  const draftVisible = (category: CalendarEventCategory) =>
+    !(draftHidden ?? hiddenCategories).includes(category);
 
   const itemsForDate = useMemo(
     () => (d: Date): BoardItem[] => {
@@ -794,13 +834,103 @@ export default function CalendarEventsBoard({
     (g) => !g.financeOnly || gateway.canManageFinance
   );
 
+  const groupLabel = (key: string) =>
+    key === 'cultos'
+      ? t.calendarEvents.filterCultos
+      : key === 'ministries'
+        ? t.calendarEvents.filterMinistries
+        : key === 'leadership'
+          ? t.calendarEvents.filterLeadership
+          : key === 'events'
+            ? t.calendarEvents.filterEvents
+            : t.calendarEvents.filterFinance;
+
+  const hasActiveFilters = filterGroups.some((g) => !g.categories.every(isCategoryVisible));
+  const hasAnyFilter = filterGroups.length > 0 || !!onToggleBirthdays;
+
+  // Versao compacta (mobile): pílulas menores, sem titulo, rolagem horizontal.
+  const renderChip = (
+    key: string,
+    color: string,
+    visible: boolean,
+    label: string,
+    onClick: () => void,
+    testId: string,
+    compact: boolean
+  ) => (
+    <Badge
+      key={key}
+      size={compact ? 'sm' : 'lg'}
+      radius="xl"
+      color={color}
+      variant={visible ? 'filled' : 'light'}
+      style={{ cursor: 'pointer', flexShrink: 0 }}
+      onClick={onClick}
+      data-testid={testId}
+    >
+      {label}
+    </Badge>
+  );
+
+  const renderFilterChips = (compact: boolean) => (
+    <>
+      {filterGroups.map((group) =>
+        renderChip(
+          group.key,
+          group.color,
+          group.categories.every(isCategoryVisible),
+          groupLabel(group.key),
+          () => toggleCategory(group.categories),
+          `calendar-filter-${group.key}`,
+          compact
+        )
+      )}
+      {onToggleBirthdays
+        ? renderChip(
+            'birthdays',
+            'pink',
+            showBirthdays,
+            t.calendarEvents.filterBirthdays,
+            () => onToggleBirthdays(!showBirthdays),
+            'calendar-filter-birthdays',
+            compact
+          )
+        : null}
+    </>
+  );
+
+  // Faixa de rolagem horizontal para o mobile (substitui a pilha de tags).
+  const renderHorizontalFilterBar = () => (
+    <Box
+      mb="md"
+      style={{
+        display: 'flex',
+        gap: 6,
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 4,
+      }}
+      data-testid="calendar-category-filters"
+    >
+      {renderFilterChips(true)}
+    </Box>
+  );
+
   const renderFilterBar = () => (
     <Group gap={6} wrap="wrap" data-testid="calendar-category-filters">
       <Text size="xs" fw={700} c="dimmed" tt="uppercase" mr={4}>
         {t.calendarEvents.filtersTitle}
       </Text>
+      {renderFilterChips(false)}
+    </Group>
+  );
+
+  // Lista vertical de chips dentro do drawer (alvo de polegar).
+  const renderDrawerChips = () => (
+    <Stack gap="xs">
       {filterGroups.map((group) => {
-        const visible = group.categories.every(isCategoryVisible);
+        const visible = group.categories.every(draftVisible);
         return (
           <Badge
             key={group.key}
@@ -808,19 +938,11 @@ export default function CalendarEventsBoard({
             radius="xl"
             color={group.color}
             variant={visible ? 'filled' : 'light'}
-            style={{ cursor: 'pointer' }}
-            onClick={() => toggleCategory(group.categories)}
-            data-testid={`calendar-filter-${group.key}`}
+            style={{ cursor: 'pointer', width: '100%', textAlign: 'left' }}
+            onClick={() => toggleDraftCategory(group.categories)}
+            data-testid={`calendar-draft-filter-${group.key}`}
           >
-            {group.key === 'cultos'
-              ? t.calendarEvents.filterCultos
-              : group.key === 'ministries'
-                ? t.calendarEvents.filterMinistries
-                : group.key === 'leadership'
-                  ? t.calendarEvents.filterLeadership
-                  : group.key === 'events'
-                    ? t.calendarEvents.filterEvents
-                    : t.calendarEvents.filterFinance}
+            {groupLabel(group.key)}
           </Badge>
         );
       })}
@@ -830,66 +952,205 @@ export default function CalendarEventsBoard({
           radius="xl"
           color="pink"
           variant={showBirthdays ? 'filled' : 'light'}
-          style={{ cursor: 'pointer' }}
+          style={{ cursor: 'pointer', width: '100%', textAlign: 'left' }}
           onClick={() => onToggleBirthdays(!showBirthdays)}
-          data-testid="calendar-filter-birthdays"
+          data-testid="calendar-draft-filter-birthdays"
         >
           {t.calendarEvents.filterBirthdays}
         </Badge>
       ) : null}
-    </Group>
+    </Stack>
   );
 
   return (
     <>
-      <Group justify="space-between" mb="md" wrap="wrap">
-        <Group wrap="wrap">
-          <Group gap="xs">
-            <Button variant="default" data-testid="calendar-prev-month" leftSection={<IconChevronLeft size={16} />} onClick={prev} />
-            <Text fw={700} w={200} ta="center">
-              {viewLabel}
-            </Text>
-            <Button variant="default" data-testid="calendar-next-month" rightSection={<IconChevronRight size={16} />} onClick={next} />
+      {isMobile ? (
+        <Stack gap="xs" mb="sm">
+          <Group gap="xs" wrap="nowrap" justify="space-between">
+            <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+              <ActionIcon
+                variant="default"
+                size="md"
+                data-testid="calendar-prev-month"
+                onClick={prev}
+                aria-label={t.calendarEvents.prevPeriod}
+              >
+                <IconChevronLeft size={16} />
+              </ActionIcon>
+              <Text fw={700} size="sm" ta="center" style={{ minWidth: 0, flex: 1 }} lineClamp={1}>
+                {viewLabel}
+              </Text>
+              <ActionIcon
+                variant="default"
+                size="md"
+                data-testid="calendar-next-month"
+                onClick={next}
+                aria-label={t.calendarEvents.nextPeriod}
+              >
+                <IconChevronRight size={16} />
+              </ActionIcon>
+            </Group>
+            <SegmentedControl
+              size="xs"
+              value={view}
+              onChange={(v) => setView(v as CalendarView)}
+              style={{ flexShrink: 0 }}
+              data={[
+                { value: 'month', label: t.calendarEvents.viewMonth },
+                { value: 'week', label: t.calendarEvents.viewWeek },
+                { value: 'day', label: t.calendarEvents.viewDay },
+              ]}
+            />
           </Group>
-          <SegmentedControl
-            value={view}
-            onChange={(v) => setView(v as CalendarView)}
-            data={[
-              { value: 'month', label: t.calendarEvents.viewMonth },
-              { value: 'week', label: t.calendarEvents.viewWeek },
-              { value: 'day', label: t.calendarEvents.viewDay },
-            ]}
-          />
-        </Group>
-        {canSharePublic ? (
-          <Group gap="xs">
-            <Button
-              variant="light"
-              color="grape"
-              data-testid="public-calendar-share"
-              leftSection={<IconLink size={16} />}
-              onClick={() => setQrOpen(true)}
-            >
-              {t.calendarEvents.sharePublic}
-            </Button>
-            {canCreateAny && (
+
+          <Group gap="xs" wrap="nowrap" justify="space-between">
+            <Group gap="xs" wrap="nowrap">
+              {hasAnyFilter ? (
+                <Indicator
+                  inline
+                  disabled={!hasActiveFilters}
+                  label={filterGroups.filter((g) => !g.categories.every(isCategoryVisible)).length}
+                  size={16}
+                  color="grape"
+                  withBorder
+                  data-testid="calendar-filter-indicator"
+                >
+                  <ActionIcon
+                    variant="default"
+                    size="md"
+                    onClick={openFilterDrawer}
+                    data-testid="calendar-open-filters"
+                    aria-label={t.calendarEvents.filterCategoriesTitle}
+                  >
+                    <IconAdjustmentsHorizontal size={16} />
+                  </ActionIcon>
+                </Indicator>
+              ) : null}
+              {canSharePublic ? (
+                <Tooltip label={t.calendarEvents.sharePublic} withArrow>
+                  <ActionIcon
+                    variant="light"
+                    color="grape"
+                    size="md"
+                    data-testid="public-calendar-share"
+                    onClick={() => setQrOpen(true)}
+                    aria-label={t.calendarEvents.sharePublic}
+                  >
+                    <IconLink size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : null}
+            </Group>
+            {canCreateAny ? (
+              <Button
+                size="xs"
+                data-testid="calendar-new"
+                leftSection={<IconPlus size={14} />}
+                onClick={openNew}
+              >
+                {t.calendarEvents.new}
+              </Button>
+            ) : null}
+          </Group>
+
+          {hasAnyFilter ? renderHorizontalFilterBar() : null}
+        </Stack>
+      ) : (
+        <>
+          <Group justify="space-between" mb="md" wrap="wrap">
+            <Group wrap="wrap">
+              <Group gap="xs">
+                <Button variant="default" data-testid="calendar-prev-month" leftSection={<IconChevronLeft size={16} />} onClick={prev} />
+                <Text fw={700} w={200} ta="center">
+                  {viewLabel}
+                </Text>
+                <Button variant="default" data-testid="calendar-next-month" rightSection={<IconChevronRight size={16} />} onClick={next} />
+              </Group>
+              <SegmentedControl
+                value={view}
+                onChange={(v) => setView(v as CalendarView)}
+                data={[
+                  { value: 'month', label: t.calendarEvents.viewMonth },
+                  { value: 'week', label: t.calendarEvents.viewWeek },
+                  { value: 'day', label: t.calendarEvents.viewDay },
+                ]}
+              />
+            </Group>
+            {canSharePublic ? (
+              <Group gap="xs">
+                <Button
+                  variant="light"
+                  color="grape"
+                  data-testid="public-calendar-share"
+                  leftSection={<IconLink size={16} />}
+                  onClick={() => setQrOpen(true)}
+                >
+                  {t.calendarEvents.sharePublic}
+                </Button>
+                {canCreateAny && (
+                  <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
+                    {t.calendarEvents.new}
+                  </Button>
+                )}
+              </Group>
+            ) : canCreateAny ? (
               <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
                 {t.calendarEvents.new}
               </Button>
-            )}
+            ) : null}
           </Group>
-        ) : canCreateAny ? (
-          <Button data-testid="calendar-new" leftSection={<IconPlus size={16} />} onClick={openNew}>
-            {t.calendarEvents.new}
-          </Button>
-        ) : null}
-      </Group>
 
-      {filterGroups.length > 0 || onToggleBirthdays ? (
-        <Box mb="md">{renderFilterBar()}</Box>
-      ) : null}
+          {hasAnyFilter ? <Box mb="md">{renderFilterBar()}</Box> : null}
+        </>
+      )}
 
-      <Paper withBorder radius="md" p="md">
+      <Drawer
+        opened={isMobile && filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        position="bottom"
+        size="md"
+        radius="lg"
+        withCloseButton
+        title={t.calendarEvents.filterCategoriesTitle}
+        padding="md"
+        styles={{ content: { maxHeight: '70vh' } }}
+        data-testid="calendar-filter-drawer"
+      >
+        <Stack gap="md" justify="space-between" h="100%">
+          <Box style={{ overflowY: 'auto', flex: 1 }}>{renderDrawerChips()}</Box>
+          <Group gap="xs" wrap="nowrap">
+            <Button
+              variant="default"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={markAllDraft}
+              data-testid="calendar-draft-mark-all"
+            >
+              {t.calendarEvents.markAll}
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={clearAllDraft}
+              data-testid="calendar-draft-clear-all"
+            >
+              {t.common.clear}
+            </Button>
+            <Button
+              variant="filled"
+              size="sm"
+              style={{ flex: 2 }}
+              onClick={applyFilterDrawer}
+              data-testid="calendar-draft-apply"
+            >
+              {t.common.applyFilters}
+            </Button>
+          </Group>
+        </Stack>
+      </Drawer>
+
+      <Paper withBorder radius="md" p={isMobile ? 'xs' : 'md'}>
         {loading ? (
           <Center py="xl">
             <Loader />
@@ -972,7 +1233,7 @@ export default function CalendarEventsBoard({
       {belowGrid ? <Box mt="md">{belowGrid}</Box> : null}
 
 
-      <Paper withBorder radius="md" p="md" mt="md">
+      <Paper withBorder radius="md" p={isMobile ? 'xs' : 'md'} mt="md">
         <Group justify="space-between" mb="xs" gap="xs" wrap="wrap">
           <Text size="sm" fw={700}>
             {t.calendarEvents.allEvents}

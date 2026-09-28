@@ -23,6 +23,8 @@ import {
   Pagination,
   Paper,
   SimpleGrid,
+  Drawer,
+  Indicator,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -50,6 +52,7 @@ import {
   IconArrowsExchange,
   IconClockCheck,
   IconFileSpreadsheet,
+  IconAdjustmentsHorizontal,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
@@ -67,6 +70,7 @@ import ShareLinkModal from '../components/ShareLinkModal';
 import SendWhatsAppModal from '../components/SendWhatsAppModal';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { accountsApi } from '../api/accounts';
 import { toUpperCamelWords } from '../utils/format';
@@ -80,11 +84,13 @@ function MembersTab({
   cardConfig,
   churchContact,
   onRenewValidity,
+  onGoToImport,
 }: {
   churchName: string;
   cardConfig?: CardConfig;
   churchContact?: ChurchContact;
   onRenewValidity?: (date: string | null) => Promise<void>;
+  onGoToImport?: () => void;
 }) {
   const { t, locale } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
@@ -114,6 +120,14 @@ function MembersTab({
   const [fEntry, setFEntry] = useState<string | null>(null);
   const PAGE_SIZE = 25;
   const isWide = useMediaQuery('(min-width: 1300px)');
+  const isMobile = useIsMobile();
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  // Rascunho dos 5 seletores; so vira filtro real em "Aplicar filtros".
+  const [dStatus, setDStatus] = useState<string | null>(null);
+  const [dArea, setDArea] = useState<string | null>(null);
+  const [dEducation, setDEducation] = useState<string | null>(null);
+  const [dMarital, setDMarital] = useState<string | null>(null);
+  const [dEntry, setDEntry] = useState<string | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => setDbSearch(fSearch), 300);
@@ -180,6 +194,43 @@ function MembersTab({
     setFMarital(null);
     setFEntry(null);
     setPage(1);
+  };
+
+  // A busca continua visivel na barra, entao nao conta como filtro "escondido".
+  const activeFilterCount = [fStatus, fArea, fEducation, fMarital, fEntry].filter(
+    Boolean
+  ).length;
+
+  const openFilterDrawer = () => {
+    setDStatus(fStatus);
+    setDArea(fArea);
+    setDEducation(fEducation);
+    setDMarital(fMarital);
+    setDEntry(fEntry);
+    setFilterDrawerOpen(true);
+  };
+
+  const applyFilterDrawer = () => {
+    setFStatus(dStatus);
+    setFArea(dArea);
+    setFEducation(dEducation);
+    setFMarital(dMarital);
+    setFEntry(dEntry);
+    setPage(1);
+    setFilterDrawerOpen(false);
+  };
+
+  const clearFilterDrawer = () => {
+    setDStatus(null);
+    setDArea(null);
+    setDEducation(null);
+    setDMarital(null);
+    setDEntry(null);
+  };
+
+  const openRenew = () => {
+    setRenewDate(null);
+    setRenewOpen(true);
   };
 
   const exportRolCsv = async () => {
@@ -558,185 +609,407 @@ function MembersTab({
 
   return (
     <>
-      <Group gap="xs" mb="md" justify="space-between" wrap="wrap">
-        <Group gap="xs">
-          <Badge
-            color={expiry === 'expired' ? 'red' : expiry === 'soon' ? 'yellow' : 'teal'}
-            variant="light"
-            data-testid="members-expiry"
-          >
-            {expiryLabel}
-          </Badge>
-          <Button
-            variant="default"
-            leftSection={<IconCalendarClock size={16} />}
-            onClick={() => {
-              setRenewDate(null);
-              setRenewOpen(true);
-            }}
-            data-testid="members-renew"
-          >
-            {t.membersPage.renewValidity}
-          </Button>
-        </Group>
-        <Group gap="xs">
-          {selected.size > 0 && (
-            <>
-              <Badge color="blue" variant="light" size="lg">
-                {t.membersPage.selectedCount.replace(
-                  '{count}',
-                  String(selected.size)
-                )}
+      {isMobile ? (
+        <Stack gap="xs" mb="sm">
+          <Group gap="xs" wrap="nowrap" align="center">
+            <TextInput
+              placeholder={t.membersPage.searchPlaceholder}
+              leftSection={<IconSearch size={16} />}
+              value={fSearch}
+              onChange={(e) => {
+                setFSearch(e.currentTarget.value);
+                setPage(1);
+              }}
+              style={{ flex: 1, minWidth: 0 }}
+              data-testid="members-filter-search"
+            />
+            <Indicator
+              inline
+              disabled={activeFilterCount === 0}
+              label={activeFilterCount}
+              size={16}
+              color="grape"
+              withBorder
+              data-testid="members-filter-indicator"
+            >
+              <ActionIcon
+                variant="default"
+                size="md"
+                onClick={openFilterDrawer}
+                data-testid="members-open-filters"
+                aria-label={t.membersPage.filterTitle}
+              >
+                <IconAdjustmentsHorizontal size={16} />
+              </ActionIcon>
+            </Indicator>
+            <Button
+              size="xs"
+              leftSection={<IconPlus size={14} />}
+              onClick={openCreate}
+              data-testid="members-new"
+              style={{ flexShrink: 0 }}
+            >
+              {t.membersPage.addMember}
+            </Button>
+            <Menu shadow="md" width={230} position="bottom-end">
+              <Menu.Target>
+                <ActionIcon
+                  variant="default"
+                  size="md"
+                  data-testid="members-more-actions"
+                  aria-label={t.common.actions}
+                >
+                  <IconDotsVertical size={16} />
+                </ActionIcon>
+              </Menu.Target>
+              <Menu.Dropdown>
+                <Menu.Label>
+                  <Text size="xs" c="dimmed" lineClamp={1} data-testid="members-expiry">
+                    {expiryLabel}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {t.membersPage.resultCount
+                      .replace('{filtered}', String(members.length))
+                      .replace('{total}', String(total))}
+                  </Text>
+                </Menu.Label>
+                <Menu.Item
+                  leftSection={<IconDownload size={16} />}
+                  onClick={exportRolCsv}
+                  disabled={total === 0}
+                  data-testid="members-export-csv"
+                >
+                  {t.memberReports.exportCsv}
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconFileTypePdf size={16} />}
+                  onClick={downloadReport}
+                  disabled={total === 0}
+                  data-testid="members-report-pdf"
+                >
+                  {t.memberReports.reportPdf}
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconCalendarClock size={16} />}
+                  onClick={openRenew}
+                  data-testid="members-renew"
+                >
+                  {t.membersPage.renewValidity}
+                </Menu.Item>
+                <Menu.Item
+                  leftSection={<IconRefresh size={16} />}
+                  onClick={load}
+                  data-testid="members-refresh"
+                >
+                  {t.common.refresh}
+                </Menu.Item>
+                {onGoToImport ? (
+                  <Menu.Item
+                    leftSection={<IconFileSpreadsheet size={16} />}
+                    onClick={onGoToImport}
+                    data-testid="members-go-import"
+                  >
+                    {t.membersPage.tabsImport}
+                  </Menu.Item>
+                ) : null}
+              </Menu.Dropdown>
+            </Menu>
+          </Group>
+
+          {selected.size > 0 ? (
+            <Group gap="xs" wrap="wrap">
+              <Badge color="blue" variant="light">
+                {t.membersPage.selectedCount.replace('{count}', String(selected.size))}
               </Badge>
               <Button
+                size="xs"
                 variant="default"
-                leftSection={<IconX size={16} />}
+                leftSection={<IconX size={14} />}
                 onClick={() => setSelected(new Set())}
                 data-testid="members-clear-selection"
               >
                 {t.membersPage.clearSelection}
               </Button>
-<Button
-            leftSection={<IconId size={16} />}
-            onClick={() => setBatchOpen(true)}
-            data-testid="members-emit"
-          >
-            {t.membersPage.emitCards}
-          </Button>
-            </>
-          )}
-          <Button
-            variant="default"
-            leftSection={<IconDownload size={16} />}
-            onClick={exportRolCsv}
-            disabled={total === 0}
-            data-testid="members-export-csv"
-          >
-            {t.memberReports.exportCsv}
-          </Button>
-          <Button
-            variant="default"
-            leftSection={<IconFileTypePdf size={16} />}
-            onClick={downloadReport}
-            disabled={total === 0}
-            data-testid="members-report-pdf"
-          >
-            {t.memberReports.reportPdf}
-          </Button>
-          <Button
-            variant="default"
-            leftSection={<IconRefresh size={16} />}
-            onClick={load}
-            data-testid="members-refresh"
-          >
-            {t.common.filter}
-          </Button>
-          <Button
-            leftSection={<IconPlus size={16} />}
-            onClick={openCreate}
-            data-testid="members-new"
-          >
-            {t.membersPage.addMember}
-          </Button>
-        </Group>
-      </Group>
-      <Paper withBorder radius="md" p="sm" mb="md">
-        <Group gap="xs" wrap="wrap">
-          <TextInput
-            placeholder={t.membersPage.searchPlaceholder}
-            leftSection={<IconSearch size={16} />}
-            value={fSearch}
-            onChange={(e) => {
-              setFSearch(e.currentTarget.value);
-              setPage(1);
-            }}
-            style={{ flex: 1, minWidth: 200 }}
-            data-testid="members-filter-search"
-          />
-          <Select
-            placeholder={t.membersPage.filterStatus}
-            clearable
-            size="sm"
-            data={statusFilterOptions}
-            value={fStatus}
-            onChange={(v) => {
-              setFStatus(v);
-              setPage(1);
-            }}
-            w={130}
-            data-testid="members-filter-status"
-          />
-          <Select
-            placeholder={t.membersPage.filterArea}
-            clearable
-            size="sm"
-            data={areaFilterOptions}
-            value={fArea}
-            onChange={(v) => {
-              setFArea(v);
-              setPage(1);
-            }}
-            w={150}
-            searchable
-            data-testid="members-filter-area"
-          />
-          <Select
-            placeholder={t.membersPage.filterEducation}
-            clearable
-            size="sm"
-            data={educationFilterOptions}
-            value={fEducation}
-            onChange={(v) => {
-              setFEducation(v);
-              setPage(1);
-            }}
-            w={170}
-            searchable
-            data-testid="members-filter-education"
-          />
-          <Select
-            placeholder={t.membersPage.filterMarital}
-            clearable
-            size="sm"
-            data={maritalFilterOptions}
-            value={fMarital}
-            onChange={(v) => {
-              setFMarital(v);
-              setPage(1);
-            }}
-            w={150}
-            data-testid="members-filter-marital"
-          />
-          <Select
-            placeholder={t.membersPage.filterEntry}
-            clearable
-            size="sm"
-            data={entryFilterOptions}
-            value={fEntry}
-            onChange={(v) => {
-              setFEntry(v);
-              setPage(1);
-            }}
-            w={160}
-            data-testid="members-filter-entry"
-          />
-          <Button
-            variant="subtle"
-            size="xs"
-            onClick={clearFilters}
-            disabled={!hasFilters}
-            data-testid="members-clear-filters"
-          >
-            {t.membersPage.clearFilters}
-          </Button>
-          <Text size="xs" c="dimmed">
-            {t.membersPage.resultCount.replace(
-              '{filtered}',
-              String(members.length)
-            ).replace('{total}', String(total))}
-          </Text>
-        </Group>
-      </Paper>
+              <Button
+                size="xs"
+                leftSection={<IconId size={14} />}
+                onClick={() => setBatchOpen(true)}
+                data-testid="members-emit"
+              >
+                {t.membersPage.emitCards}
+              </Button>
+            </Group>
+          ) : null}
+        </Stack>
+      ) : (
+        <>
+          <Group gap="xs" mb="md" justify="space-between" wrap="wrap">
+            <Group gap="xs">
+              <Badge
+                color={expiry === 'expired' ? 'red' : expiry === 'soon' ? 'yellow' : 'teal'}
+                variant="light"
+                data-testid="members-expiry"
+              >
+                {expiryLabel}
+              </Badge>
+              <Button
+                variant="default"
+                leftSection={<IconCalendarClock size={16} />}
+                onClick={() => {
+                  setRenewDate(null);
+                  setRenewOpen(true);
+                }}
+                data-testid="members-renew"
+              >
+                {t.membersPage.renewValidity}
+              </Button>
+            </Group>
+            <Group gap="xs">
+              {selected.size > 0 && (
+                <>
+                  <Badge color="blue" variant="light" size="lg">
+                    {t.membersPage.selectedCount.replace(
+                      '{count}',
+                      String(selected.size)
+                    )}
+                  </Badge>
+                  <Button
+                    variant="default"
+                    leftSection={<IconX size={16} />}
+                    onClick={() => setSelected(new Set())}
+                    data-testid="members-clear-selection"
+                  >
+                    {t.membersPage.clearSelection}
+                  </Button>
+                  <Button
+                    leftSection={<IconId size={16} />}
+                    onClick={() => setBatchOpen(true)}
+                    data-testid="members-emit"
+                  >
+                    {t.membersPage.emitCards}
+                  </Button>
+                </>
+              )}
+              <Button
+                variant="default"
+                leftSection={<IconDownload size={16} />}
+                onClick={exportRolCsv}
+                disabled={total === 0}
+                data-testid="members-export-csv"
+              >
+                {t.memberReports.exportCsv}
+              </Button>
+              <Button
+                variant="default"
+                leftSection={<IconFileTypePdf size={16} />}
+                onClick={downloadReport}
+                disabled={total === 0}
+                data-testid="members-report-pdf"
+              >
+                {t.memberReports.reportPdf}
+              </Button>
+              <Button
+                variant="default"
+                leftSection={<IconRefresh size={16} />}
+                onClick={load}
+                data-testid="members-refresh"
+              >
+                {t.common.filter}
+              </Button>
+              <Button
+                leftSection={<IconPlus size={16} />}
+                onClick={openCreate}
+                data-testid="members-new"
+              >
+                {t.membersPage.addMember}
+              </Button>
+            </Group>
+          </Group>
+          <Paper withBorder radius="md" p="sm" mb="md">
+            <Group gap="xs" wrap="wrap">
+              <TextInput
+                placeholder={t.membersPage.searchPlaceholder}
+                leftSection={<IconSearch size={16} />}
+                value={fSearch}
+                onChange={(e) => {
+                  setFSearch(e.currentTarget.value);
+                  setPage(1);
+                }}
+                style={{ flex: 1, minWidth: 200 }}
+                data-testid="members-filter-search"
+              />
+              <Select
+                placeholder={t.membersPage.filterStatus}
+                clearable
+                size="sm"
+                data={statusFilterOptions}
+                value={fStatus}
+                onChange={(v) => {
+                  setFStatus(v);
+                  setPage(1);
+                }}
+                w={130}
+                data-testid="members-filter-status"
+              />
+              <Select
+                placeholder={t.membersPage.filterArea}
+                clearable
+                size="sm"
+                data={areaFilterOptions}
+                value={fArea}
+                onChange={(v) => {
+                  setFArea(v);
+                  setPage(1);
+                }}
+                w={150}
+                searchable
+                data-testid="members-filter-area"
+              />
+              <Select
+                placeholder={t.membersPage.filterEducation}
+                clearable
+                size="sm"
+                data={educationFilterOptions}
+                value={fEducation}
+                onChange={(v) => {
+                  setFEducation(v);
+                  setPage(1);
+                }}
+                w={170}
+                searchable
+                data-testid="members-filter-education"
+              />
+              <Select
+                placeholder={t.membersPage.filterMarital}
+                clearable
+                size="sm"
+                data={maritalFilterOptions}
+                value={fMarital}
+                onChange={(v) => {
+                  setFMarital(v);
+                  setPage(1);
+                }}
+                w={150}
+                data-testid="members-filter-marital"
+              />
+              <Select
+                placeholder={t.membersPage.filterEntry}
+                clearable
+                size="sm"
+                data={entryFilterOptions}
+                value={fEntry}
+                onChange={(v) => {
+                  setFEntry(v);
+                  setPage(1);
+                }}
+                w={160}
+                data-testid="members-filter-entry"
+              />
+              <Button
+                variant="subtle"
+                size="xs"
+                onClick={clearFilters}
+                disabled={!hasFilters}
+                data-testid="members-clear-filters"
+              >
+                {t.membersPage.clearFilters}
+              </Button>
+              <Text size="xs" c="dimmed">
+                {t.membersPage.resultCount.replace(
+                  '{filtered}',
+                  String(members.length)
+                ).replace('{total}', String(total))}
+              </Text>
+            </Group>
+          </Paper>
+        </>
+      )}
+
+      <Drawer
+        opened={isMobile && filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        position="bottom"
+        size="md"
+        radius="lg"
+        withCloseButton
+        title={t.membersPage.filterTitle}
+        padding="md"
+        styles={{ content: { maxHeight: '80vh' } }}
+        data-testid="members-filter-drawer"
+      >
+        <Stack gap="md" justify="space-between" h="100%">
+          <Stack gap="sm" style={{ overflowY: 'auto', flex: 1 }}>
+            <Select
+              label={t.membersPage.filterStatus}
+              placeholder={t.membersPage.filterStatus}
+              clearable
+              data={statusFilterOptions}
+              value={dStatus}
+              onChange={setDStatus}
+              data-testid="members-draft-status"
+            />
+            <Select
+              label={t.membersPage.filterArea}
+              placeholder={t.membersPage.filterArea}
+              clearable
+              searchable
+              data={areaFilterOptions}
+              value={dArea}
+              onChange={setDArea}
+              data-testid="members-draft-area"
+            />
+            <Select
+              label={t.membersPage.filterEducation}
+              placeholder={t.membersPage.filterEducation}
+              clearable
+              searchable
+              data={educationFilterOptions}
+              value={dEducation}
+              onChange={setDEducation}
+              data-testid="members-draft-education"
+            />
+            <Select
+              label={t.membersPage.filterMarital}
+              placeholder={t.membersPage.filterMarital}
+              clearable
+              data={maritalFilterOptions}
+              value={dMarital}
+              onChange={setDMarital}
+              data-testid="members-draft-marital"
+            />
+            <Select
+              label={t.membersPage.filterEntry}
+              placeholder={t.membersPage.filterEntry}
+              clearable
+              data={entryFilterOptions}
+              value={dEntry}
+              onChange={setDEntry}
+              data-testid="members-draft-entry"
+            />
+          </Stack>
+          <Group gap="xs" wrap="nowrap">
+            <Button
+              variant="subtle"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={clearFilterDrawer}
+              data-testid="members-draft-clear"
+            >
+              {t.common.clearFilters}
+            </Button>
+            <Button
+              variant="filled"
+              size="sm"
+              style={{ flex: 1 }}
+              onClick={applyFilterDrawer}
+              data-testid="members-draft-apply"
+            >
+              {t.common.applyFilters}
+            </Button>
+          </Group>
+        </Stack>
+      </Drawer>
+
       <Card withBorder shadow="sm" p={0}>
         {loading ? (
           <Center h={200}>
@@ -1318,6 +1591,7 @@ export default function MembersPage() {
             cardConfig={cardData.config}
             churchContact={cardData.contact}
             onRenewValidity={handleRenewValidity}
+            onGoToImport={() => handleTabChange('import')}
           />
         ) : tab === 'areas' ? (
           <AreasTab />

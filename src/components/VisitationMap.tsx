@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Group, Text } from '@mantine/core';
 import type { PastoralVisit, PastoralVisitStatus } from '../types';
 import { formatDate } from '../utils/format';
@@ -120,6 +120,7 @@ export default function VisitationMap({
   const autoFittedRef = useRef(false);
   const focusedIdRef = useRef<number | null>(null);
   const visitsSigRef = useRef('');
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -157,6 +158,7 @@ export default function VisitationMap({
       observer.observe(containerRef.current);
 
       map.invalidateSize();
+      if (!disposed) setReady(true);
     };
     init();
     return () => {
@@ -175,7 +177,7 @@ export default function VisitationMap({
     const map = mapRef.current;
     const feature = featureRef.current;
     const L = leafletRef.current;
-    if (!map || !feature || !L) return;
+    if (!map || !feature || !L || !ready) return;
 
     feature.clearLayers();
     const withCoords = visits.filter(
@@ -213,11 +215,11 @@ export default function VisitationMap({
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visits, popupOnClick, labels]);
+  }, [visits, popupOnClick, labels, ready]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || focusedId == null) return;
+    if (!map || !ready || focusedId == null) return;
     const focused = visits.find((v) => v.id === focusedId);
     if (
       focused &&
@@ -228,7 +230,7 @@ export default function VisitationMap({
       focusedIdRef.current = focusedId;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedId, focusNonce]);
+  }, [focusedId, focusNonce, ready]);
 
   return (
     <Box style={{ position: 'relative', width: '100%', height: height ?? '100%' }}>

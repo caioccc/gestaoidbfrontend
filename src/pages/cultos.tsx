@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActionIcon,
   Box,
   Button,
   Card,
   Center,
   Group,
+  Indicator,
   Loader,
   Modal,
   NumberInput,
@@ -16,15 +18,17 @@ import {
   Textarea,
   ThemeIcon,
 } from '@mantine/core';
-import { DateInput, TimeInput } from '@mantine/dates';
+import { DateInput, DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import {
+  IconAdjustmentsHorizontal,
   IconBuildingChurch,
   IconCalendarEvent,
   IconClock,
   IconPencil,
   IconPlus,
+  IconSearch,
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
@@ -35,6 +39,7 @@ import { ListPagination, useListPagination } from '../components/ListPagination'
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { formatBRL, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { WorshipService, WorshipServiceType } from '../types';
 
@@ -65,7 +70,8 @@ interface ServiceFormValues {
 }
 
 export default function CultosPage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const isCompact = useIsCompactList();
   const [services, setServices] = useState<WorshipService[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -74,19 +80,64 @@ export default function CultosPage() {
   const [toDelete, setToDelete] = useState<WorshipService | null>(null);
   const [deleting, setDeleting] = useState(false);
   const pagination = useListPagination(services);
+  const [fSearch, setFSearch] = useState('');
+  const [fRange, setFRange] = useState<[string | null, string | null]>([null, null]);
+  const [fType, setFType] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  // Rascunho do modal; só vira filtro real em "Aplicar filtros".
+  const [dSearch, setDSearch] = useState('');
+  const [dRange, setDRange] = useState<[string | null, string | null]>([null, null]);
+  const [dType, setDType] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .worshipServices()
+      .worshipServices({
+        ...(fRange[0] ? { start_date: fRange[0] } : {}),
+        ...(fRange[1] ? { end_date: fRange[1] } : {}),
+        ...(fType ? { service_type: fType as WorshipServiceType } : {}),
+        ...(fSearch.trim() ? { search: fSearch.trim() } : {}),
+      })
       .then((items) => setServices(items))
       .catch(() => setServices([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [fRange, fType, fSearch]);
 
   useEffect(() => {
-    load();
+    const handle = window.setTimeout(load, 300);
+    return () => window.clearTimeout(handle);
   }, [load]);
+
+  const hasFilters = fSearch.trim() !== '' || !!fRange[0] || !!fRange[1] || !!fType;
+  const activeFilterCount = [fSearch.trim(), fRange[0] || fRange[1], fType].filter(Boolean).length;
+
+  const openFilters = () => {
+    setDSearch(fSearch);
+    setDRange(fRange);
+    setDType(fType);
+    setFilterOpen(true);
+  };
+
+  const applyFilters = () => {
+    setFSearch(dSearch);
+    setFRange(dRange);
+    setFType(dType);
+    pagination.reset();
+    setFilterOpen(false);
+  };
+
+  const clearFilters = () => {
+    setFSearch('');
+    setFRange([null, null]);
+    setFType(null);
+    pagination.reset();
+  };
+
+  const clearDraft = () => {
+    setDSearch('');
+    setDRange([null, null]);
+    setDType(null);
+  };
 
   const emptyValues = (): ServiceFormValues => ({
     date: '',
@@ -224,10 +275,75 @@ export default function CultosPage() {
     <AuthGuard>
       <Layout>
         <PageHeader title={t.cultosPage.title} description={t.cultosPage.subtitle}>
-          <Button leftSection={<IconPlus size={18} />} onClick={openCreate} data-testid="add-service">
-            {t.cultosPage.add}
-          </Button>
+          <Group gap="xs" wrap="nowrap">
+            <Box visibleFrom="lg">
+              <Indicator
+                inline
+                disabled={activeFilterCount === 0}
+                label={activeFilterCount}
+                size={16}
+                color="grape"
+                withBorder
+                data-testid="cultos-filter-indicator"
+              >
+                <Button
+                  variant="default"
+                  leftSection={<IconAdjustmentsHorizontal size={16} />}
+                  onClick={openFilters}
+                  data-testid="cultos-open-filters"
+                  aria-label={t.cultosPage.filterTitle}
+                >
+                  {t.common.filter}
+                </Button>
+              </Indicator>
+            </Box>
+            <Box hiddenFrom="lg">
+              <Indicator
+                inline
+                disabled={activeFilterCount === 0}
+                label={activeFilterCount}
+                size={16}
+                color="grape"
+                withBorder
+                data-testid="cultos-filter-indicator"
+              >
+                <ActionIcon
+                  variant="default"
+                  size="lg"
+                  onClick={openFilters}
+                  data-testid="cultos-open-filters"
+                  aria-label={t.cultosPage.filterTitle}
+                >
+                  <IconAdjustmentsHorizontal size={16} />
+                </ActionIcon>
+              </Indicator>
+            </Box>
+            <Button leftSection={<IconPlus size={18} />} onClick={openCreate} data-testid="add-service">
+              {t.cultosPage.add}
+            </Button>
+          </Group>
         </PageHeader>
+
+        {hasFilters && (
+          <Group gap="xs" mb="sm" wrap="wrap">
+            <Text size="xs" c="dimmed">
+              {t.common.showingRange
+                .replace('{start}', String(pagination.rangeStart))
+                .replace('{end}', String(pagination.rangeEnd))
+                .replace('{total}', String(pagination.total))
+                .replace('{page}', String(pagination.page))
+                .replace('{totalPages}', String(pagination.totalPages))}
+            </Text>
+            <Button
+              variant="subtle"
+              size="compact-xs"
+              onClick={clearFilters}
+              data-testid="cultos-clear-filters"
+            >
+              {t.common.clearFilters}
+            </Button>
+          </Group>
+        )}
 
         {loading ? (
           <Center h="40vh">
@@ -238,7 +354,20 @@ export default function CultosPage() {
             <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
               <IconBuildingChurch size={24} />
             </ThemeIcon>
-            <Text>{t.cultosPage.empty}</Text>
+            <Text data-testid="cultos-empty">
+              {hasFilters ? t.cultosPage.filterEmpty : t.cultosPage.empty}
+            </Text>
+            {hasFilters && (
+              <Button
+                variant="light"
+                size="xs"
+                mt="sm"
+                onClick={clearFilters}
+                data-testid="cultos-empty-clear-filters"
+              >
+                {t.common.clearFilters}
+              </Button>
+            )}
           </Card>
         ) : (
           <Card withBorder p={0}>
@@ -369,6 +498,65 @@ export default function CultosPage() {
           rangeEnd={pagination.rangeEnd}
           testId="cultos-pagination"
         />
+
+        <Modal
+          opened={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          title={t.cultosPage.filterTitle}
+          size="lg"
+          centered
+          fullScreen={isCompact}
+          data-testid="cultos-filter-modal"
+        >
+          <Stack gap="md">
+            <Stack gap="sm" style={{ overflowY: 'auto', flex: 1 }}>
+              <TextInput
+                label={t.common.search}
+                placeholder={t.cultosPage.searchPlaceholder}
+                leftSection={<IconSearch size={16} />}
+                value={dSearch}
+                onChange={(e) => setDSearch(e.currentTarget.value)}
+                data-testid="cultos-draft-search"
+              />
+              <DatePickerInput
+                type="range"
+                label={t.cultosPage.filterRange}
+                valueFormat="DD/MM/YYYY"
+                value={dRange}
+                onChange={setDRange}
+                clearable
+                locale={locale}
+                data-testid="cultos-draft-range"
+              />
+              <Select
+                label={t.cultosPage.type}
+                placeholder={t.cultosPage.typePlaceholder}
+                data={SERVICE_TYPES}
+                value={dType}
+                onChange={setDType}
+                clearable
+                data-testid="cultos-draft-type"
+              />
+            </Stack>
+            <Group gap="xs" wrap="nowrap">
+              <Button
+                variant="default"
+                style={{ flex: 1 }}
+                onClick={clearDraft}
+                data-testid="cultos-draft-clear"
+              >
+                {t.common.clearFilters}
+              </Button>
+              <Button
+                style={{ flex: 1 }}
+                onClick={applyFilters}
+                data-testid="cultos-draft-apply"
+              >
+                {t.common.applyFilters}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
 
         <Modal
           opened={opened}

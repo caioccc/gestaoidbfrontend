@@ -27,6 +27,7 @@ import { saveBlob } from '../api/finance';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { CertificateDocument } from './CertificateDocument';
 import type { CertificateIssueData, CertificateTemplate, CertificateType, Member } from '../types';
 
@@ -68,6 +69,7 @@ export default function CertificateIssueModal({
 }: CertificateIssueModalProps) {
   const { t } = useLanguage();
   const { profile } = useChurchCardConfig();
+  const isCompact = useIsCompactList();
 
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -305,7 +307,15 @@ export default function CertificateIssueModal({
   };
 
   return (
-    <Modal opened={opened} onClose={handleClose} title={t.certificates.issue} size="xl" centered>
+      <Modal
+        opened={opened}
+        onClose={handleClose}
+        title={t.certificates.issue}
+        size="xl"
+        centered
+        fullScreen={isCompact}
+      >
+
       <Stepper active={step} onStepClick={(s) => s < step && setStep(s)} size="sm" color="teal">
         <Stepper.Step label={t.certificates.step1} allowStepSelect>
           <Stack gap="md">

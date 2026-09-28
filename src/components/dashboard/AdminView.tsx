@@ -51,6 +51,7 @@ import {
 } from './primitives';
 import MemberFunnelCard from './MemberFunnelCard';
 import MonthFinanceCard from './MonthFinanceCard';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const SHORTCUT_KEYS = [
   'members',
@@ -105,6 +106,7 @@ export default function AdminView({ year }: { year: number }) {
   const { user } = useAuth();
   const { canViewMusic, canManageMusic } = useRoleHelpers(user);
   const canSeeSetlists = canViewMusic || canManageMusic;
+  const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState<Member[]>([]);
@@ -293,13 +295,13 @@ export default function AdminView({ year }: { year: number }) {
   );
 
   return (
-    <Stack gap="lg">
+    <Stack gap={isMobile ? 'sm' : 'lg'}>
       <QuickActionsGroup actions={quickActions} />
 
       {loading ? (
         <SkeletonCards count={4} />
       ) : (
-        <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="lg">
+        <SimpleGrid cols={{ base: 2, xs: 2, lg: 4 }} spacing={{ base: 'xs', lg: 'lg' }}>
           <KpiCard
             label={dv.adActiveMembers}
             value={activeMembers.length}

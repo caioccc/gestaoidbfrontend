@@ -20,6 +20,17 @@ import {
   IconArrowUpRight,
   IconMinus,
 } from '@tabler/icons-react';
+import { useIsMobile } from '../../hooks/useIsMobile';
+
+/**
+ * Rolagem horizontal sem barra visivel, usada nas faixas de atalhos do mobile.
+ * `scrollbarWidth` esconde a barra no Firefox, o pseudo-elemento no WebKit.
+ */
+export const HORIZONTAL_SCROLL: React.CSSProperties = {
+  overflowX: 'auto',
+  scrollbarWidth: 'none',
+  WebkitOverflowScrolling: 'touch',
+};
 
 export type DashboardTone =
   | 'teal'
@@ -35,10 +46,18 @@ export type DashboardTone =
   | 'gray';
 
 export function SkeletonCards({ count, height = 118 }: { count: number; height?: number }) {
+  const isMobile = useIsMobile();
   return (
-    <SimpleGrid cols={{ base: 1, xs: 2, md: count > 4 ? 4 : count }} spacing="lg">
+    <SimpleGrid
+      cols={{ base: 2, xs: 2, md: count > 4 ? 4 : count }}
+      spacing={{ base: 'xs', md: 'lg' }}
+    >
       {Array.from({ length: count }).map((_, index) => (
-        <Skeleton key={index} height={height} radius="md" />
+        <Skeleton
+          key={index}
+          height={isMobile ? Math.round(height * 0.8) : height}
+          radius="md"
+        />
       ))}
     </SimpleGrid>
   );
@@ -69,9 +88,16 @@ export function SectionCard({
   minHeight?: number;
   children: React.ReactNode;
 }) {
+  const isMobile = useIsMobile();
   return (
-    <Paper withBorder radius="md" p="lg" shadow="sm" style={{ minHeight }}>
-      <Group justify="space-between" align="flex-start" wrap="nowrap" mb="md" gap="sm">
+    <Paper withBorder radius="md" p={isMobile ? 'sm' : 'lg'} shadow="sm" style={{ minHeight }}>
+      <Group
+        justify="space-between"
+        align="flex-start"
+        wrap="nowrap"
+        mb={isMobile ? 'sm' : 'md'}
+        gap="sm"
+      >
         <Group gap="sm" wrap="nowrap" style={{ minWidth: 0 }}>
           {icon ? (
             <ThemeIcon color={color ?? 'blue'} variant="light" size="lg" radius="md">
@@ -113,11 +139,13 @@ export function KpiCard({
   loading?: boolean;
   onClick?: () => void;
 }) {
+  const isMobile = useIsMobile();
+
   const body = (
     <Paper
       withBorder
       radius="md"
-      p="lg"
+      p={isMobile ? 'sm' : 'lg'}
       shadow="sm"
       style={{
         height: '100%',
@@ -131,9 +159,13 @@ export function KpiCard({
             {label}
           </Text>
           {loading ? (
-            <Skeleton height={30} width={120} mt={4} />
+            <Skeleton height={isMobile ? 22 : 30} width={isMobile ? 72 : 120} mt={4} />
           ) : (
-            <Text fw={800} size="clamp(1.15rem, 2.4vw, 1.5rem)" lineClamp={1}>
+            <Text
+              fw={800}
+              size={isMobile ? 'lg' : 'clamp(1.15rem, 2.4vw, 1.5rem)'}
+              lineClamp={1}
+            >
               {value}
             </Text>
           )}
@@ -142,10 +174,16 @@ export function KpiCard({
           ) : trend !== undefined && trend !== null ? (
             <TrendBadge value={trend} />
           ) : hint ? (
-            <Text size="xs" c="dimmed" lineClamp={1}>{hint}</Text>
+            <Text size="xs" c="dimmed" lineClamp={isMobile ? 2 : 1}>{hint}</Text>
           ) : null}
         </Stack>
-        <ThemeIcon color={color} variant="light" size={44} radius="md" style={{ flexShrink: 0 }}>
+        <ThemeIcon
+          color={color}
+          variant="light"
+          size={isMobile ? 34 : 44}
+          radius="md"
+          style={{ flexShrink: 0 }}
+        >
           {icon}
         </ThemeIcon>
       </Group>
@@ -157,8 +195,7 @@ export function KpiCard({
     </Paper>
   );
 
-  if (!onClick) return body;
-  return (
+  if (!onClick) return body;  return (
     <UnstyledButton onClick={onClick} style={{ display: 'block', height: '100%' }}>
       {body}
     </UnstyledButton>
@@ -211,9 +248,22 @@ export interface QuickAction {
   disabled?: boolean;
 }
 
-export function QuickActionsGroup({ actions }: { actions: QuickAction[] }) {
+export function QuickActionsGroup({
+  actions,
+  style,
+}: {
+  actions: QuickAction[];
+  /** Necessario quando o grupo vive dentro de um container flex (ex.: PageHeader). */
+  style?: React.CSSProperties;
+}) {
+  const isMobile = useIsMobile();
   return (
-    <Group gap="xs" wrap="wrap">
+    <Group
+      gap="xs"
+      wrap={isMobile ? 'nowrap' : 'wrap'}
+      style={isMobile ? { ...HORIZONTAL_SCROLL, paddingBottom: 6, ...style } : style}
+      data-testid="dashboard-quick-actions"
+    >
       {actions.map((action) => (
         <Button
           key={action.key}
@@ -223,6 +273,7 @@ export function QuickActionsGroup({ actions }: { actions: QuickAction[] }) {
           onClick={action.onClick}
           disabled={action.disabled}
           size="xs"
+          style={isMobile ? { flexShrink: 0 } : undefined}
         >
           {action.label}
         </Button>

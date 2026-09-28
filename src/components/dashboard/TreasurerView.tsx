@@ -44,6 +44,7 @@ import {
   SectionCard,
   SkeletonCards,
 } from './primitives';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 type CompetenceState = 'OPEN' | 'VALIDATING' | 'CLOSED' | 'REJECTED';
 
@@ -63,6 +64,7 @@ export default function TreasurerView({ year }: { year: number }) {
   const { t } = useLanguage();
   const router = useRouter();
   const dv = t.dashboardViews;
+  const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -207,13 +209,13 @@ export default function TreasurerView({ year }: { year: number }) {
           : dv.tkStateOpen;
 
   return (
-    <Stack gap="lg">
+    <Stack gap={isMobile ? 'sm' : 'lg'}>
       <QuickActionsGroup actions={quickActions} />
 
       {loading ? (
         <SkeletonCards count={4} />
       ) : (
-        <SimpleGrid cols={{ base: 1, xs: 2, lg: 4 }} spacing="lg">
+        <SimpleGrid cols={{ base: 2, xs: 2, lg: 4 }} spacing={{ base: 'xs', lg: 'lg' }}>
           <KpiCard
             label={dv.tkCashBalance}
             value={formatBRL(monthBalance)}
@@ -236,7 +238,13 @@ export default function TreasurerView({ year }: { year: number }) {
             color="rose"
             hint={`${pendingExits.length} ${dv.tkWithoutProof}`}
           />
-          <Paper withBorder radius="md" p="lg" shadow="sm" style={{ height: '100%' }}>
+          <Paper
+            withBorder
+            radius="md"
+            p={isMobile ? 'sm' : 'lg'}
+            shadow="sm"
+            style={{ height: '100%' }}
+          >
             <Group justify="space-between" align="flex-start" wrap="nowrap" gap="sm">
               <Stack gap={4} style={{ minWidth: 0 }}>
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700} lineClamp={1}>
@@ -250,7 +258,7 @@ export default function TreasurerView({ year }: { year: number }) {
                 >
                   {competenceLabel}
                 </Badge>
-                <Text size="xs" c="dimmed" lineClamp={1}>
+                <Text size="xs" c="dimmed" lineClamp={isMobile ? 2 : 1}>
                   {reconciliation
                     ? (reconciliation.is_reconciled ?? reconciliation.status === 'CONCILIADO')
                       ? dv.tkReconciled
@@ -258,7 +266,13 @@ export default function TreasurerView({ year }: { year: number }) {
                     : dv.tkNoReconciliation}
                 </Text>
               </Stack>
-              <ThemeIcon color={COMPETENCE_TONE[competence]} variant="light" size={44} radius="md">
+              <ThemeIcon
+                color={COMPETENCE_TONE[competence]}
+                variant="light"
+                size={isMobile ? 34 : 44}
+                radius="md"
+                style={{ flexShrink: 0 }}
+              >
                 <IconLockCheck size={24} />
               </ThemeIcon>
             </Group>

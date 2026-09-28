@@ -56,8 +56,9 @@ import {
   PrayerRequest,
   PrayerRequestAssignee,
   PrayerRequestPayload,
-  PrayerRequestStatus,
-  PrayerRequestCategory,
+PrayerRequestStatus,
+PrayerRequestCategory,
+PrayerRequestPreferredPeriod,
   PrayerVisitPreparedPayload,
   SundaySchoolAttendanceInput,
   SundaySchoolCategory,
@@ -371,6 +372,7 @@ export const accountsApi = {
     status?: PrayerRequestStatus;
     category?: PrayerRequestCategory;
     wants_visit?: boolean;
+    preferred_period?: PrayerRequestPreferredPeriod;
     q?: string;
     paginate?: 0 | 1;
     page?: number;
@@ -716,8 +718,13 @@ export const accountsApi = {
   regenerateCalendarPublicLink: (): Promise<CalendarPublicLink> =>
     apiClient.post('/api/accounts/calendar/public-link/regenerate/').then((r) => r.data),
 
-  worshipServices: (): Promise<WorshipService[]> =>
-    apiClient.get('/api/accounts/cultos/').then((r) => r.data),
+  worshipServices: (params?: {
+    start_date?: string;
+    end_date?: string;
+    service_type?: WorshipServiceType;
+    search?: string;
+  }): Promise<WorshipService[]> =>
+    apiClient.get('/api/accounts/cultos/', { params }).then((r) => r.data),
 
   createWorshipService: (payload: WorshipServicePayload): Promise<WorshipService> =>
     apiClient.post('/api/accounts/cultos/', payload).then((r) => r.data),
@@ -731,8 +738,13 @@ export const accountsApi = {
   deleteWorshipService: (id: number): Promise<void> =>
     apiClient.delete(`/api/accounts/cultos/${id}/`).then(() => undefined),
 
-  minutes: (): Promise<ChurchMinutes[]> =>
-    apiClient.get('/api/accounts/minutes/').then((r) => r.data),
+  minutes: (params?: {
+    start_date?: string;
+    end_date?: string;
+    meeting_type?: MeetingType;
+    search?: string;
+  }): Promise<ChurchMinutes[]> =>
+    apiClient.get('/api/accounts/minutes/', { params }).then((r) => r.data),
 
   createMinutes: (payload: ChurchMinutesPayload, pdf?: File | null): Promise<ChurchMinutes> => {
     const fd = new FormData();

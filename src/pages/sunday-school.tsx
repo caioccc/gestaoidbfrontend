@@ -47,8 +47,11 @@ import {
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
+import FilterDrawer from '../components/FilterDrawer';
 import Layout from '../components/Layout';
+import MobileListToolbar from '../components/MobileListToolbar';
 import SundaySchoolSessionModal from '../components/SundaySchoolSessionModal';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
@@ -121,8 +124,13 @@ export default function SundaySchoolPage() {
 
 function ClassesTab() {
   const { t } = useLanguage();
+  const isCompact = useIsCompactList();
   const [classes, setClasses] = useState<SundaySchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [classSearch, setClassSearch] = useState('');
+  const [classCategoryFilter, setClassCategoryFilter] = useState<string>('ALL');
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [classFiltersOpen, setClassFiltersOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SundaySchoolClass | null>(null);
   const [deleting, setDeleting] = useState<SundaySchoolClass | null>(null);
@@ -146,25 +154,86 @@ function ClassesTab() {
     load();
   }, [load]);
 
+  const filteredClasses = useMemo(() => {
+    const q = classSearch.trim().toLowerCase();
+    return classes.filter((c) => {
+      if (classCategoryFilter !== 'ALL' && c.category !== classCategoryFilter)
+        return false;
+      if (activeOnly && !c.is_active) return false;
+      if (!q) return true;
+      return (
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.teacher_name || '').toLowerCase().includes(q) ||
+        (c.room_location || '').toLowerCase().includes(q)
+      );
+    });
+  }, [classes, classSearch, classCategoryFilter, activeOnly]);
+
+  const classFilterCount =
+    (classCategoryFilter !== 'ALL' ? 1 : 0) + (activeOnly ? 1 : 0);
+
+  const categoryLabel = (cat: SundaySchoolCategory) => {
+    switch (cat) {
+      case 'CHILDREN':
+        return t.sundaySchool.categoryChildren;
+      case 'TEENS':
+        return t.sundaySchool.categoryTeens;
+      case 'YOUTH':
+        return t.sundaySchool.categoryYouth;
+      case 'ADULTS':
+        return t.sundaySchool.categoryAdults;
+      case 'COUPLES':
+        return t.sundaySchool.categoryCouples;
+      case 'DISCIPLESHIP':
+        return t.sundaySchool.categoryDiscipleship;
+    }
+  };
+
   return (
     <Stack gap="md">
-      <Group justify="space-between" mb="md">
-        <Text size="sm" c="dimmed">
-          {t.sundaySchool.noClassesHint}
-        </Text>
-        <Button
-          leftSection={<IconPlus size={16} />}
-          variant="filled"
-          color="blue"
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          data-testid="new-class"
-        >
-          {t.sundaySchool.newClass}
-        </Button>
-      </Group>
+      {isCompact ? (
+        <MobileListToolbar
+          searchValue={classSearch}
+          onSearchChange={setClassSearch}
+          searchPlaceholder={t.common.search}
+          filtersLabel={t.sundaySchool.filtersClasses}
+          onOpenFilters={() => setClassFiltersOpen(true)}
+          filterCount={classFilterCount}
+          primary={
+            <Button
+              size="sm"
+              px="xs"
+              leftSection={<IconPlus size={14} />}
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
+              }}
+              data-testid="new-class"
+            >
+              {t.sundaySchool.newClass}
+            </Button>
+          }
+          testId="ebd-classes-toolbar"
+        />
+      ) : (
+        <Group justify="space-between" mb="md">
+          <Text size="sm" c="dimmed">
+            {t.sundaySchool.noClassesHint}
+          </Text>
+          <Button
+            leftSection={<IconPlus size={16} />}
+            variant="filled"
+            color="blue"
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+            data-testid="new-class"
+          >
+            {t.sundaySchool.newClass}
+          </Button>
+        </Group>
+      )}
 
       {loading ? (
         <Center h={220}>
@@ -176,9 +245,28 @@ function ClassesTab() {
             <Text c="dimmed">{t.sundaySchool.noClasses}</Text>
           </Center>
         </Paper>
+      ) : filteredClasses.length === 0 ? (
+        <Paper withBorder p="md" radius="md">
+          <Center h={160}>
+            <Stack align="center" gap={6}>
+              <Text c="dimmed">{t.sundaySchool.noResultsForFilters}</Text>
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => {
+                  setClassSearch('');
+                  setClassCategoryFilter('ALL');
+                  setActiveOnly(false);
+                }}
+              >
+                {t.common.clearFilters}
+              </Button>
+            </Stack>
+          </Center>
+        </Paper>
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-          {classes.map((c) => (
+          {filteredClasses.map((c) => (
             <Paper
               key={c.id}
               withBorder
@@ -387,6 +475,38 @@ function ClassesTab() {
           </Group>
         </Stack>
       </Modal>
+
+      <FilterDrawer
+        opened={classFiltersOpen}
+        onClose={() => setClassFiltersOpen(false)}
+        title={t.sundaySchool.filtersClasses}
+        clearLabel={t.common.clearFilters}
+        clearDisabled={classFilterCount === 0}
+        onClear={() => {
+          setClassCategoryFilter('ALL');
+          setActiveOnly(false);
+        }}
+        testId="ebd-classes-filters"
+      >
+        <Select
+          label={t.sundaySchool.category}
+          data={[
+            { value: 'ALL', label: t.sundaySchool.allCategories },
+            ...CATEGORY_OPTIONS.map((o) => ({
+              value: o.value,
+              label: categoryLabel(o.value),
+            })),
+          ]}
+          value={classCategoryFilter}
+          onChange={(v) => setClassCategoryFilter(v ?? 'ALL')}
+          allowDeselect={false}
+        />
+        <Switch
+          label={t.sundaySchool.activeOnly}
+          checked={activeOnly}
+          onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+        />
+      </FilterDrawer>
     </Stack>
   );
 }
@@ -619,6 +739,7 @@ function AnnounceModal({
 
 function StudentsTab() {
   const { t } = useLanguage();
+  const isCompact = useIsCompactList();
   const [classes, setClasses] = useState<SundaySchoolClass[]>([]);
   const [classId, setClassId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -628,6 +749,8 @@ function StudentsTab() {
   const [newPhone, setNewPhone] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<SundaySchoolEnrollment | null>(null);
+  const [activeOnly, setActiveOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     accountsApi
@@ -654,6 +777,11 @@ function StudentsTab() {
     return () => window.clearTimeout(h);
   }, [load]);
 
+  const filteredStudents = useMemo(() => {
+    if (!isCompact || !activeOnly) return students;
+    return students.filter((s) => s.is_active);
+  }, [students, activeOnly, isCompact]);
+
   const addStudent = async () => {
     if (!classId || !newName.trim()) return;
     setAdding(true);
@@ -675,6 +803,18 @@ function StudentsTab() {
 
   return (
     <Stack gap="md">
+      {isCompact ? (
+        <MobileListToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={t.sundaySchool.searchStudent}
+          filtersLabel={t.sundaySchool.filtersStudents}
+          onOpenFilters={() => setFiltersOpen(true)}
+          filterCount={activeOnly ? 1 : 0}
+          testId="ebd-students-toolbar"
+        />
+      ) : null}
+
       {classes.length > 0 ? (
         <SegmentedControl
           size="sm"
@@ -724,17 +864,19 @@ function StudentsTab() {
       </Paper>
 
       <Box maw={900}>
-        <Paper withBorder radius="md" p="sm" mb="sm">
-          <Group justify="space-between" wrap="wrap" gap="sm">
-            <TextInput
-              placeholder={t.sundaySchool.searchStudent}
-              value={search}
-              onChange={(e) => setSearch(e.currentTarget.value)}
-              leftSection={<IconSearch size={16} />}
-              maw={320}
-            />
-          </Group>
-        </Paper>
+        {!isCompact ? (
+          <Paper withBorder radius="md" p="sm" mb="sm">
+            <Group justify="space-between" wrap="wrap" gap="sm">
+              <TextInput
+                placeholder={t.sundaySchool.searchStudent}
+                value={search}
+                onChange={(e) => setSearch(e.currentTarget.value)}
+                leftSection={<IconSearch size={16} />}
+                maw={320}
+              />
+            </Group>
+          </Paper>
+        ) : null}
 
         {loading ? (
           <Center h={220}>
@@ -758,7 +900,7 @@ function StudentsTab() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {students.map((s) => (
+                  {filteredStudents.map((s) => (
                     <Table.Tr key={s.id}>
                       <Table.Td>
                         <Group gap="sm" wrap="nowrap">
@@ -839,6 +981,22 @@ function StudentsTab() {
         enrollment={editing}
         onSaved={load}
       />
+
+      <FilterDrawer
+        opened={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title={t.sundaySchool.filtersStudents}
+        clearLabel={t.common.clearFilters}
+        clearDisabled={!activeOnly}
+        onClear={() => setActiveOnly(false)}
+        testId="ebd-students-filters"
+      >
+        <Switch
+          label={t.sundaySchool.activeOnlyStudents}
+          checked={activeOnly}
+          onChange={(e) => setActiveOnly(e.currentTarget.checked)}
+        />
+      </FilterDrawer>
     </Stack>
   );
 }
@@ -917,13 +1075,23 @@ function EditStudentModal({ opened, onClose, classId, enrollment, onSaved }: Edi
 function ReportTab() {
   const { t } = useLanguage();
   const now = new Date();
-  const [year, setYear] = useState<string>(String(now.getFullYear()));
-  const [month, setMonth] = useState<string>(String(now.getMonth() + 1));
+  const isCompact = useIsCompactList();
+  const initialYear = String(now.getFullYear());
+  const initialMonth = String(now.getMonth() + 1);
+  const [year, setYear] = useState<string>(initialYear);
+  const [month, setMonth] = useState<string>(initialMonth);
   const [classes, setClasses] = useState<SundaySchoolClass[]>([]);
   const [classId, setClassId] = useState<string | null>(null);
   const [report, setReport] = useState<SundaySchoolMonthlyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const reportFilterCount = [
+    year !== initialYear,
+    month !== initialMonth,
+    !!classId,
+  ].filter(Boolean).length;
 
   const years = useMemo(() => {
     const y = now.getFullYear();
@@ -975,7 +1143,29 @@ function ReportTab() {
 
   return (
     <Stack gap="md">
-      <Paper withBorder p="sm" radius="md" mb="md">
+      {isCompact ? (
+        <MobileListToolbar
+          filtersLabel={t.sundaySchool.filtersReport}
+          onOpenFilters={() => setFiltersOpen(true)}
+          filterCount={reportFilterCount}
+          primary={
+            <Button
+              size="sm"
+              px="xs"
+              leftSection={<IconFileSpreadsheet size={14} />}
+              loading={exporting}
+              onClick={exportPdf}
+              data-testid="export-report-pdf"
+            >
+              {t.sundaySchool.exportPdfShort}
+            </Button>
+          }
+          testId="ebd-report-toolbar"
+        />
+      ) : null}
+
+      {isCompact ? null : (
+        <Paper withBorder p="sm" radius="md" mb="md">
         <Group justify="space-between" wrap="wrap" gap="sm">
           <Group align="flex-end" wrap="wrap" gap="sm">
             <Select
@@ -1015,7 +1205,8 @@ function ReportTab() {
             {t.sundaySchool.exportPdf}
           </Button>
         </Group>
-      </Paper>
+          </Paper>
+        )}
 
       {loading ? (
         <Center h={220}>
@@ -1260,6 +1451,45 @@ function ReportTab() {
           })}
         </Accordion>
       )}
+
+      <FilterDrawer
+        opened={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title={t.sundaySchool.filtersReport}
+        clearLabel={t.common.clearFilters}
+        clearDisabled={reportFilterCount === 0}
+        onClear={() => {
+          setYear(initialYear);
+          setMonth(initialMonth);
+          setClassId(null);
+        }}
+        testId="ebd-report-filters"
+      >
+        <Select
+          label={t.sundaySchool.selectYear}
+          data={years.map((y) => ({ value: y, label: y }))}
+          value={year}
+          onChange={(v) => setYear(v ?? initialYear)}
+          allowDeselect={false}
+        />
+        <Select
+          label={t.sundaySchool.selectMonth}
+          data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
+          value={month}
+          onChange={(v) => setMonth(v ?? initialMonth)}
+          allowDeselect={false}
+        />
+        <Select
+          label={t.sundaySchool.selectClass}
+          data={[
+            { value: '__all__', label: t.sundaySchool.allClasses },
+            ...classes.map((c) => ({ value: String(c.id), label: c.name })),
+          ]}
+          value={classId ?? '__all__'}
+          onChange={(v) => setClassId(v && v !== '__all__' ? v : null)}
+          allowDeselect={false}
+        />
+      </FilterDrawer>
     </Stack>
   );
 }

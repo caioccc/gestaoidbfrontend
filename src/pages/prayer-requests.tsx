@@ -10,7 +10,9 @@ import {
   Divider,
   Drawer,
   Group,
+  Indicator,
   Loader,
+  Menu,
   Modal,
   Paper,
   SegmentedControl,
@@ -24,10 +26,10 @@ import {
   Tooltip,
   useMantineColorScheme,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
   IconArchive,
+  IconEraser,
   IconBrandWhatsapp,
   IconCalendarCheck,
   IconCalendarPlus,
@@ -47,7 +49,10 @@ import {
 } from '@tabler/icons-react';
 import AuthGuard from '../components/AuthGuard';
 import CreatePrayerRequestModal from '../components/CreatePrayerRequestModal';
+import FilterDrawer from '../components/FilterDrawer';
+import MobileListToolbar from '../components/MobileListToolbar';
 import PageHeader from '../components/PageHeader';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
 import { useLanguage } from '../i18n';
@@ -56,6 +61,7 @@ import type {
   PrayerRequest,
   PrayerRequestAssignee,
   PrayerRequestCategory,
+  PrayerRequestPreferredPeriod,
   PrayerRequestStatus,
 } from '../types';
 import { toSentenceCase, formatDateTime } from '../utils/format';
@@ -76,6 +82,16 @@ const STATUS_OPTIONS: PrayerRequestStatus[] = [
   'ANSWERED',
   'ARCHIVED',
 ];
+
+const CATEGORY_COLOR: Record<PrayerRequestCategory, string> = {
+  HEALTH: 'red',
+  FAMILY: 'pink',
+  SPIRITUAL: 'violet',
+  FINANCIAL: 'green',
+  GRIEF: 'gray',
+  THANKSGIVING: 'teal',
+  OTHER: 'blue',
+};
 
 const KANBAN_STATUSES = ['PENDING', 'PRAYING', 'VISIT_SCHEDULED', 'ANSWERED'] as const;
 
@@ -119,7 +135,7 @@ export default function PrayerRequestsPage() {
   const { t, locale } = useLanguage();
   const { user } = useAuth();
   const router = useRouter();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isCompact = useIsCompactList();
   const { colorScheme } = useMantineColorScheme();
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
@@ -127,8 +143,11 @@ export default function PrayerRequestsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+  const [periodFilter, setPeriodFilter] = useState<string>('ALL');
   const [wantsVisitOnly, setWantsVisitOnly] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const [drawerRequest, setDrawerRequest] = useState<PrayerRequest | null>(null);
   const [drawerNotesDraft, setDrawerNotesDraft] = useState('');
@@ -138,6 +157,8 @@ export default function PrayerRequestsPage() {
   const [archiving, setArchiving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PrayerRequest | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulking, setBulking] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
   // "Novo / Aguardando" é o que precisa de atenção: ganha borda colorida e
@@ -157,6 +178,8 @@ export default function PrayerRequestsPage() {
         q: search.trim() || undefined,
         status: statusFilter === 'ALL' ? undefined : (statusFilter as PrayerRequestStatus),
         category: categoryFilter === 'ALL' ? undefined : (categoryFilter as PrayerRequestCategory),
+        preferred_period:
+          periodFilter === 'ALL' ? undefined : (periodFilter as PrayerRequestPreferredPeriod),
         wants_visit: wantsVisitOnly ? true : undefined,
       })
       .then(setRequests)
@@ -178,7 +201,7 @@ export default function PrayerRequestsPage() {
     const delay = window.setTimeout(load, 300);
     return () => window.clearTimeout(delay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, categoryFilter, wantsVisitOnly, search]);
+  }, [statusFilter, categoryFilter, periodFilter, wantsVisitOnly, search]);
 
   const stats = useMemo(() => {
     const count = (s: PrayerRequestStatus) => requests.filter((r) => r.status === s).length;
@@ -190,6 +213,18 @@ export default function PrayerRequestsPage() {
       { key: 'visit', label: t.prayerRequestsPage.needsVisit, value: requests.filter((r) => r.wants_visit).length, color: 'red' },
     ];
   }, [requests, t]);
+
+  const answeredCount = useMemo(
+    () => requests.filter((r) => r.status === 'ANSWERED').length,
+    [requests]
+  );
+
+  const filterCount = [
+    statusFilter !== 'ALL',
+    categoryFilter !== 'ALL',
+    periodFilter !== 'ALL',
+    wantsVisitOnly,
+  ].filter(Boolean).length;
 
   const intercessorOptions = useMemo(
     () => intercessors.map((m) => ({ value: String(m.id), label: m.name })),
@@ -300,6 +335,32 @@ export default function PrayerRequestsPage() {
     }
   };
 
+  const bulkClearAnswered = async () => {
+    const targets = requests.filter((r) => r.status === 'ANSWERED');
+    if (targets.length === 0) return;
+    setBulking(true);
+    try {
+      await Promise.all(
+        targets.map((r) => accountsApi.updatePrayerRequest(r.id, { status: 'ARCHIVED' }))
+      );
+      setBulkOpen(false);
+      closeDrawer();
+      setRequests((prev) =>
+        prev.map((r) =>
+          r.status === 'ANSWERED' ? { ...r, status: 'ARCHIVED' as PrayerRequestStatus } : r
+        )
+      );
+      notifications.show({
+        color: 'green',
+        message: t.prayerRequestsPage.actions.clearAnsweredDone,
+      });
+    } catch {
+      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+    } finally {
+      setBulking(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -337,18 +398,120 @@ export default function PrayerRequestsPage() {
     label: t.prayerRequestsPage.statusLabel[s],
   }));
 
+  const periodOptions = [
+    { value: 'ALL', label: t.prayerRequestsPage.allPeriods },
+    ...Object.entries(t.prayerRequestsPage.periodLabel).map(([value, label]) => ({
+      value,
+      label,
+    })),
+  ];
+
+  const viewToggleControl = (
+    <SegmentedControl
+      value={viewMode}
+      onChange={(v) => setViewMode(v as 'list' | 'kanban')}
+      data={[
+        {
+          value: 'list',
+          label: (
+            <Group gap={6} wrap="nowrap">
+              <IconLayoutList size={15} />
+              <Text size="sm">{t.prayerRequestsPage.viewToggle.list}</Text>
+            </Group>
+          ),
+        },
+        {
+          value: 'kanban',
+          label: (
+            <Group gap={6} wrap="nowrap">
+              <IconLayoutKanban size={15} />
+              <Text size="sm">{t.prayerRequestsPage.viewToggle.kanban}</Text>
+            </Group>
+          ),
+        },
+      ]}
+    />
+  );
+
+  const compactViewToggle = (
+    <SegmentedControl
+      size="xs"
+      fullWidth
+      value={viewMode}
+      onChange={(v) => setViewMode(v as 'list' | 'kanban')}
+      data={[
+        {
+          value: 'list',
+          label: (
+            <Group gap={6} wrap="nowrap">
+              <IconLayoutList size={15} />
+              <Text size="sm">{t.prayerRequestsPage.viewToggle.list}</Text>
+            </Group>
+          ),
+        },
+        {
+          value: 'kanban',
+          label: (
+            <Group gap={6} wrap="nowrap">
+              <IconLayoutKanban size={15} />
+              <Text size="sm">{t.prayerRequestsPage.viewToggle.kanban}</Text>
+            </Group>
+          ),
+        },
+      ]}
+    />
+  );
+
   return (
     <AuthGuard roles={['INTERCESSAO', 'PASTOR', 'SECRETARIA']}>
       <>
         <PageHeader title={t.prayerRequestsPage.title} description={t.prayerRequestsPage.subtitle}>
-          <Group gap="sm">
-            <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
-              {t.prayerRequestsPage.createNew}
-            </Button>
-            <Button leftSection={<IconPrinter size={16} />} variant="light" onClick={printSheet}>
-              {t.prayerRequestsPage.actions.printSheet}
-            </Button>
-          </Group>
+          {isCompact ? (
+            <MobileListToolbar
+              searchValue={search}
+              onSearchChange={setSearch}
+              searchPlaceholder={t.prayerRequestsPage.searchPlaceholder}
+              filtersLabel={t.prayerRequestsPage.filterTitle}
+              onOpenFilters={() => setFiltersOpen(true)}
+              filterCount={filterCount}
+              primary={
+                <Button
+                  size="sm"
+                  px="xs"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  {t.prayerRequestsPage.createNew}
+                </Button>
+              }
+              menuChildren={
+                <>
+                  <Menu.Item leftSection={<IconPrinter size={15} />} onClick={printSheet}>
+                    {t.prayerRequestsPage.actions.printSheet}
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconEraser size={15} />}
+                    color={answeredCount > 0 ? 'red' : 'dimmed'}
+                    disabled={answeredCount === 0}
+                    onClick={() => setBulkOpen(true)}
+                  >
+                    {t.prayerRequestsPage.actions.clearAnswered}
+                  </Menu.Item>
+                </>
+              }
+              menuLabel={t.prayerRequestsPage.title}
+              testId="prayer-toolbar"
+            />
+          ) : (
+            <Group gap="sm">
+              <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
+                {t.prayerRequestsPage.createNew}
+              </Button>
+              <Button leftSection={<IconPrinter size={16} />} variant="light" onClick={printSheet}>
+                {t.prayerRequestsPage.actions.printSheet}
+              </Button>
+            </Group>
+          )}
         </PageHeader>
 
         <SimpleGrid cols={{ base: 2, sm: 5 }} spacing="sm" mb="md">
@@ -370,10 +533,13 @@ export default function PrayerRequestsPage() {
           ))}
         </SimpleGrid>
 
-        <Paper withBorder p="sm" radius="md" mb="md">
-          <Group gap="sm" align="flex-end" wrap="wrap">
-            <TextInput
-              leftSection={<IconSearch size={16} />}
+        {isCompact ? (
+          <Box mb="md">{compactViewToggle}</Box>
+        ) : (
+          <Paper withBorder p="sm" radius="md" mb="md">
+            <Group gap="sm" align="flex-end" wrap="wrap">
+              <TextInput
+                leftSection={<IconSearch size={16} />}
               value={search}
               onChange={(e) => setSearch(e.currentTarget.value)}
               placeholder={t.prayerRequestsPage.searchPlaceholder}
@@ -401,30 +567,7 @@ export default function PrayerRequestsPage() {
               onChange={(e) => setWantsVisitOnly(e.currentTarget.checked)}
             />
             <Box style={{ flexShrink: 0 }}>
-              <SegmentedControl
-                value={viewMode}
-                onChange={(v) => setViewMode(v as 'list' | 'kanban')}
-                data={[
-                  {
-                    value: 'list',
-                    label: (
-                      <Group gap={6} wrap="nowrap">
-                        <IconLayoutList size={15} />
-                        <Text size="sm">{t.prayerRequestsPage.viewToggle.list}</Text>
-                      </Group>
-                    ),
-                  },
-                  {
-                    value: 'kanban',
-                    label: (
-                      <Group gap={6} wrap="nowrap">
-                        <IconLayoutKanban size={15} />
-                        <Text size="sm">{t.prayerRequestsPage.viewToggle.kanban}</Text>
-                      </Group>
-                    ),
-                  },
-                ]}
-              />
+              {viewToggleControl}
             </Box>
           </Group>
           {statusFilter === 'ALL' ? (
@@ -432,7 +575,8 @@ export default function PrayerRequestsPage() {
               {t.prayerRequestsPage.archivedHiddenHint}
             </Text>
           ) : null}
-        </Paper>
+          </Paper>
+        )}
 
         {loading ? (
           <Loader mt="xl" />
@@ -442,6 +586,20 @@ export default function PrayerRequestsPage() {
             <Text size="sm" c="dimmed">
               {t.prayerRequestsPage.emptyHint}
             </Text>
+            {filterCount > 0 ? (
+              <Button
+                size="xs"
+                variant="subtle"
+                onClick={() => {
+                  setStatusFilter('ALL');
+                  setCategoryFilter('ALL');
+                  setPeriodFilter('ALL');
+                  setWantsVisitOnly(false);
+                }}
+              >
+                {t.common.clearFilters}
+              </Button>
+            ) : null}
           </Stack>
         ) : viewMode === 'list' ? (
           <Stack gap="sm" maw={960}>
@@ -485,7 +643,7 @@ export default function PrayerRequestsPage() {
                             String(r.elapsed_days)
                           )}
                         </Text>
-                        <Badge variant="light" color="gray" size="xs">
+                        <Badge variant="light" color={CATEGORY_COLOR[r.category]} size="xs">
                           {r.category_display}
                         </Badge>
                         {r.wants_visit ? (
@@ -511,8 +669,8 @@ export default function PrayerRequestsPage() {
 
                     <Text
                       size="sm"
-                      mb="sm"
-                      lineClamp={3}
+                      mb={0}
+                      lineClamp={expandedIds.has(r.id) ? undefined : 3}
                       style={{
                         whiteSpace: 'pre-wrap',
                         color: 'var(--mantine-color-gray-7)',
@@ -522,6 +680,51 @@ export default function PrayerRequestsPage() {
                     >
                       {r.description}
                     </Text>
+                    {r.description.length > 140 ? (
+                      <Button
+                        size="xs"
+                        variant="subtle"
+                        px={0}
+                        onClick={() =>
+                          setExpandedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(r.id)) {
+                              next.delete(r.id);
+                            } else {
+                              next.add(r.id);
+                            }
+                            return next;
+                          })
+                        }
+                      >
+                        {expandedIds.has(r.id) ? t.common.readLess : t.common.readMore}
+                      </Button>
+                    ) : null}
+                    <Group gap="xs" wrap="wrap">
+                      {r.status === 'PENDING' ? (
+                        <Button
+                          size="xs"
+                          radius="xl"
+                          variant="filled"
+                          color="blue"
+                          onClick={() => changeStatus(r.id, 'PRAYING')}
+                          data-testid={`prayer-pill-${r.id}`}
+                        >
+                          {t.prayerRequestsPage.actions.quickPray}
+                        </Button>
+                      ) : r.status === 'PRAYING' ? (
+                        <Button
+                          size="xs"
+                          radius="xl"
+                          variant="filled"
+                          color="teal"
+                          onClick={() => changeStatus(r.id, 'ANSWERED')}
+                          data-testid={`prayer-pill-${r.id}`}
+                        >
+                          {t.prayerRequestsPage.actions.quickAnswer}
+                        </Button>
+                      ) : null}
+                    </Group>
 
                     <Group justify="space-between" wrap="wrap" gap="xs">
                       <Group gap="xs" wrap="wrap">
@@ -717,11 +920,53 @@ export default function PrayerRequestsPage() {
           </SimpleGrid>
         )}
 
+        <FilterDrawer
+          opened={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={t.prayerRequestsPage.filterTitle}
+          clearLabel={t.common.clearFilters}
+          clearDisabled={filterCount === 0}
+          onClear={() => {
+            setStatusFilter('ALL');
+            setCategoryFilter('ALL');
+            setPeriodFilter('ALL');
+            setWantsVisitOnly(false);
+          }}
+          testId="prayer-filters"
+        >
+          <Select
+            label={t.prayerRequestsPage.allStatus}
+            data={statusOptions}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v ?? 'ALL')}
+            allowDeselect={false}
+          />
+          <Select
+            label={t.prayerRequestsPage.allCategories}
+            data={categoryOptions}
+            value={categoryFilter}
+            onChange={(v) => setCategoryFilter(v ?? 'ALL')}
+            allowDeselect={false}
+          />
+          <Select
+            label={t.prayerRequestsPage.allPeriods}
+            data={periodOptions}
+            value={periodFilter}
+            onChange={(v) => setPeriodFilter(v ?? 'ALL')}
+            allowDeselect={false}
+          />
+          <Switch
+            label={t.prayerRequestsPage.wantsVisitOnly}
+            checked={wantsVisitOnly}
+            onChange={(e) => setWantsVisitOnly(e.currentTarget.checked)}
+          />
+        </FilterDrawer>
+
         <Drawer
           opened={!!drawerRequest}
           onClose={closeDrawer}
-          position={isMobile ? 'bottom' : 'right'}
-          size={isMobile ? '100%' : 'lg'}
+          position={isCompact ? 'bottom' : 'right'}
+          size={isCompact ? '100%' : 'lg'}
           title={drawerRequest ? displayName(drawerRequest) : ''}
           padding="md"
           styles={{ body: { paddingBottom: 24 } }}
@@ -984,6 +1229,31 @@ export default function PrayerRequestsPage() {
           onClose={() => setCreateOpen(false)}
           onCreated={load}
         />
+
+        <Modal
+          opened={bulkOpen}
+          onClose={() => setBulkOpen(false)}
+          title={t.prayerRequestsPage.actions.clearAnswered}
+          centered
+        >
+          <Stack>
+            <Text size="sm">{t.prayerRequestsPage.actions.clearAnsweredConfirm}</Text>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={() => setBulkOpen(false)}>
+                {t.common.cancel}
+              </Button>
+              <Button
+                color="red"
+                loading={bulking}
+                leftSection={<IconEraser size={16} />}
+                onClick={bulkClearAnswered}
+                data-testid="prayer-bulk-clear"
+              >
+                {t.prayerRequestsPage.actions.clearAnswered}
+              </Button>
+            </Group>
+          </Stack>
+        </Modal>
       </>
     </AuthGuard>
   );

@@ -43,6 +43,8 @@ import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import { calendarEventsApi, saveBlob } from '../api/finance';
 import { addDays, dateFromApi, dateToApi, eventOccursOn } from '../utils/calendarRecurrence';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { HORIZONTAL_SCROLL } from './dashboard/primitives';
 import type {
   AppAlert,
   CalendarEvent,
@@ -139,6 +141,7 @@ export default function SecretaryDashboard() {
   const router = useRouter();
   const isIntercessao = user?.role === 'INTERCESSAO';
   const sd = t.secretaryDashboard;
+  const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -330,11 +333,21 @@ export default function SecretaryDashboard() {
   const go = (href: string) => router.push(href);
 
   const quickActions = isIntercessao ? null : (
-    <Group gap="xs" wrap="wrap">
+    <Group
+      gap="xs"
+      wrap={isMobile ? 'nowrap' : 'wrap'}
+      style={
+        isMobile
+          ? { ...HORIZONTAL_SCROLL, paddingBottom: 6, maxWidth: '100%', minWidth: 0 }
+          : undefined
+      }
+      data-testid="sd-quick-actions"
+    >
       <Button
         color="blue"
         leftSection={<IconUserPlus size={18} />}
         onClick={() => go('/members')}
+        style={isMobile ? { flexShrink: 0 } : undefined}
         data-testid="sd-quick-member"
       >
         {sd.quickMember}
@@ -344,6 +357,7 @@ export default function SecretaryDashboard() {
         color="cyan"
         leftSection={<IconCalendarPlus size={18} />}
         onClick={() => go('/cultos')}
+        style={isMobile ? { flexShrink: 0 } : undefined}
         data-testid="sd-quick-culto"
       >
         {sd.quickCulto}
@@ -353,6 +367,7 @@ export default function SecretaryDashboard() {
         color="orange"
         leftSection={<IconFilePlus size={18} />}
         onClick={() => go('/atas')}
+        style={isMobile ? { flexShrink: 0 } : undefined}
         data-testid="sd-quick-ata"
       >
         {sd.quickAta}
@@ -362,6 +377,7 @@ export default function SecretaryDashboard() {
         color="teal"
         leftSection={<IconPackage size={18} />}
         onClick={() => go('/inventory')}
+        style={isMobile ? { flexShrink: 0 } : undefined}
         data-testid="sd-quick-loan"
       >
         {sd.quickLoan}
@@ -370,17 +386,30 @@ export default function SecretaryDashboard() {
   );
 
   const renderKpi = (kpi: Kpi) => (
-    <Paper key={kpi.key} withBorder radius="md" p="md" shadow="xs" data-testid={`sd-kpi-${kpi.key}`}>
-      <Group justify="space-between" align="flex-start" wrap="nowrap">
+    <Paper
+      key={kpi.key}
+      withBorder
+      radius="md"
+      p={isMobile ? 'xs' : 'md'}
+      shadow="xs"
+      data-testid={`sd-kpi-${kpi.key}`}
+    >
+      <Group justify="space-between" align="flex-start" wrap="nowrap" gap={6}>
         <Stack gap={4} style={{ minWidth: 0 }}>
-          <Text fz="xl" fw={700} lh={1.1}>
+          <Text fz={isMobile ? 'lg' : 'xl'} fw={700} lh={1.1}>
             {kpi.value}
           </Text>
           <Text size="xs" c="dimmed" lineClamp={2}>
             {kpi.label}
           </Text>
         </Stack>
-        <ThemeIcon color={kpi.color} variant="light" radius="xl" size="lg">
+        <ThemeIcon
+          color={kpi.color}
+          variant="light"
+          radius="xl"
+          size={isMobile ? 'md' : 'lg'}
+          style={{ flexShrink: 0 }}
+        >
           {kpi.icon}
         </ThemeIcon>
       </Group>
@@ -553,9 +582,13 @@ export default function SecretaryDashboard() {
 
       {loading ? (
         <>
-          <SimpleGrid cols={{ base: 2, sm: 3, md: 4, lg: 6 }} spacing="md" mb="md">
+          <SimpleGrid
+            cols={{ base: 2, sm: 3, md: 4, lg: 6 }}
+            spacing={{ base: 'xs', md: 'md' }}
+            mb="md"
+          >
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} height={92} radius="md" />
+              <Skeleton key={i} height={isMobile ? 74 : 92} radius="md" />
             ))}
           </SimpleGrid>
           <Grid gap="md">
@@ -575,7 +608,7 @@ export default function SecretaryDashboard() {
         <>
           <SimpleGrid
             cols={{ base: 2, sm: 3, md: 4, lg: 6 }}
-            spacing="md"
+            spacing={{ base: 'xs', md: 'md' }}
             mb="md"
           >
             {kpis.map(renderKpi)}

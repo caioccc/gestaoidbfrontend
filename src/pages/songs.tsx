@@ -36,6 +36,7 @@ import {
   IconSearch,
   IconTable,
   IconTrash,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
@@ -43,12 +44,15 @@ import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import SongModal from '../components/SongModal';
 import BandModal from '../components/BandModal';
+import FilterDrawer from '../components/FilterDrawer';
+import MobileListToolbar from '../components/MobileListToolbar';
 import SongChordStatusBadge, { chordStatusMeta, isChordReady } from '../components/SongChordStatusBadge';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { formatDuration, formatMusicalKey } from '../utils/format';
 import galleryStyles from '../styles/songGallery.module.css';
+import { useIsCompactList } from '../hooks/useListBreakpoint';
 import type { Band, ChordStatus, Song } from '../types';
 
 type ViewMode = 'gallery' | 'list' | 'table';
@@ -633,6 +637,18 @@ export default function SongsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [bandsOpen, setBandsOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const isCompact = useIsCompactList();
+
+  const filterCount =
+    (bandFilter ? 1 : 0) + (keyFilter ? 1 : 0) + (ordering !== 'random' ? 1 : 0);
+
+  const resetFilters = () => {
+    setBandFilter(null);
+    setKeyFilter(null);
+    setOrdering('random');
+    setPage(1);
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearchTerm(q), 300);
@@ -748,24 +764,105 @@ export default function SongsPage() {
     void removeSong(song);
   };
 
+  const viewModeData = [
+    {
+      value: 'gallery',
+      label: (
+        <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
+          <IconLayoutGrid size={16} />
+          <span>{t.music.galleryView}</span>
+        </Center>
+      ),
+    },
+    {
+      value: 'list',
+      label: (
+        <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
+          <IconList size={16} />
+          <span>{t.music.cardsView}</span>
+        </Center>
+      ),
+    },
+    {
+      value: 'table',
+      label: (
+        <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
+          <IconTable size={16} />
+          <span>{t.music.tableView}</span>
+        </Center>
+      ),
+    },
+  ];
+
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
       <Layout>
         <PageHeader title={t.music.songsTitle} description={t.music.songsSubtitle}>
-          <Group gap="sm">
-            {canManageMusic ? (
-              <Button variant="light" onClick={() => setBandsOpen(true)} size="sm">
-                {t.music.bandManage}
-              </Button>
-            ) : null}
-            {canViewMusic ? (
-              <Button leftSection={<IconPlus size={18} />} onClick={openAdd} size="sm">
-                {t.music.addSong}
-              </Button>
-            ) : null}
-          </Group>
+          {isCompact ? (
+            <MobileListToolbar
+              searchValue={q}
+              onSearchChange={(value) => {
+                setQ(value);
+                setPage(1);
+              }}
+              searchPlaceholder={t.music.songSearchPlaceholder}
+              filtersLabel={t.common.filter}
+              onOpenFilters={() => setFiltersOpen(true)}
+              filterCount={filterCount}
+              primary={
+                canViewMusic ? (
+                  <Button
+                    size="sm"
+                    px="xs"
+                    leftSection={<IconPlus size={14} />}
+                    onClick={openAdd}
+                  >
+                    {t.music.addSong}
+                  </Button>
+                ) : null
+              }
+              menuChildren={
+                canManageMusic ? (
+                  <Menu.Item
+                    leftSection={<IconUsersGroup size={15} />}
+                    onClick={() => setBandsOpen(true)}
+                  >
+                    {t.music.bandManage}
+                  </Menu.Item>
+                ) : undefined
+              }
+              menuLabel={t.music.songsTitle}
+              testId="songs-toolbar"
+            />
+          ) : (
+            <Group gap="sm">
+              {canManageMusic ? (
+                <Button variant="light" onClick={() => setBandsOpen(true)} size="sm">
+                  {t.music.bandManage}
+                </Button>
+              ) : null}
+              {canViewMusic ? (
+                <Button leftSection={<IconPlus size={18} />} onClick={openAdd} size="sm">
+                  {t.music.addSong}
+                </Button>
+              ) : null}
+            </Group>
+          )}
         </PageHeader>
 
+        {isCompact ? (
+          <Box mb="md">
+            <SegmentedControl
+              aria-label={t.music.viewModeLabel}
+              value={viewMode}
+              onChange={changeViewMode}
+              data={viewModeData}
+              radius="md"
+              size="sm"
+              fullWidth
+            />
+          </Box>
+        ) : (
         <Group mb="md" gap="sm" justify="space-between" wrap="wrap">
           <Group gap="sm" wrap="wrap" style={{ flex: '1 1 680px' }}>
             <TextInput
@@ -833,40 +930,13 @@ export default function SongsPage() {
             aria-label={t.music.viewModeLabel}
             value={viewMode}
             onChange={changeViewMode}
-            data={[
-              {
-                value: 'gallery',
-                label: (
-                  <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
-                    <IconLayoutGrid size={16} />
-                    <span>{t.music.galleryView}</span>
-                  </Center>
-                ),
-              },
-              {
-                value: 'list',
-                label: (
-                  <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
-                    <IconList size={16} />
-                    <span>{t.music.cardsView}</span>
-                  </Center>
-                ),
-              },
-              {
-                value: 'table',
-                label: (
-                  <Center style={{ gap: 6, whiteSpace: 'nowrap' }}>
-                    <IconTable size={16} />
-                    <span>{t.music.tableView}</span>
-                  </Center>
-                ),
-              },
-            ]}
+            data={viewModeData}
             radius="md"
             size="sm"
             style={{ maxWidth: '100%' }}
           />
         </Group>
+        )}
 
         {loading ? (
           <Center py="xl"><Loader /></Center>
@@ -933,6 +1003,63 @@ export default function SongsPage() {
             )}
           </>
         )}
+
+        <FilterDrawer
+          opened={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={t.common.filter}
+          clearLabel={t.common.clearFilters}
+          clearDisabled={filterCount === 0}
+          onClear={resetFilters}
+          testId="songs-filters"
+        >
+          <Select
+            label={t.music.selectBand}
+            data={bands.map((band) => ({ value: String(band.id), label: band.name }))}
+            value={bandFilter}
+            onChange={(value) => {
+              setBandFilter(value);
+              setPage(1);
+            }}
+            clearable
+            searchable
+          />
+          <Select
+            label={t.music.churchKeyLabel}
+            data={MUSICAL_KEYS}
+            value={keyFilter}
+            onChange={(value) => {
+              setKeyFilter(value);
+              setPage(1);
+            }}
+            clearable
+          />
+          <Select
+            label={t.music.orderByLabel}
+            data={ORDERING_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t.music[option.translationKey],
+            }))}
+            value={ordering}
+            onChange={(value) => {
+              if (value) {
+                setOrdering(value);
+                setPage(1);
+              }
+            }}
+          />
+          <Select
+            label={t.music.perPageLabel}
+            data={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
+            value={String(pageSize)}
+            onChange={(value) => {
+              if (value) {
+                setPageSize(Number(value));
+                setPage(1);
+              }
+            }}
+          />
+        </FilterDrawer>
 
         <SongModal
           opened={modalOpen}

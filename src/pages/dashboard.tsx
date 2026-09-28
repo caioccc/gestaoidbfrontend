@@ -7,6 +7,7 @@ import AdminView from '../components/dashboard/AdminView';
 import PastorView from '../components/dashboard/PastorView';
 import TreasurerView from '../components/dashboard/TreasurerView';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
+import { useIsMobile } from '../hooks/useIsMobile';
 import { useLanguage } from '../i18n';
 
 const FIRST_YEAR = 2022;
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const { isAdmin, role } = useRoleHelpers(user);
+  const isMobile = useIsMobile();
 
   const [year, setYear] = useState<number>(() => new Date().getFullYear());
   const [hour, setHour] = useState<number | null>(null);
@@ -90,11 +92,13 @@ export default function DashboardPage() {
       >
         <Select
           data-testid="dashboard-year"
-          label={t.dashboard.yearLabel}
+          label={isMobile ? undefined : t.dashboard.yearLabel}
+          aria-label={t.dashboard.yearLabel}
           value={String(year)}
           onChange={(value) => value && setYear(Number(value))}
           data={years.map((item) => ({ value: String(item), label: String(item) }))}
-          w={130}
+          size={isMobile ? 'sm' : 'md'}
+          w={isMobile ? 96 : 130}
         />
       </PageHeader>
 
