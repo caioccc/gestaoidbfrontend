@@ -53,6 +53,7 @@ import {
   IconClockCheck,
   IconFileSpreadsheet,
   IconAdjustmentsHorizontal,
+  IconEye,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
@@ -100,6 +101,7 @@ function MembersTab({
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
   const [editing, setEditing] = useState<Member | null>(null);
+  const [viewing, setViewing] = useState<Member | null>(null);
   const [cardMember, setCardMember] = useState<Member | null>(null);
   const [shareMember, setShareMember] = useState<Member | null>(null);
   const [waMember, setWaMember] = useState<Member | null>(null);
@@ -465,6 +467,13 @@ function MembersTab({
   const memberMenuItems = (m: Member) => (
     <>
       <Menu.Item
+        leftSection={<IconEye size={14} />}
+        onClick={() => setViewing(m)}
+        data-testid={`member-view-profile-${m.id}`}
+      >
+        {t.membersPage.viewProfile}
+      </Menu.Item>
+      <Menu.Item
         leftSection={<IconId size={14} />}
         onClick={() => setCardMember(m)}
         data-testid={`member-card-${m.id}`}
@@ -522,8 +531,13 @@ function MembersTab({
   );
 
   const rows = members.map((m) => (
-    <Table.Tr key={m.id} data-testid={`member-row-${m.id}`}>
-      <Table.Td>
+    <Table.Tr
+      key={m.id}
+      data-testid={`member-row-${m.id}`}
+      onClick={() => setViewing(m)}
+      style={{ cursor: 'pointer' }}
+    >
+      <Table.Td onClick={(e) => e.stopPropagation()}>
         <Checkbox
           checked={selected.has(m.id)}
           onChange={() => toggle(m.id)}
@@ -564,7 +578,10 @@ function MembersTab({
               variant="subtle"
               color="green"
               size="sm"
-              onClick={() => setWaMember(m)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setWaMember(m);
+              }}
               data-testid={`member-wa-${m.id}`}
             >
               <IconBrandWhatsapp size={14} />
@@ -594,7 +611,7 @@ function MembersTab({
           {m.status === 'ACTIVE' ? t.membersPage.active : t.membersPage.inactive}
         </Badge>
       </Table.Td>
-      <Table.Td>
+      <Table.Td onClick={(e) => e.stopPropagation()}>
         <Menu shadow="md" width={200} position="bottom-end">
           <Menu.Target>
             <ActionIcon variant="subtle" data-testid={`member-menu-${m.id}`}>
@@ -1141,6 +1158,24 @@ function MembersTab({
         cardConfig={cardConfig}
         churchContact={churchContact}
         onSave={handleSave}
+      />
+
+      <MemberFormModal
+        opened={!!viewing}
+        onClose={() => setViewing(null)}
+        member={viewing}
+        areas={areas}
+        churchName={churchName}
+        cardConfig={cardConfig}
+        churchContact={churchContact}
+        viewOnly
+        onEdit={() => {
+          if (viewing) {
+            const target = viewing;
+            setViewing(null);
+            openEdit(target);
+          }
+        }}
       />
 
       <MemberCardModal

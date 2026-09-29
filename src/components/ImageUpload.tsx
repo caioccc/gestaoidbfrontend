@@ -32,6 +32,7 @@ export interface ImageUploadProps {
   imageAlt?: string;
   imageRadius?: 'xs' | 'sm' | 'md' | 'lg' | number;
   height?: number | string;
+  disabled?: boolean;
 }
 
 export default function ImageUpload({
@@ -42,6 +43,7 @@ export default function ImageUpload({
   imageAlt = 'pré-visualização',
   imageRadius = 'md',
   height = 160,
+  disabled = false,
 }: ImageUploadProps) {
   const { t } = useLanguage();
   const handleFile = async (files: File[]) => {
@@ -94,18 +96,24 @@ export default function ImageUpload({
             fit="cover"
             style={{ objectFit: 'cover' }}
           />
-          <ActionIcon
-            color="red"
-            variant="filled"
-            radius="xl"
-            size="sm"
-            style={{ position: 'absolute', top: 6, right: 6 }}
-            onClick={() => onChange?.(null)}
-            aria-label="remover-imagem"
-          >
-            <IconTrash size={14} />
-          </ActionIcon>
+          {!disabled && (
+            <ActionIcon
+              color="red"
+              variant="filled"
+              radius="xl"
+              size="sm"
+              style={{ position: 'absolute', top: 6, right: 6 }}
+              onClick={() => onChange?.(null)}
+              aria-label="remover-imagem"
+            >
+              <IconTrash size={14} />
+            </ActionIcon>
+          )}
         </Box>
+      ) : disabled ? (
+        <Text size="sm" c="dimmed" h={height} style={{ display: 'flex', alignItems: 'center' }}>
+          —
+        </Text>
       ) : (
         <Dropzone
           onDrop={handleFile}

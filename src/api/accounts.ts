@@ -197,6 +197,35 @@ export interface MemberListResponse {
   results: Member[];
 }
 
+export interface MemberSubmissionListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: MemberSubmission[];
+}
+
+export interface MemberSubmissionListParams {
+  status?: MemberSubmissionStatus;
+  page?: number;
+  page_size?: number;
+}
+
+export interface WorshipServiceListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: WorshipService[];
+}
+
+export interface WorshipServiceListParams {
+  start_date?: string;
+  end_date?: string;
+  service_type?: WorshipServiceType;
+  search?: string;
+  page?: number;
+  page_size?: number;
+}
+
 export const accountsApi = {
   login: (email: string, password: string): Promise<LoginResponse> =>
     apiClient.post('/api/accounts/login/', { email, password }).then((r) => r.data),
@@ -726,6 +755,11 @@ export const accountsApi = {
   }): Promise<WorshipService[]> =>
     apiClient.get('/api/accounts/cultos/', { params }).then((r) => r.data),
 
+  worshipServicesPage: (params?: WorshipServiceListParams): Promise<WorshipServiceListResponse> =>
+    apiClient
+      .get('/api/accounts/cultos/', { params: { ...params, paginate: '1' } })
+      .then((r) => r.data),
+
   createWorshipService: (payload: WorshipServicePayload): Promise<WorshipService> =>
     apiClient.post('/api/accounts/cultos/', payload).then((r) => r.data),
 
@@ -799,10 +833,12 @@ export const accountsApi = {
   churchMemberFormLinkRegenerate: (): Promise<{ hash: string; url: string }> =>
     apiClient.post('/api/accounts/members/form/public-link/').then((r) => r.data),
 
-  memberSubmissions: (status?: MemberSubmissionStatus): Promise<MemberSubmission[]> =>
+  memberSubmissions: (
+    params?: MemberSubmissionListParams,
+  ): Promise<MemberSubmissionListResponse> =>
     apiClient
       .get('/api/accounts/member-submissions/', {
-        params: status ? { status } : {},
+        params: { ...(params || {}), paginate: 1 },
       })
       .then((r) => r.data),
 

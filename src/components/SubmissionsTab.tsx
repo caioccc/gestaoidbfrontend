@@ -13,6 +13,7 @@ import {
   Menu,
   Modal,
   Paper,
+  Pagination,
   SegmentedControl,
   Stack,
   Table,
@@ -44,11 +45,15 @@ import type { MemberSubmission, MemberSubmissionStatus } from '../types';
 
 type Filter = MemberSubmissionStatus | 'ALL';
 
+const PAGE_SIZE = 25;
+
 export default function SubmissionsTab() {
   const { t } = useLanguage();
   const [items, setItems] = useState<MemberSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('ALL');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [viewing, setViewing] = useState<MemberSubmission | null>(null);
   const [reviewing, setReviewing] = useState<MemberSubmission | null>(null);
   const [bulkIds, setBulkIds] = useState<number[] | null>(null);
@@ -65,14 +70,25 @@ export default function SubmissionsTab() {
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .memberSubmissions(filter === 'ALL' ? undefined : filter)
-      .then((data) => {
-        setItems(data);
-        setSelected(new Set());
+      .memberSubmissions({
+        status: filter === 'ALL' ? undefined : filter,
+        page,
+        page_size: PAGE_SIZE,
       })
-      .catch(() => setItems([]))
+      .then((data) => {
+        setItems(data.results);
+        setTotal(data.count);
+        setSelected(new Set());
+        if (data.results.length === 0 && data.count > 0 && page > 1) {
+          setPage(page - 1);
+        }
+      })
+      .catch(() => {
+        setItems([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, page]);
 
   useEffect(() => {
     load();
@@ -345,7 +361,10 @@ export default function SubmissionsTab() {
       <Group gap="xs" mb="md">
         <SegmentedControl
           value={filter}
-          onChange={(v) => setFilter(v as Filter)}
+          onChange={(v) => {
+            setPage(1);
+            setFilter(v as Filter);
+          }}
           data={[
             { value: 'ALL', label: t.memberSubmissions.all },
             { value: 'PENDING', label: t.memberSubmissions.pending },
@@ -487,6 +506,21 @@ export default function SubmissionsTab() {
           </>
         )}
       </Card>
+
+      {total > PAGE_SIZE && (
+        <Group justify="center" py="sm">
+          <Pagination
+            value={page}
+            onChange={(p) => {
+              setPage(p);
+              setSelected(new Set());
+            }}
+            total={Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            size="sm"
+            data-testid="submissions-pagination"
+          />
+        </Group>
+      )}
 
       <SubmissionsDataModal
         opened={!!viewing}

@@ -19,7 +19,7 @@ import {
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
@@ -123,7 +123,9 @@ interface MemberFormModalProps {
   churchName: string;
   cardConfig?: CardConfig;
   churchContact?: ChurchContact;
-  onSave: (
+  viewOnly?: boolean;
+  onEdit?: () => void;
+  onSave?: (
     payload: Record<string, unknown>,
     isEdit: boolean
   ) => Promise<Member>;
@@ -137,6 +139,8 @@ export default function MemberFormModal({
   churchName,
   cardConfig,
   churchContact,
+  viewOnly = false,
+  onEdit,
   onSave,
 }: MemberFormModalProps) {
   const { t, locale } = useLanguage();
@@ -390,7 +394,7 @@ export default function MemberFormModal({
       payload.photo = form.values.photo ?? '';
     }
     try {
-      await onSave(payload, !!member);
+      await onSave?.(payload, !!member);
       notifications.show({ color: 'green', message: t.membersPage.saved });
       form.resetDirty();
       setStep(0);
@@ -474,14 +478,20 @@ export default function MemberFormModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={member ? t.membersPage.editMember : t.membersPage.addMember}
+      title={
+        viewOnly
+          ? t.membersPage.viewProfile
+          : member
+            ? t.membersPage.editMember
+            : t.membersPage.addMember
+      }
       centered
       size="xl"
     >
         <Stepper
           active={step}
           onStepClick={(s) => setStep(s)}
-          allowNextStepsSelect={false}
+          allowNextStepsSelect={viewOnly}
           color="teal"
           size="sm"
         >
@@ -494,6 +504,7 @@ export default function MemberFormModal({
                       label={t.membersPage.photo}
                       placeholder={t.membersPage.photoHint}
                       value={form.values.photo}
+                      disabled={viewOnly}
                       onChange={(dataUrl) =>
                         form.setFieldValue('photo', dataUrl)
                       }
@@ -504,6 +515,7 @@ export default function MemberFormModal({
                       <TextInput
                         label={t.membersPage.name}
                         required
+                        readOnly={viewOnly}
                         data-testid="member-name"
                         {...form.getInputProps('name')}
                       />
@@ -513,6 +525,7 @@ export default function MemberFormModal({
                           data-testid="member-phone"
                           placeholder="(00) 00000-0000"
                           mask="(00) 00000-0000"
+                          readOnly={viewOnly}
                           value={form.values.phone}
                           error={form.errors.phone}
                           onAccept={(value: string) =>
@@ -521,6 +534,7 @@ export default function MemberFormModal({
                         />
                         <TextInput
                           label={t.membersPage.email}
+                          readOnly={viewOnly}
                           data-testid="member-email"
                           {...form.getInputProps('email')}
                         />
@@ -532,6 +546,7 @@ export default function MemberFormModal({
                           placeholder="000.000.000-00"
                           maxLength={14}
                           mask="000.000.000-00"
+                          readOnly={viewOnly}
                           value={form.values.cpf}
                           error={form.errors.cpf}
                           onAccept={(value: string) =>
@@ -540,6 +555,7 @@ export default function MemberFormModal({
                         />
                         <TextInput
                           label={t.membersPage.rg}
+                          readOnly={viewOnly}
                           data-testid="member-rg"
                           {...form.getInputProps('rg')}
                         />
@@ -551,6 +567,7 @@ export default function MemberFormModal({
                           locale={locale}
                           valueFormat="DD/MM/YYYY"
                           clearable
+                          readOnly={viewOnly}
                           maxDate={new Date()}
                           value={form.values.birth_date}
                           onChange={(value) =>
@@ -560,6 +577,7 @@ export default function MemberFormModal({
                         />
                         <TextInput
                           label={t.membersPage.bornInCity}
+                          readOnly={viewOnly}
                           data-testid="member-born-city"
                           {...form.getInputProps('born_in_city')}
                         />
@@ -568,11 +586,13 @@ export default function MemberFormModal({
                         <TextInput
                           label={t.membersPage.bornInState}
                           maxLength={2}
+                          readOnly={viewOnly}
                           data-testid="member-born-state"
                           {...form.getInputProps('born_in_state')}
                         />
                         <TextInput
                           label={t.membersPage.profession}
+                          readOnly={viewOnly}
                           data-testid="member-profession"
                           {...form.getInputProps('profession')}
                         />
@@ -581,6 +601,7 @@ export default function MemberFormModal({
                         label={t.membersPage.educationLevel}
                         placeholder={t.membersPage.educationLevel}
                         clearable
+                        disabled={viewOnly}
                         data={educationOptions}
                         data-testid="member-education"
                         {...form.getInputProps('education_level')}
@@ -601,6 +622,7 @@ export default function MemberFormModal({
                       placeholder="00000-000"
                       mask="00000-000"
                       maxLength={9}
+                      readOnly={viewOnly}
                       value={form.values.cep}
                       rightSection={cepLoading ? <Loader size="xs" /> : null}
                       error={form.errors.cep}
@@ -613,6 +635,7 @@ export default function MemberFormModal({
                   <Grid.Col span={{ base: 12, sm: 8 }}>
                     <TextInput
                       label={t.membersPage.addressStreet}
+                      readOnly={viewOnly}
                       data-testid="member-street"
                       {...form.getInputProps('street')}
                     />
@@ -620,6 +643,7 @@ export default function MemberFormModal({
                   <Grid.Col span={{ base: 12, sm: 4 }}>
                     <TextInput
                       label={t.membersPage.addressNumber}
+                      readOnly={viewOnly}
                       data-testid="member-number"
                       {...form.getInputProps('number')}
                     />
@@ -627,6 +651,7 @@ export default function MemberFormModal({
                   <Grid.Col span={12}>
                     <TextInput
                       label={t.membersPage.addressComplement}
+                      readOnly={viewOnly}
                       data-testid="member-complement"
                       {...form.getInputProps('complement')}
                     />
@@ -634,6 +659,7 @@ export default function MemberFormModal({
                   <Grid.Col span={{ base: 12, sm: 8 }}>
                     <TextInput
                       label={t.membersPage.addressNeighborhood}
+                      readOnly={viewOnly}
                       data-testid="member-neighborhood"
                       {...form.getInputProps('neighborhood')}
                     />
@@ -641,6 +667,7 @@ export default function MemberFormModal({
                   <Grid.Col span={{ base: 12, sm: 8 }}>
                     <TextInput
                       label={t.membersPage.addressCity}
+                      readOnly={viewOnly}
                       data-testid="member-city"
                       {...form.getInputProps('city')}
                     />
@@ -649,6 +676,7 @@ export default function MemberFormModal({
                     <TextInput
                       label={t.membersPage.addressState}
                       maxLength={2}
+                      readOnly={viewOnly}
                       data-testid="member-state"
                       {...form.getInputProps('state')}
                     />
@@ -666,6 +694,7 @@ export default function MemberFormModal({
                     label={t.membersPage.churchEntry}
                     placeholder={t.membersPage.churchEntryPlaceholder}
                     clearable
+                    disabled={viewOnly}
                     data={churchEntryOptions}
                     data-testid="member-church-entry"
                     {...form.getInputProps('church_entry')}
@@ -676,6 +705,7 @@ export default function MemberFormModal({
                     locale={locale}
                     valueFormat="DD/MM/YYYY"
                     clearable
+                    readOnly={viewOnly}
                     value={form.values.baptism_date}
                     onChange={(value) =>
                       form.setFieldValue('baptism_date', toDateValue(value))
@@ -687,6 +717,7 @@ export default function MemberFormModal({
                   <TextInput
                     label={t.membersPage.churchEntryOther}
                     placeholder={t.membersPage.churchEntryOtherPlaceholder}
+                    readOnly={viewOnly}
                     data-testid="member-church-entry-other"
                     {...form.getInputProps('church_entry_other')}
                   />
@@ -694,6 +725,7 @@ export default function MemberFormModal({
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <Select
                     label={t.membersPage.status}
+                    disabled={viewOnly}
                     data={[
                       { value: 'ACTIVE', label: t.membersPage.active },
                       { value: 'INACTIVE', label: t.membersPage.inactive },
@@ -707,12 +739,14 @@ export default function MemberFormModal({
                   placeholder={t.membersPage.ministryAreas}
                   data={areaOptions}
                   clearable
+                  disabled={viewOnly}
                   data-testid="member-ministry-areas"
                   {...form.getInputProps('ministry_areas')}
                 />
                 <Textarea
                   label={t.membersPage.notes}
                   minRows={2}
+                  readOnly={viewOnly}
                   data-testid="member-notes"
                   {...form.getInputProps('notes')}
                 />
@@ -728,6 +762,7 @@ export default function MemberFormModal({
                     label={t.membersPage.maritalStatus}
                     placeholder={t.membersPage.maritalStatusPlaceholder}
                     clearable
+                    disabled={viewOnly}
                     data={maritalOptions}
                     data-testid="member-marital-status"
                     {...form.getInputProps('marital_status')}
@@ -738,6 +773,7 @@ export default function MemberFormModal({
                     locale={locale}
                     valueFormat="DD/MM/YYYY"
                     clearable
+                    readOnly={viewOnly}
                     value={form.values.marriage_date}
                     onChange={(value) =>
                       form.setFieldValue('marriage_date', toDateValue(value))
@@ -748,11 +784,13 @@ export default function MemberFormModal({
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <TextInput
                     label={t.membersPage.fatherName}
+                    readOnly={viewOnly}
                     data-testid="member-father"
                     {...form.getInputProps('father_name')}
                   />
                   <TextInput
                     label={t.membersPage.motherName}
+                    readOnly={viewOnly}
                     data-testid="member-mother"
                     {...form.getInputProps('mother_name')}
                   />
@@ -762,15 +800,17 @@ export default function MemberFormModal({
                     <Text fw={600} size="sm">
                       {t.membersPage.relatives}
                     </Text>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      leftSection={<IconPlus size={14} />}
-                      onClick={addRelative}
-                      data-testid="member-add-relative"
-                    >
-                      {t.membersPage.addRelative}
-                    </Button>
+                    {!viewOnly && (
+                      <Button
+                        size="xs"
+                        variant="light"
+                        leftSection={<IconPlus size={14} />}
+                        onClick={addRelative}
+                        data-testid="member-add-relative"
+                      >
+                        {t.membersPage.addRelative}
+                      </Button>
+                    )}
                   </Group>
                   {form.values.relatives.map((r, i) => (
                     <Group
@@ -783,6 +823,7 @@ export default function MemberFormModal({
                       <TextInput
                         label={t.membersPage.relativeName}
                         style={{ flex: 2 }}
+                        readOnly={viewOnly}
                         error={form.errors[`relatives.${i}.name`]}
                         value={r.name}
                         onChange={(e) =>
@@ -793,6 +834,7 @@ export default function MemberFormModal({
                         label={t.membersPage.relativeKinship}
                         placeholder={t.membersPage.relativeKinship}
                         style={{ flex: 1.4 }}
+                        disabled={viewOnly}
                         data={kinshipOptions}
                         error={form.errors[`relatives.${i}.kinship`]}
                         value={r.kinship}
@@ -809,6 +851,7 @@ export default function MemberFormModal({
                         locale={locale}
                         valueFormat="DD/MM/YYYY"
                         clearable
+                        readOnly={viewOnly}
                         value={r.birth_date}
                         onChange={(value) =>
                           form.setFieldValue(
@@ -821,19 +864,22 @@ export default function MemberFormModal({
                         label={t.membersPage.phone}
                         style={{ flex: 1.4 }}
                         mask="(00) 00000-0000"
+                        readOnly={viewOnly}
                         value={r.phone}
                         onAccept={(value: string) =>
                           form.setFieldValue(`relatives.${i}.phone`, value)
                         }
                       />
-                      <ActionIcon
-                        color="red"
-                        variant="light"
-                        onClick={() => removeRelative(i)}
-                        data-testid={`member-remove-relative-${i}`}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
+                      {!viewOnly && (
+                        <ActionIcon
+                          color="red"
+                          variant="light"
+                          onClick={() => removeRelative(i)}
+                          data-testid={`member-remove-relative-${i}`}
+                        >
+                          <IconTrash size={16} />
+                        </ActionIcon>
+                      )}
                     </Group>
                   ))}
                 </Stack>
@@ -856,32 +902,47 @@ export default function MemberFormModal({
           </Stepper.Step>
         </Stepper>
 
-        <Group justify="space-between" mt="lg">
-          <Button
-            variant="default"
-            onClick={back}
-            disabled={step === 0}
-            data-testid="member-stepper-back"
-          >
-            {t.membersPage.back}
-          </Button>
-          {step < 3 ? (
-            <Button
-              onClick={next}
-              data-testid="member-stepper-next"
-            >
-              {t.membersPage.next}
+        {viewOnly ? (
+          <Group justify="flex-end" mt="lg">
+            {onEdit && (
+              <Button
+                variant="default"
+                leftSection={<IconPencil size={16} />}
+                onClick={onEdit}
+                data-testid="member-view-edit"
+              >
+                {t.common.edit}
+              </Button>
+            )}
+            <Button onClick={onClose} data-testid="member-view-close">
+              {t.common.close}
             </Button>
-          ) : (
+          </Group>
+        ) : (
+          <Group justify="space-between" mt="lg">
             <Button
-              loading={saving}
-              onClick={handleFinish}
-              data-testid="member-submit"
+              variant="default"
+              onClick={back}
+              disabled={step === 0}
+              data-testid="member-stepper-back"
             >
-              {t.membersPage.finish}
+              {t.membersPage.back}
             </Button>
-          )}
-        </Group>
+            {step < 3 ? (
+              <Button onClick={next} data-testid="member-stepper-next">
+                {t.membersPage.next}
+              </Button>
+            ) : (
+              <Button
+                loading={saving}
+                onClick={handleFinish}
+                data-testid="member-submit"
+              >
+                {t.membersPage.finish}
+              </Button>
+            )}
+          </Group>
+        )}
       </Modal>
   );
 }

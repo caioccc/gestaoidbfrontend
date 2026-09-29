@@ -38,8 +38,10 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import MemberFormModal from '../components/MemberFormModal';
 import SendWhatsAppModal from '../components/SendWhatsAppModal';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
+import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MinistryArea } from '../types';
@@ -217,7 +219,17 @@ function CompositionTab({ members, t }: { members: Member[]; t: any }) {
   );
 }
 
-function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryArea[]; t: any }) {
+function AreasTab({
+  members,
+  areas,
+  t,
+  onOpen,
+}: {
+  members: Member[];
+  areas: MinistryArea[];
+  t: any;
+  onOpen: (m: Member) => void;
+}) {
   const grouped = areas.map((area) => ({
     area,
     list: members.filter((m) =>
@@ -282,7 +294,11 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
                 </Table.Thead>
                 <Table.Tbody>
                   {list.map((m) => (
-                    <Table.Tr key={m.id}>
+                    <Table.Tr
+                      key={m.id}
+                      onClick={() => onOpen(m)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <Table.Td>
                         <Group gap="sm" wrap="nowrap">
                           <Text fw={500} truncate maw={260}>
@@ -314,6 +330,7 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
                 <MobileItemCard
                   key={m.id}
                   testId={`member-area-mobile-${m.id}`}
+                  onClick={() => onOpen(m)}
                   media={
                     <Avatar
                       src={m.photo || null}
@@ -356,7 +373,17 @@ function AreasTab({ members, areas, t }: { members: Member[]; areas: MinistryAre
   );
 }
 
-function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExport: () => void }) {
+function ListingTab({
+  members,
+  t,
+  onExport,
+  onOpen,
+}: {
+  members: Member[];
+  t: any;
+  onExport: () => void;
+  onOpen: (m: Member) => void;
+}) {
   const active = members.filter((m) => m.status === 'ACTIVE').length;
   const inactive = members.length - active;
   return (
@@ -421,7 +448,11 @@ function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExp
                   </Table.Thead>
                   <Table.Tbody>
                     {members.map((m) => (
-                      <Table.Tr key={m.id}>
+                      <Table.Tr
+                        key={m.id}
+                        onClick={() => onOpen(m)}
+                        style={{ cursor: 'pointer' }}
+                      >
                         <Table.Td>
                           <Group gap="sm" wrap="nowrap">
                             <Avatar size="sm" radius="xl" color="blue">
@@ -492,6 +523,7 @@ function ListingTab({ members, t, onExport }: { members: Member[]; t: any; onExp
               <MobileItemCard
                 key={m.id}
                 testId={`member-listing-mobile-${m.id}`}
+                onClick={() => onOpen(m)}
                 media={
                   <Avatar
                     src={m.photo || null}
@@ -564,10 +596,12 @@ function BirthdaysTab({
   members,
   t,
   locale,
+  onOpen,
 }: {
   members: Member[];
   t: any;
   locale: string;
+  onOpen: (m: Member) => void;
 }) {
   const { church } = useCurrentChurch();
   const [month, setMonth] = useState<string | null>(
@@ -698,7 +732,11 @@ function BirthdaysTab({
                     {list.map((m) => {
                       const age = exactAge(m.birth_date);
                       return (
-                        <Table.Tr key={m.id}>
+                        <Table.Tr
+                          key={m.id}
+                          onClick={() => onOpen(m)}
+                          style={{ cursor: 'pointer' }}
+                        >
                           <Table.Td>
                             <ThemeIcon color="pink" radius="md" size="lg" variant="light">
                               <Text fw={700} size="sm">
@@ -740,7 +778,10 @@ function BirthdaysTab({
                                   color="teal"
                                   size="md"
                                   radius="md"
-                                  onClick={() => setWaMember(m)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setWaMember(m);
+                                  }}
                                   data-testid={`birthday-wa-${m.id}`}
                                 >
                                   <IconBrandWhatsapp size={16} />
@@ -762,6 +803,7 @@ function BirthdaysTab({
                 <MobileItemCard
                   key={m.id}
                   testId={`member-birthday-mobile-${m.id}`}
+                  onClick={() => onOpen(m)}
                   media={
                     <Avatar
                       src={m.photo || null}
@@ -810,7 +852,10 @@ function BirthdaysTab({
                       size="sm"
                       radius="md"
                       mt={2}
-                      onClick={() => setWaMember(m)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setWaMember(m);
+                      }}
                       data-testid={`birthday-wa-mobile-${m.id}`}
                     >
                       <IconBrandWhatsapp size={14} />
@@ -840,10 +885,13 @@ const VALID_REPORT_TABS = ['composition', 'areas', 'listing', 'birthdays'];
 export default function MembersReportsPage() {
   const { t, locale } = useLanguage();
   const router = useRouter();
+  const { church } = useCurrentChurch();
+  const { config: cardConfig, contact: churchContact } = useChurchCardConfig();
   const [tab, setTab] = useState<string | null>('composition');
   const [members, setMembers] = useState<Member[]>([]);
   const [areas, setAreas] = useState<MinistryArea[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewing, setViewing] = useState<Member | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -991,16 +1039,37 @@ export default function MembersReportsPage() {
               <CompositionTab members={members} t={t} />
             )}
             {tab === 'areas' && (
-              <AreasTab members={members} areas={areas} t={t} />
+              <AreasTab members={members} areas={areas} t={t} onOpen={setViewing} />
             )}
             {tab === 'listing' && (
-              <ListingTab members={members} t={t} onExport={exportCsv} />
+              <ListingTab
+                members={members}
+                t={t}
+                onExport={exportCsv}
+                onOpen={setViewing}
+              />
             )}
             {tab === 'birthdays' && (
-              <BirthdaysTab members={members} t={t} locale={locale} />
+              <BirthdaysTab
+                members={members}
+                t={t}
+                locale={locale}
+                onOpen={setViewing}
+              />
             )}
           </>
         )}
+
+        <MemberFormModal
+          opened={!!viewing}
+          onClose={() => setViewing(null)}
+          member={viewing}
+          areas={areas}
+          churchName={church?.name || ''}
+          cardConfig={cardConfig}
+          churchContact={churchContact}
+          viewOnly
+        />
       </Layout>
     </AuthGuard>
   );

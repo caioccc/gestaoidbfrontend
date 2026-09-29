@@ -7,6 +7,7 @@ interface MobileItemCardProps {
   children: React.ReactNode;
   actions?: React.ReactNode;
   primaryAction?: React.ReactNode;
+  onClick?: () => void;
   testId?: string;
 }
 
@@ -15,10 +16,18 @@ export default function MobileItemCard({
   children,
   actions,
   primaryAction,
+  onClick,
   testId,
 }: MobileItemCardProps) {
   return (
-    <Paper p="sm" radius="md" withBorder data-testid={testId}>
+    <Paper
+      p="sm"
+      radius="md"
+      withBorder
+      data-testid={testId}
+      onClick={onClick}
+      style={onClick ? { cursor: 'pointer' } : undefined}
+    >
       <Group align="center" gap="sm" wrap="nowrap">
         <Box style={{ flexShrink: 0 }}>{media}</Box>
         <Box style={{ flex: 1, minWidth: 0 }}>
@@ -28,7 +37,13 @@ export default function MobileItemCard({
         {actions ? (
           <Menu shadow="md" position="bottom-end">
             <Menu.Target>
-              <ActionIcon color="gray" size="lg" variant="subtle" aria-label="Ações">
+              <ActionIcon
+                color="gray"
+                size="lg"
+                variant="subtle"
+                aria-label="Ações"
+                onClick={onClick ? (e) => e.stopPropagation() : undefined}
+              >
                 <IconDotsVertical size={18} />
               </ActionIcon>
             </Menu.Target>

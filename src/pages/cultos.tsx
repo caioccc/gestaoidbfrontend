@@ -35,7 +35,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
-import { ListPagination, useListPagination } from '../components/ListPagination';
+import { ListPagination, PAGE_SIZE_OPTIONS } from '../components/ListPagination';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -79,7 +79,9 @@ export default function CultosPage() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<WorshipService | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const pagination = useListPagination(services);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
+  const [total, setTotal] = useState(0);
   const [fSearch, setFSearch] = useState('');
   const [fRange, setFRange] = useState<[string | null, string | null]>([null, null]);
   const [fType, setFType] = useState<string | null>(null);
@@ -92,24 +94,42 @@ export default function CultosPage() {
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .worshipServices({
+      .worshipServicesPage({
         ...(fRange[0] ? { start_date: fRange[0] } : {}),
         ...(fRange[1] ? { end_date: fRange[1] } : {}),
         ...(fType ? { service_type: fType as WorshipServiceType } : {}),
         ...(fSearch.trim() ? { search: fSearch.trim() } : {}),
+        page,
+        page_size: pageSize,
       })
-      .then((items) => setServices(items))
-      .catch(() => setServices([]))
+      .then((data) => {
+        setServices(data.results);
+        setTotal(data.count);
+      })
+      .catch(() => {
+        setServices([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, [fRange, fType, fSearch]);
+  }, [fRange, fType, fSearch, page, pageSize]);
 
   useEffect(() => {
     const handle = window.setTimeout(load, 300);
     return () => window.clearTimeout(handle);
   }, [load]);
 
+  // Se um filtro/delete reduzir o total, recua para a última página válida.
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [page, pageSize, total]);
+
   const hasFilters = fSearch.trim() !== '' || !!fRange[0] || !!fRange[1] || !!fType;
   const activeFilterCount = [fSearch.trim(), fRange[0] || fRange[1], fType].filter(Boolean).length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const rangeStart = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const rangeEnd = Math.min(total, safePage * pageSize);
 
   const openFilters = () => {
     setDSearch(fSearch);
@@ -122,7 +142,7 @@ export default function CultosPage() {
     setFSearch(dSearch);
     setFRange(dRange);
     setFType(dType);
-    pagination.reset();
+    setPage(1);
     setFilterOpen(false);
   };
 
@@ -130,7 +150,7 @@ export default function CultosPage() {
     setFSearch('');
     setFRange([null, null]);
     setFType(null);
-    pagination.reset();
+    setPage(1);
   };
 
   const clearDraft = () => {
@@ -328,11 +348,11 @@ export default function CultosPage() {
           <Group gap="xs" mb="sm" wrap="wrap">
             <Text size="xs" c="dimmed">
               {t.common.showingRange
-                .replace('{start}', String(pagination.rangeStart))
-                .replace('{end}', String(pagination.rangeEnd))
-                .replace('{total}', String(pagination.total))
-                .replace('{page}', String(pagination.page))
-                .replace('{totalPages}', String(pagination.totalPages))}
+                .replace('{start}', String(rangeStart))
+                .replace('{end}', String(rangeEnd))
+                .replace('{total}', String(total))
+                .replace('{page}', String(safePage))
+                .replace('{totalPages}', String(totalPages))}
             </Text>
             <Button
               variant="subtle"
@@ -385,7 +405,7 @@ export default function CultosPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {pagination.pageItems.map((s) => (
+                  {services.map((s) => (
                     <Table.Tr key={s.id}>
                       <Table.Td>
                         <Group gap="xs" wrap="nowrap">
@@ -441,7 +461,7 @@ export default function CultosPage() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {pagination.pageItems.map((s) => (
+              {services.map((s) => (
                 <MobileItemCard
                   key={s.id}
                   testId={`culto-mobile-${s.id}`}
@@ -488,14 +508,17 @@ export default function CultosPage() {
         )}
 
         <ListPagination
-          page={pagination.page}
-          onPageChange={pagination.setPage}
-          pageSize={pagination.pageSize}
-          onPageSizeChange={pagination.changePageSize}
-          total={pagination.total}
-          totalPages={pagination.totalPages}
-          rangeStart={pagination.rangeStart}
-          rangeEnd={pagination.rangeEnd}
+          page={safePage}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          total={total}
+          totalPages={totalPages}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
           testId="cultos-pagination"
         />
 

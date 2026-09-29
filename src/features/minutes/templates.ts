@@ -58,7 +58,7 @@ export const TEMPLATES: MinutesTemplate[] = [
     },
     body: {
       'pt-br': [
-        'Aos {{DIA}} dias do mês de {{MES_EXTENSO}} do ano de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, situada à {{ENDERECO_IGREJA}}, reuniu-se em Assembleia Geral Ordinária a membresia sob a presidência do(a) {{PRESIDENTE}}, tendo como secretário(a) ad-hoc o(a) {{REDATOR}}.',
+        'No dia {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, situada à {{ENDERECO_IGREJA}}, reuniu-se em Assembleia Geral Ordinária a membresia sob a presidência do(a) {{PRESIDENTE}}, tendo como secretário(a) ad-hoc o(a) {{REDATOR}}.',
         '',
         '1. DA ABERTURA E ORAÇÃO INICIAL:',
         'O Presidente declarou aberta a presente assembleia com a leitura da Palavra de Deus em [Texto Bíblico] e oração de louvor e gratidão.',
@@ -87,7 +87,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         'Secretário(a)',
       ].join('\n'),
       en: [
-        'On {{DATA_FORMATADA}} at {{HORA}}, at the premises of {{NOME_IGREJA}}, located at {{ENDERECO_IGREJA}}, the membership gathered in Ordinary General Meeting under the chairmanship of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
+        'On {{DIA}} of {{MES_EXTENSO}} of {{ANO}}, at {{HORA}}, at the premises of {{NOME_IGREJA}}, located at {{ENDERECO_IGREJA}}, the membership gathered in Ordinary General Meeting under the chairmanship of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
         '',
         '1. OPENING AND INITIAL PRAYER:',
         'The Chairman declared the meeting open with the reading of the Word of God from [Bible Passage] and a prayer of praise and thanksgiving.',
@@ -116,7 +116,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         'Secretary',
       ].join('\n'),
       es: [
-        'A los {{DIA}} días del mes de {{MES_EXTENSO}} del año de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, situada en {{ENDERECO_IGREJA}}, se reunió en Asamblea General Ordinaria la membresía bajo la presidencia de {{PRESIDENTE}}, teniendo como secretario(a) ad-hoc a {{REDATOR}}.',
+        'El día {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, situada en {{ENDERECO_IGREJA}}, se reunió en Asamblea General Ordinaria la membresía bajo la presidencia de {{PRESIDENTE}}, teniendo como secretario(a) ad-hoc a {{REDATOR}}.',
         '',
         '1. DE LA APERTURA Y ORACIÓN INICIAL:',
         'El Presidente declaró abierta la presente asamblea con la lectura de la Palabra de Dios en [Texto Bíblico] y oración de alabanza y gratitud.',
@@ -166,7 +166,7 @@ export const TEMPLATES: MinutesTemplate[] = [
     },
     body: {
       'pt-br': [
-        'Aos {{DIA}} dias do mês de {{MES_EXTENSO}} do ano de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, situada à {{ENDERECO_IGREJA}}, reuniu-se em Assembleia Geral Extraordinária a membresia, convocada especialmente para tratar do(s) seguinte(s) assunto(s), sob a presidência do(a) {{PRESIDENTE}} e com a secretaria do(a) {{REDATOR}}.',
+        'No dia {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, situada à {{ENDERECO_IGREJA}}, reuniu-se em Assembleia Geral Extraordinária a membresia, convocada especialmente para tratar do(s) seguinte(s) assunto(s), sob a presidência do(a) {{PRESIDENTE}} e com a secretaria do(a) {{REDATOR}}.',
         '',
         '1. DA CONVOCAÇÃO:',
         'A presente assembleia foi convocada nos termos do [Estatuto / Edital de Convocação], tendo por objeto: [Ex.: Eleição da diretoria; Reforma de estatuto; Decisões patrimoniais].',
@@ -193,7 +193,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         'Secretário(a)',
       ].join('\n'),
       en: [
-        'On {{DATA_FORMATADA}} at {{HORA}}, at the premises of {{NOME_IGREJA}}, located at {{ENDERECO_IGREJA}}, the membership gathered in Extraordinary General Meeting, specially convened to deal with the following matters, under the chairmanship of {{PRESIDENTE}} and with {{REDATOR}} acting as secretary.',
+        'On {{DIA}} of {{MES_EXTENSO}} of {{ANO}}, at {{HORA}}, at the premises of {{NOME_IGREJA}}, located at {{ENDERECO_IGREJA}}, the membership gathered in Extraordinary General Meeting, specially convened to deal with the following matters, under the chairmanship of {{PRESIDENTE}} and with {{REDATOR}} acting as secretary.',
         '',
         '1. CONVENING:',
         'This meeting was convened under the terms of the [Bylaws / Notice of Meeting], with the purpose of: [e.g., Election of the board; Statutory amendment; Property decisions].',
@@ -220,7 +220,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         'Secretary',
       ].join('\n'),
       es: [
-        'A los {{DIA}} días del mes de {{MES_EXTENSO}} del año de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, situada en {{ENDERECO_IGREJA}}, se reunió en Asamblea General Extraordinaria la membresía, convocada especialmente para tratar el(los) siguiente(s) asunto(s), bajo la presidencia de {{PRESIDENTE}} y con la secretaría de {{REDATOR}}.',
+        'El día {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, situada en {{ENDERECO_IGREJA}}, se reunió en Asamblea General Extraordinaria la membresía, convocada especialmente para tratar el(los) siguiente(s) asunto(s), bajo la presidencia de {{PRESIDENTE}} y con la secretaría de {{REDATOR}}.',
         '',
         '1. DE LA CONVOCATORIA:',
         'La presente asamblea fue convocada según los términos del [Estatuto / Edicto de Convocatoria], teniendo por objeto: [Ej.: Elección de la directiva; Reforma de estatutos; Decisiones patrimoniales].',
@@ -268,7 +268,7 @@ export const TEMPLATES: MinutesTemplate[] = [
     },
     body: {
       'pt-br': [
-        'Aos {{DIA}} dias do mês de {{MES_EXTENSO}} do ano de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se a Diretoria no exercício de suas atribuições, sob a coordenação do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}.',
+        'No dia {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se a Diretoria no exercício de suas atribuições, sob a coordenação do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}.',
         '',
         '1. DA ABERTURA E ORAÇÃO INICIAL:',
         'A reunião foi aberta com leitura bíblica em [Texto Bíblico] e oração inicial por [Nome].',
@@ -296,7 +296,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY['pt-br']}`,
       ].join('\n'),
       en: [
-        'On {{DATA_FORMATADA}} at {{HORA}}, at the premises of {{NOME_IGREJA}}, the Board met in the exercise of its duties, under the coordination of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
+        'On {{DIA}} of {{MES_EXTENSO}} of {{ANO}}, at {{HORA}}, at the premises of {{NOME_IGREJA}}, the Board met in the exercise of its duties, under the coordination of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
         '',
         '1. OPENING AND INITIAL PRAYER:',
         'The meeting opened with the reading of the Word of God from [Bible Passage] and an opening prayer by [Name].',
@@ -324,7 +324,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY.en}`,
       ].join('\n'),
       es: [
-        'A los {{DIA}} días del mes de {{MES_EXTENSO}} del año de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió la Directiva en ejercicio de sus atribuciones, bajo la coordinación de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}.',
+        'El día {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió la Directiva en ejercicio de sus atribuciones, bajo la coordinación de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}.',
         '',
         '1. DE LA APERTURA Y ORACIÓN INICIAL:',
         'La reunión fue abierta con la lectura bíblica en [Texto Bíblico] y oración inicial a cargo de [Nombre].',
@@ -373,7 +373,7 @@ export const TEMPLATES: MinutesTemplate[] = [
     },
     body: {
       'pt-br': [
-        'Aos {{DIA}} dias do mês de {{MES_EXTENSO}} do ano de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se o Conselho Fiscal, sob a presidência do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}, para o exame das contas e da prestação de responsabilidade da tesouraria.',
+        'No dia {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se o Conselho Fiscal, sob a presidência do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}, para o exame das contas e da prestação de responsabilidade da tesouraria.',
         '',
         '1. DA ABERTURA E ORAÇÃO INICIAL:',
         'A reunião foi aberta com oração inicial por [Nome] e declaração dos trabalhos pelo(a) Presidente.',
@@ -398,7 +398,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY['pt-br']}`,
       ].join('\n'),
       en: [
-        'On {{DATA_FORMATADA}} at {{HORA}}, at the premises of {{NOME_IGREJA}}, the Fiscal Council met under the chairmanship of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary, to examine the accounts and the accountability of the treasury.',
+        'On {{DIA}} of {{MES_EXTENSO}} of {{ANO}}, at {{HORA}}, at the premises of {{NOME_IGREJA}}, the Fiscal Council met under the chairmanship of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary, to examine the accounts and the accountability of the treasury.',
         '',
         '1. OPENING AND INITIAL PRAYER:',
         'The meeting opened with a prayer by [Name] and the declaration of the work by the Chair.',
@@ -423,7 +423,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY.en}`,
       ].join('\n'),
       es: [
-        'A los {{DIA}} días del mes de {{MES_EXTENSO}} del año de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió el Consejo Fiscal, bajo la presidencia de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}, para el examen de las cuentas y de la rendición de cuentas de la tesorería.',
+        'El día {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió el Consejo Fiscal, bajo la presidencia de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}, para el examen de las cuentas y de la rendición de cuentas de la tesorería.',
         '',
         '1. DE LA APERTURA Y ORACIÓN INICIAL:',
         'La reunión fue abierta con oración inicial a cargo de [Nombre] y declaración de los trabajos por el Presidente.',
@@ -469,7 +469,7 @@ export const TEMPLATES: MinutesTemplate[] = [
     },
     body: {
       'pt-br': [
-        'Aos {{DIA}} dias do mês de {{MES_EXTENSO}} do ano de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se a liderança ministerial e dos departamentos, sob a coordenação do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}.',
+        'No dia {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, às {{HORA}} horas, nas dependências da {{NOME_IGREJA}}, reuniu-se a liderança ministerial e dos departamentos, sob a coordenação do(a) {{PRESIDENTE}}, com a secretaria do(a) {{REDATOR}}.',
         '',
         '1. DA ABERTURA E ORAÇÃO INICIAL:',
         'A reunião foi aberta com leitura bíblica em [Texto Bíblico] e oração inicial por [Nome].',
@@ -497,7 +497,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY['pt-br']}`,
       ].join('\n'),
       en: [
-        'On {{DATA_FORMATADA}} at {{HORA}}, at the premises of {{NOME_IGREJA}}, the ministerial leadership and departments met, under the coordination of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
+        'On {{DIA}} of {{MES_EXTENSO}} of {{ANO}}, at {{HORA}}, at the premises of {{NOME_IGREJA}}, the ministerial leadership and departments met, under the coordination of {{PRESIDENTE}}, with {{REDATOR}} acting as secretary.',
         '',
         '1. OPENING AND INITIAL PRAYER:',
         'The meeting opened with the reading of the Word of God from [Bible Passage] and an opening prayer by [Name].',
@@ -525,7 +525,7 @@ export const TEMPLATES: MinutesTemplate[] = [
         `${SIGNATURE_SECRETARY.en}`,
       ].join('\n'),
       es: [
-        'A los {{DIA}} días del mes de {{MES_EXTENSO}} del año de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió el liderazgo ministerial y los departamentos, bajo la coordinación de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}.',
+        'El día {{DIA}} de {{MES_EXTENSO}} de {{ANO}}, a las {{HORA}} horas, en las dependencias de {{NOME_IGREJA}}, se reunió el liderazgo ministerial y los departamentos, bajo la coordinación de {{PRESIDENTE}}, con la secretaría de {{REDATOR}}.',
         '',
         '1. DE LA APERTURA Y ORACIÓN INICIAL:',
         'La reunión fue abierta con la lectura bíblica en [Texto Bíblico] y oración inicial a cargo de [Nombre].',
@@ -616,10 +616,10 @@ export function interpolateMinutesTemplate(
 
   let out = body;
   for (const [key, value] of Object.entries(values)) {
-    if (value === undefined) continue;
-    out = out.split(`{{${key}}}`).join(value);
+    out = out.split(`{{${key}}}`).join(value ?? '');
   }
-  return out;
+  // Remove tokens ainda não preenchidos (ex.: HORA vazio não deve aparecer no texto).
+  return out.replace(/\{\{[A-Z_]+\}\}/g, '').replace(/ {2,}/g, ' ').trim();
 }
 
 export function bodyToHtml(text: string): string {
