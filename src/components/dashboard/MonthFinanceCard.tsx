@@ -36,7 +36,7 @@ export default function MonthFinanceCard({
       skeletonHeight={150}
     >
       <Stack gap={isMobile ? 'sm' : 'md'}>
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+        <SimpleGrid cols={1} spacing="sm">
           <KpiCard
             label={dv.chartEntries}
             value={formatBRL(entries)}

@@ -34,6 +34,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import { MonthYearPicker } from '../components/MonthYearPicker';
 import MobileItemCard from '../components/MobileItemCard';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
@@ -62,10 +63,6 @@ const UF_LIST = [
   'RS','RO','RR','SC','SP','SE','TO',
 ].map((u) => ({ value: u, label: u }));
 
-function currentYear() {
-  return new Date().getFullYear();
-}
-
 export default function ReceiptsPage() {
   const { t, locale } = useLanguage();
   const router = useRouter();
@@ -78,7 +75,9 @@ export default function ReceiptsPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [year, setYear] = useState<string | null>(String(currentYear()));
+  const now = new Date();
+  const [year, setYear] = useState<number>(now.getFullYear());
+  const [month, setMonth] = useState<number>(now.getMonth() + 1);
   const [rtype, setRtype] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const PAGE_SIZE = 20;
@@ -99,16 +98,6 @@ export default function ReceiptsPage() {
   // Members for autofill
   const [members, setMembers] = useState<Member[]>([]);
 
-  // Available years (static current..current-4 + years from data)
-  const yearOptions = useMemo(() => {
-    const cy = currentYear();
-    const set = new Set<string>([String(cy), String(cy - 1), String(cy - 2)]);
-    records.forEach((r) => set.add(String(r.year)));
-    return Array.from(set)
-      .sort((a, b) => Number(b) - Number(a))
-      .map((y) => ({ value: y, label: y }));
-  }, [records]);
-
   // Load members for the member select
   useEffect(() => {
     accountsApi
@@ -122,7 +111,8 @@ export default function ReceiptsPage() {
     receiptsApi
       .list({
         page,
-        year: year ? Number(year) : undefined,
+        year,
+        month,
         receipt_type: rtype as FinancialReceiptType | undefined,
         search: search.trim() || undefined,
       })
@@ -137,7 +127,7 @@ export default function ReceiptsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [page, year, rtype]);
+  useEffect(load, [page, year, month, rtype]);
 
   // Handle quick-action query params on mount
   useEffect(() => {
@@ -172,7 +162,9 @@ export default function ReceiptsPage() {
   }, [router.query]);
 
   const resetFilters = () => {
-    setYear(String(currentYear()));
+    const now = new Date();
+    setYear(now.getFullYear());
+    setMonth(now.getMonth() + 1);
     setRtype(null);
     setSearch('');
     setPage(1);
@@ -486,15 +478,17 @@ export default function ReceiptsPage() {
 
       <Stack gap="md" mb="md">
         <Group gap="md" wrap="wrap" align="flex-end">
-          <Select
-            data-testid="receipt-filter-year"
-            label={t.receiptsPage.yearFilter}
-            placeholder={t.receiptsPage.allYears}
-            clearable
-            data={yearOptions}
-            value={year}
-            onChange={(v) => { setYear(v); setPage(1); }}
-            w={120}
+          <MonthYearPicker
+            data-testid="receipt-filter-period"
+            label={`${t.common.month}/${t.common.year}`}
+            year={year}
+            month={month}
+            onChange={(nextYear, nextMonth) => {
+              setYear(nextYear);
+              setMonth(nextMonth);
+              setPage(1);
+            }}
+            w={180}
           />
           <Select
             data-testid="receipt-filter-type"
@@ -519,9 +513,16 @@ export default function ReceiptsPage() {
             }}
             w={260}
           />
-          <Button variant="default" leftSection={<IconRefresh size={16} />} onClick={() => { setPage(1); load(); }}>
-            {t.common.filter}
-          </Button>
+          <Tooltip label={t.common.refresh}>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              onClick={() => { setPage(1); load(); }}
+              aria-label={t.common.refresh}
+            >
+              <IconRefresh size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Button variant="subtle" onClick={resetFilters}>
             {t.common.clear}
           </Button>

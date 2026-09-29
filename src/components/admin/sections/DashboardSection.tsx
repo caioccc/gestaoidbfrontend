@@ -27,12 +27,32 @@ import { fetchAllPages } from '../../../api/finance';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { formatBRL, toNumber } from '../../../utils/format';
 
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
+function buildYearOptions(existingYears: Array<number | string> = []) {
+  const current = new Date().getFullYear();
+  const start = Math.min(2022, current - 4);
+  const end = current + 2;
+  const values = new Set<string>([String(current)]);
+
+  for (let year = start; year <= end; year += 1) {
+    values.add(String(year));
+  }
+
+  existingYears.forEach((value) => {
+    const year = Number(value);
+    if (!Number.isNaN(year)) values.add(String(year));
+  });
+
+  return Array.from(values)
+    .map((value) => Number(value))
+    .sort((a, b) => b - a)
+    .map((year) => ({ value: String(year), label: String(year) }));
+}
 
 export default function DashboardSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t } = useLanguage();
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
+  const yearOptions = buildYearOptions();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [deptData, setDeptData] = useState<{ name: string; value: number; color: string }[]>([]);
@@ -123,7 +143,7 @@ export default function DashboardSection({ api, churchLabel }: { api: AdminFinan
           label={t.dashboard.yearLabel}
           value={String(year)}
           onChange={(v) => v && setYear(Number(v))}
-          data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+          data={yearOptions}
           w={130}
         />
       </PageHeader>

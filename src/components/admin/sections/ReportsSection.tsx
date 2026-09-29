@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Group,
   Stack,
-  Select,
   Paper,
   Table,
   Skeleton,
@@ -23,13 +22,12 @@ import { notifications } from '@mantine/notifications';
 import * as XLSX from 'xlsx';
 import apiClient from '../../../api/client';
 import PageHeader from '../../../components/PageHeader';
+import { MonthYearPicker } from '../../../components/MonthYearPicker';
 import { useLanguage } from '../../../i18n';
 import { RegionalReport, MonthlyClosingsResponse, ChurchType } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { saveBlob } from '../../../api/finance';
 import { formatBRL, toNumber } from '../../../utils/format';
-
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
 export default function ReportsSection({
   api,
@@ -163,21 +161,16 @@ export default function ReportsSection({
       <>
         <PageHeader title={t.reportsPage.title} description={churchLabel}>
           <Group gap="md" wrap="wrap">
-            <Select
-              data-testid="reports-year"
-              label={t.common.year}
-              value={String(year)}
-              onChange={(v) => v && setYear(Number(v))}
-              data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
-              w={110}
-            />
-            <Select
-              data-testid="reports-month"
-              label={t.common.month}
-              value={String(month)}
-              onChange={(v) => v && setMonth(Number(v))}
-              data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-              w={180}
+            <MonthYearPicker
+              data-testid="reports-period"
+              label={`${t.common.month}/${t.common.year}`}
+              year={year}
+              month={month}
+              onChange={(nextYear, nextMonth) => {
+                setYear(nextYear);
+                setMonth(nextMonth);
+              }}
+              w={190}
             />
           </Group>
         </PageHeader>
@@ -241,21 +234,16 @@ export default function ReportsSection({
     <>
       <PageHeader title={t.reportsPage.title} description={churchLabel}>
         <Group gap="md" wrap="wrap">
-          <Select
-            data-testid="reports-year"
-            label={t.common.year}
-            value={String(year)}
-            onChange={(v) => v && setYear(Number(v))}
-            data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
-            w={110}
-          />
-          <Select
-            data-testid="reports-month"
-            label={t.common.month}
-            value={String(month)}
-            onChange={(v) => v && setMonth(Number(v))}
-            data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-            w={180}
+          <MonthYearPicker
+            data-testid="reports-period"
+            label={`${t.common.month}/${t.common.year}`}
+            year={year}
+            month={month}
+            onChange={(nextYear, nextMonth) => {
+              setYear(nextYear);
+              setMonth(nextMonth);
+            }}
+            w={190}
           />
         </Group>
       </PageHeader>

@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Group, Select } from '@mantine/core';
+import { Group } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import PageHeader from '../components/PageHeader';
+import { MonthYearPicker } from '../components/MonthYearPicker';
 import ValidationPanel from '../components/ValidationPanel';
 import SignatureModal from '../components/SignatureModal';
 import { useLanguage } from '../i18n';
 import { financeApi } from '../api/finance';
 import { MonthlyValidationResponse } from '../types';
-
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
 export default function ValidationPage() {
   const { t } = useLanguage();
@@ -60,21 +59,16 @@ export default function ValidationPage() {
     <>
       <PageHeader title={t.validationPage.title} description={t.validationPage.subtitle}>
         <Group gap="md" wrap="wrap">
-          <Select
-            data-testid="validation-year"
-            label={t.validationPage.yearLabel}
-            value={String(year)}
-            onChange={(v) => v && setYear(Number(v))}
-            data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
-            w={110}
-          />
-          <Select
-            data-testid="validation-month"
-            label={t.validationPage.monthLabel}
-            value={String(month)}
-            onChange={(v) => v && setMonth(Number(v))}
-            data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-            w={180}
+          <MonthYearPicker
+            data-testid="validation-period"
+            label={`${t.validationPage.monthLabel}/${t.validationPage.yearLabel}`}
+            year={year}
+            month={month}
+            onChange={(nextYear, nextMonth) => {
+              setYear(nextYear);
+              setMonth(nextMonth);
+            }}
+            w={190}
           />
         </Group>
       </PageHeader>

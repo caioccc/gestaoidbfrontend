@@ -50,6 +50,7 @@ import {
 import AuthGuard from '../components/AuthGuard';
 import CreatePrayerRequestModal from '../components/CreatePrayerRequestModal';
 import FilterDrawer from '../components/FilterDrawer';
+import { ListPagination } from '../components/ListPagination';
 import MobileListToolbar from '../components/MobileListToolbar';
 import PageHeader from '../components/PageHeader';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
@@ -140,6 +141,9 @@ export default function PrayerRequestsPage() {
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
@@ -174,15 +178,20 @@ export default function PrayerRequestsPage() {
   const load = () => {
     setLoading(true);
     accountsApi
-      .prayerRequests({
+      .prayerRequestsPage({
         q: search.trim() || undefined,
         status: statusFilter === 'ALL' ? undefined : (statusFilter as PrayerRequestStatus),
         category: categoryFilter === 'ALL' ? undefined : (categoryFilter as PrayerRequestCategory),
         preferred_period:
           periodFilter === 'ALL' ? undefined : (periodFilter as PrayerRequestPreferredPeriod),
         wants_visit: wantsVisitOnly ? true : undefined,
+        page,
+        page_size: pageSize,
       })
-      .then(setRequests)
+      .then((data) => {
+        setRequests(data.results);
+        setTotal(data.count);
+      })
       .catch(() => {
         notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
       })
@@ -201,6 +210,10 @@ export default function PrayerRequestsPage() {
     const delay = window.setTimeout(load, 300);
     return () => window.clearTimeout(delay);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, categoryFilter, periodFilter, wantsVisitOnly, search, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
   }, [statusFilter, categoryFilter, periodFilter, wantsVisitOnly, search]);
 
   const stats = useMemo(() => {
@@ -218,6 +231,14 @@ export default function PrayerRequestsPage() {
     () => requests.filter((r) => r.status === 'ANSWERED').length,
     [requests]
   );
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, total);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const filterCount = [
     statusFilter !== 'ALL',
@@ -325,7 +346,8 @@ export default function PrayerRequestsPage() {
       const updated = await accountsApi.updatePrayerRequest(archiveTarget.id, {
         status: 'ARCHIVED',
       });
-      setRequests((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setRequests((prev) => prev.filter((r) => r.id !== updated.id));
+      setTotal((value) => Math.max(0, value - 1));
       setArchiveTarget(null);
       closeDrawer();
     } catch {
@@ -346,10 +368,9 @@ export default function PrayerRequestsPage() {
       setBulkOpen(false);
       closeDrawer();
       setRequests((prev) =>
-        prev.map((r) =>
-          r.status === 'ANSWERED' ? { ...r, status: 'ARCHIVED' as PrayerRequestStatus } : r
-        )
+        prev.filter((r) => r.status !== 'ANSWERED')
       );
+      setTotal((value) => Math.max(0, value - targets.length));
       notifications.show({
         color: 'green',
         message: t.prayerRequestsPage.actions.clearAnsweredDone,
@@ -367,6 +388,7 @@ export default function PrayerRequestsPage() {
     try {
       await accountsApi.deletePrayerRequest(deleteTarget.id);
       setRequests((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setTotal((value) => Math.max(0, value - 1));
       setDeleteTarget(null);
       closeDrawer();
       notifications.show({ color: 'green', message: t.prayerRequestsPage.actions.deleteDone });
@@ -919,6 +941,18 @@ export default function PrayerRequestsPage() {
             })}
           </SimpleGrid>
         )}
+
+        <ListPagination
+          page={page}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+          total={total}
+          totalPages={totalPages}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          testId="prayer-pagination"
+        />
 
         <FilterDrawer
           opened={filtersOpen}

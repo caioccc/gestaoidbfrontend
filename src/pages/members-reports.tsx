@@ -31,7 +31,6 @@ import {
   IconCalendar,
   IconChartPie,
   IconDownload,
-  IconRefresh,
   IconUsersGroup,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
@@ -1025,16 +1024,6 @@ export default function MembersReportsPage() {
           </Center>
         ) : (
           <>
-            <Group justify="flex-end" mb="md">
-              <Button
-                variant="default"
-                leftSection={<IconRefresh size={16} />}
-                onClick={load}
-                data-testid="member-reports-refresh"
-              >
-                {t.common.filter}
-              </Button>
-            </Group>
             {tab === 'composition' && (
               <CompositionTab members={members} t={t} />
             )}

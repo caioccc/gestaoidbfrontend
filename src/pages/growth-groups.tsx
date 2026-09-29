@@ -124,12 +124,10 @@ export default function GrowthGroupsPage() {
     Promise.all([
       growthGroupsApi.list(),
       growthGroupsApi.stats(),
-      accountsApi.members(),
     ])
-      .then(([g, s, m]) => {
+      .then(([g, s]) => {
         setGroups(g);
         setStats(s);
-        setMembers(m);
       })
       .catch(() => {
         notifications.show({ message: t.growthGroups.loadError, color: 'red' });
@@ -141,6 +139,11 @@ export default function GrowthGroupsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!formOpen) return;
+    accountsApi.members().then(setMembers).catch(() => setMembers([]));
+  }, [formOpen]);
 
   const openCreate = () => {
     setEditing(null);

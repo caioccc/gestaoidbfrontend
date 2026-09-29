@@ -19,6 +19,10 @@ import type {
   YouTubeSearchResult,
 } from '../types';
 
+/** Filtro de visibilidade enviado como `?visibility=`.
+ *  `all` (ou ausente) = públicas + as privadas do próprio usuário. */
+export type VisibilityFilter = 'all' | 'public' | 'private';
+
 export const musicApi = {
   // ---------------------------------------------------------------------------
   // Bandas
@@ -188,7 +192,11 @@ export const musicApi = {
   // Setlists das bandas
   // ---------------------------------------------------------------------------
 
-  bandSetlists: (params?: { month?: string; band?: number }): Promise<BandSetlist[]> =>
+  bandSetlists: (params?: {
+    month?: string;
+    band?: number;
+    visibility?: VisibilityFilter;
+  }): Promise<BandSetlist[]> =>
     apiClient
       .get('/api/music/setlists/', { params: params ?? {} })
       .then((r) => r.data),
@@ -217,6 +225,7 @@ export const musicApi = {
     tag?: string;
     q?: string;
     band?: number;
+    visibility?: VisibilityFilter;
   }): Promise<Song[]> =>
     apiClient.get('/api/music/songs/', { params: params ?? {} }).then((r) => r.data),
 
@@ -228,6 +237,7 @@ export const musicApi = {
     tag?: string;
     q?: string;
     band?: number;
+    visibility?: VisibilityFilter;
   }): Promise<PaginatedSongs> =>
     apiClient.get('/api/music/songs/', { params: params ?? {} }).then((r) => r.data),
 
@@ -250,6 +260,7 @@ export const musicApi = {
     chords_json?: Song['chords_json'];
     lyrics?: string;
     tags?: string;
+    is_private?: boolean;
   }): Promise<Song> =>
     apiClient.post('/api/music/songs/', payload).then((r) => r.data),
 

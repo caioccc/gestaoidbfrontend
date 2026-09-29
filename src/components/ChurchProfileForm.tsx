@@ -19,7 +19,6 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
-import MoneyInput from './MoneyInput';
 import ImageUpload from './ImageUpload';
 import { useLanguage } from '../i18n';
 import { toUpperCamelWords } from '../utils/format';
@@ -54,7 +53,6 @@ interface ChurchProfileFormProps {
   onSave: (payload: Record<string, any>) => Promise<void>;
   responsibleEmail?: string | null;
   onResetPassword?: (newPassword: string) => Promise<void>;
-  showPrebenda?: boolean;
   canResetPassword?: boolean;
   readOnly?: boolean;
 }
@@ -66,7 +64,6 @@ export default function ChurchProfileForm({
   onSave,
   responsibleEmail,
   onResetPassword,
-  showPrebenda = true,
   canResetPassword = true,
   readOnly = false,
 }: ChurchProfileFormProps) {
@@ -100,12 +97,6 @@ export default function ChurchProfileForm({
       phone: (v) => (v && v.replace(/\D/g, '').length >= 10 ? null : t.registerPage.phoneInvalid),
       city: (v) => (v.trim().length ? null : t.registerPage.city),
       state: (v) => (v.trim().length ? null : t.registerPage.state),
-      pastoral_prebenda_percent: (v) => {
-        const n = Number(
-          String(v).includes(',') ? String(v).replace(',', '.') : String(v)
-        );
-        return !Number.isNaN(n) && n >= 0 && n <= 100 ? null : 'Valor entre 0 e 100';
-      },
     },
   });
 
@@ -336,22 +327,6 @@ export default function ChurchProfileForm({
               error={form.errors.phone}
               onAccept={(value: string) => form.setFieldValue('phone', value)}
             />
-            {showPrebenda && (
-              <MoneyInput
-                data-testid="settings-prebenda"
-                label={t.settingsPage.prebendaPercent}
-                description={t.settingsPage.prebendaHint}
-                percentage
-                value={form.values.pastoral_prebenda_percent}
-                onValueChange={(v) =>
-                  form.setFieldValue(
-                    'pastoral_prebenda_percent',
-                    v === '' ? '' : String(v)
-                  )
-                }
-                error={form.errors.pastoral_prebenda_percent}
-              />
-            )}
             <Group align="flex-end">
               <TextInput
                 data-testid="settings-responsible-email"

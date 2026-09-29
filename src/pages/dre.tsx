@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   Group,
   Stack,
-  Select,
   Paper,
   Table,
   Skeleton,
@@ -18,12 +17,11 @@ import {
   IconScale,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import { YearPicker } from '../components/MonthYearPicker';
 import { useLanguage } from '../i18n';
 import { financeApi } from '../api/finance';
 import { formatBRL, toNumber } from '../utils/format';
 import { DreSummary } from '../types';
-
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
 
 export default function DrePage() {
   const { t } = useLanguage();
@@ -51,12 +49,11 @@ export default function DrePage() {
   return (
     <>
       <PageHeader title={t.drePage.title}>
-        <Select
+        <YearPicker
           data-testid="dre-year"
           label={t.common.year}
-          value={String(year)}
-          onChange={(v) => v && setYear(Number(v))}
-          data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+          year={year}
+          onChange={setYear}
           w={110}
         />
       </PageHeader>

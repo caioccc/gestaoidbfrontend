@@ -25,6 +25,7 @@ import {
   SimpleGrid,
   Drawer,
   Indicator,
+  Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -58,7 +59,6 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
-import MobileItemCard from '../components/MobileItemCard';
 import MemberFormModal from '../components/MemberFormModal';
 import MemberCardModal from '../components/MemberCardModal';
 import MemberCardBatchModal from '../components/MemberCardBatchModal';
@@ -769,17 +769,6 @@ function MembersTab({
               >
                 {expiryLabel}
               </Badge>
-              <Button
-                variant="default"
-                leftSection={<IconCalendarClock size={16} />}
-                onClick={() => {
-                  setRenewDate(null);
-                  setRenewOpen(true);
-                }}
-                data-testid="members-renew"
-              >
-                {t.membersPage.renewValidity}
-              </Button>
             </Group>
             <Group gap="xs">
               {selected.size > 0 && (
@@ -807,32 +796,53 @@ function MembersTab({
                   </Button>
                 </>
               )}
-              <Button
-                variant="default"
-                leftSection={<IconDownload size={16} />}
-                onClick={exportRolCsv}
-                disabled={total === 0}
-                data-testid="members-export-csv"
-              >
-                {t.memberReports.exportCsv}
-              </Button>
-              <Button
-                variant="default"
-                leftSection={<IconFileTypePdf size={16} />}
-                onClick={downloadReport}
-                disabled={total === 0}
-                data-testid="members-report-pdf"
-              >
-                {t.memberReports.reportPdf}
-              </Button>
-              <Button
-                variant="default"
-                leftSection={<IconRefresh size={16} />}
-                onClick={load}
-                data-testid="members-refresh"
-              >
-                {t.common.filter}
-              </Button>
+              <Menu shadow="md" width={230} position="bottom-end">
+                <Menu.Target>
+                  <ActionIcon
+                    variant="default"
+                    size="lg"
+                    data-testid="members-more-actions"
+                    aria-label={t.common.actions}
+                  >
+                    <IconDotsVertical size={18} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    leftSection={<IconDownload size={16} />}
+                    onClick={exportRolCsv}
+                    disabled={total === 0}
+                    data-testid="members-export-csv"
+                  >
+                    {t.memberReports.exportCsv}
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconFileTypePdf size={16} />}
+                    onClick={downloadReport}
+                    disabled={total === 0}
+                    data-testid="members-report-pdf"
+                  >
+                    {t.memberReports.reportPdf}
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconCalendarClock size={16} />}
+                    onClick={() => {
+                      setRenewDate(null);
+                      setRenewOpen(true);
+                    }}
+                    data-testid="members-renew"
+                  >
+                    {t.membersPage.renewValidity}
+                  </Menu.Item>
+                  <Menu.Item
+                    leftSection={<IconRefresh size={16} />}
+                    onClick={load}
+                    data-testid="members-refresh"
+                  >
+                    {t.common.refresh}
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
               <Button
                 leftSection={<IconPlus size={16} />}
                 onClick={openCreate}
@@ -1069,66 +1079,86 @@ function MembersTab({
               <Table.Tbody>{rows}</Table.Tbody>
               </Table>
             </Box>
-            <Stack hiddenFrom="lg" gap="xs" p="sm">
+            <Stack hiddenFrom="lg" gap="xs">
               {members.map((m) => (
-                <MobileItemCard
+                <Paper
                   key={m.id}
-                  testId={`member-mobile-${m.id}`}
-                  media={
+                  withBorder
+                  radius="md"
+                  p="xs"
+                  data-testid={`member-mobile-${m.id}`}
+                >
+                  <Group align="center" gap="sm" wrap="nowrap">
                     <Avatar
                       src={m.photo || null}
                       radius="xl"
-                      size={48}
+                      size="md"
+                      style={{ flexShrink: 0 }}
                       data-testid={`member-mobile-avatar-${m.id}`}
                     >
                       {m.name?.charAt(0)?.toUpperCase()}
                     </Avatar>
-                  }
-                  actions={memberMenuItems(m)}
-                >
-                  <Stack gap={4}>
-                    <Text fw={600} truncate>
-                      {m.name}
-                    </Text>
-                    {m.card_number && (
-                      <Text size="xs" c="dimmed" truncate>
-                        #{m.card_number}
+
+                    <Box style={{ flex: 1, minWidth: 0 }}>
+                      <Text fw={600} size="sm" truncate>
+                        {m.name}
                       </Text>
-                    )}
-                    <Group gap={4} wrap="nowrap">
-                      <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
-                        {m.phone || '—'}
-                      </Text>
-                      {m.phone && (
+                      <Group gap={6} wrap="nowrap" mt={2}>
+                        <Badge
+                          color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
+                          variant="dot"
+                          size="xs"
+                          style={{ flexShrink: 0 }}
+                        >
+                          {m.status === 'ACTIVE'
+                            ? t.membersPage.active
+                            : t.membersPage.inactive}
+                        </Badge>
+                        {m.card_number ? (
+                          <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                            #{m.card_number}
+                          </Text>
+                        ) : null}
+                        {m.cpf ? (
+                          <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                            {m.cpf}
+                          </Text>
+                        ) : null}
+                      </Group>
+                    </Box>
+
+                    {m.phone ? (
+                      <Tooltip label={t.membersPage.sendWhatsApp} withArrow>
                         <ActionIcon
                           variant="subtle"
                           color="green"
-                          size="sm"
+                          size="lg"
+                          style={{ flexShrink: 0 }}
                           onClick={() => setWaMember(m)}
+                          aria-label={t.membersPage.sendWhatsApp}
                           data-testid={`member-mobile-wa-${m.id}`}
                         >
-                          <IconBrandWhatsapp size={14} />
+                          <IconBrandWhatsapp size={18} />
                         </ActionIcon>
-                      )}
-                    </Group>
-                    <Text size="sm" c="dimmed" truncate>
-                      {m.email || '—'}
-                    </Text>
-                    <Text size="xs" c="dimmed" truncate>
-                      {m.church_entry_display || '—'}
-                    </Text>
-                    <Badge
-                      color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
-                      variant="dot"
-                      size="sm"
-                      style={{ width: 'fit-content' }}
-                    >
-                      {m.status === 'ACTIVE'
-                        ? t.membersPage.active
-                        : t.membersPage.inactive}
-                    </Badge>
-                  </Stack>
-                </MobileItemCard>
+                      </Tooltip>
+                    ) : null}
+
+                    <Menu shadow="md" position="bottom-end">
+                      <Menu.Target>
+                        <ActionIcon
+                          variant="subtle"
+                          color="gray"
+                          size="lg"
+                          style={{ flexShrink: 0 }}
+                          aria-label={t.common.actions}
+                        >
+                          <IconDotsVertical size={18} />
+                        </ActionIcon>
+                      </Menu.Target>
+                      <Menu.Dropdown>{memberMenuItems(m)}</Menu.Dropdown>
+                    </Menu>
+                  </Group>
+                </Paper>
               ))}
             </Stack>
             {total > PAGE_SIZE && (
@@ -1439,14 +1469,6 @@ function AreasTab() {
     <>
       <Group gap="xs" mb="md" justify="flex-end">
         <Button
-          variant="default"
-          leftSection={<IconRefresh size={16} />}
-          onClick={load}
-          data-testid="areas-refresh"
-        >
-          {t.common.filter}
-        </Button>
-        <Button
           leftSection={<IconPlus size={16} />}
           onClick={openCreate}
           data-testid="areas-new"
@@ -1571,8 +1593,24 @@ export default function MembersPage() {
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader title={t.membersPage.title} description={t.membersPage.subtitle}>
-          <Tabs value={tab} onChange={handleTabChange} variant="default">
-            <Tabs.List>
+          <Tabs
+            value={tab}
+            onChange={handleTabChange}
+            variant="default"
+            style={{ maxWidth: '100%', minWidth: 0 }}
+          >
+            <Group
+              gap={0}
+              wrap="nowrap"
+              className="no-scrollbar"
+              style={{
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                maxWidth: '100%',
+                WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              <Tabs.List>
               <Tabs.Tab
                 value="members"
                 data-testid="tab-members"
@@ -1615,7 +1653,8 @@ export default function MembersPage() {
               >
                 {t.membersPage.tabsImport}
               </Tabs.Tab>
-            </Tabs.List>
+              </Tabs.List>
+            </Group>
           </Tabs>
         </PageHeader>
 

@@ -117,7 +117,6 @@ export default function SettingsSection({
         onSave={handleSave}
         responsibleEmail={profile?.responsible_email}
         onResetPassword={staffAccess ? handleResetPassword : undefined}
-        showPrebenda={churchType !== 'CONGREGATION'}
       />
 
       {staffAccess && (

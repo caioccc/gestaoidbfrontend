@@ -28,8 +28,7 @@ import {
 } from '@tabler/icons-react';
 import { accountsApi } from '../../api/accounts';
 import { calendarEventsApi, financeApi } from '../../api/finance';
-import { musicApi } from '../../api/music';
-import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n';
 import type {
   CalendarEvent,
@@ -38,6 +37,7 @@ import type {
   PrayerRequest,
   WorshipService,
 } from '../../types';
+import { dateFromApi, dateToApi, expandEvents } from '../../utils/calendarRecurrence';
 import { daysSinceLastContact } from '../../utils/whatsapp';
 import {
   DashboardTone,
@@ -99,13 +99,19 @@ function formatShortDate(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export default function AdminView({ year }: { year: number }) {
+function localDateISO(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export default function AdminView({ year, month }: { year: number; month: number }) {
   const { t } = useLanguage();
   const router = useRouter();
   const dv = t.dashboardViews;
   const { user } = useAuth();
-  const { canViewMusic, canManageMusic } = useRoleHelpers(user);
-  const canSeeSetlists = canViewMusic || canManageMusic;
   const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(true);
@@ -114,11 +120,10 @@ export default function AdminView({ year }: { year: number }) {
   const [services, setServices] = useState<WorshipService[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [setlistCount, setSetlistCount] = useState<number | null>(null);
 
-  const currentMonth = new Date().getMonth() + 1;
+  const currentMonth = month;
   const currentMonthKey = `${year}-${String(currentMonth).padStart(2, '0')}`;
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = localDateISO();
 
   useEffect(() => {
     let active = true;
@@ -132,22 +137,15 @@ export default function AdminView({ year }: { year: number }) {
       calendarEventsApi.list(),
     ];
 
-    if (canSeeSetlists) {
-      requests.push(
-        musicApi.bandSetlists({ month: currentMonthKey }).then((items) => items.length),
-      );
-    }
-
     Promise.allSettled(requests)
       .then((results) => {
         if (!active) return;
-        const [mem, pray, svc, fin, evt, setlists] = results;
+        const [mem, pray, svc, fin, evt] = results;
         if (mem.status === 'fulfilled') setMembers(mem.value as Member[]);
         if (pray.status === 'fulfilled') setPrayers(pray.value as PrayerRequest[]);
         if (svc.status === 'fulfilled') setServices(svc.value as WorshipService[]);
         if (fin.status === 'fulfilled') setSummary(fin.value as DashboardSummary);
         if (evt.status === 'fulfilled') setEvents(evt.value as CalendarEvent[]);
-        if (setlists?.status === 'fulfilled') setSetlistCount(setlists.value as number);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -156,7 +154,7 @@ export default function AdminView({ year }: { year: number }) {
     return () => {
       active = false;
     };
-  }, [year, currentMonthKey, canSeeSetlists]);
+  }, [year, currentMonthKey]);
 
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === 'ACTIVE'),
@@ -217,13 +215,19 @@ export default function AdminView({ year }: { year: number }) {
     [events, todayISO],
   );
 
-  const nextService = useMemo(
-    () =>
-      [...services]
-        .filter((service) => service.date >= todayISO)
-        .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null,
-    [services, todayISO],
-  );
+  const upcomingCultos = useMemo(() => {
+    const today = dateFromApi(todayISO);
+    const occurrences = expandEvents(
+      events.filter((event) => event.category === 'culto'),
+      today,
+      6,
+    );
+    return occurrences.sort((a, b) => {
+      const dateOrder = (dateToApi(a.date) ?? '').localeCompare(dateToApi(b.date) ?? '');
+      if (dateOrder !== 0) return dateOrder;
+      return (a.event.start_time ?? '23:59:59').localeCompare(b.event.start_time ?? '23:59:59');
+    });
+  }, [events, todayISO]);
 
   const monthPoint = useMemo(
     () => summary?.series.find((point) => point.month === currentMonth) ?? null,
@@ -356,40 +360,24 @@ export default function AdminView({ year }: { year: number }) {
           loading={loading}
           skeletonHeight={150}
         >
-          {nextService ? (
-            <Stack gap="sm">
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Box style={{ minWidth: 0 }}>
-                  <Text fw={700} lineClamp={1}>
-                    {nextService.service_type_display}
-                  </Text>
+          {upcomingCultos.length > 0 ? (
+            <Stack gap="xs">
+              {upcomingCultos.map(({ date, event }) => (
+                <Box key={`${event.id}-${dateToApi(date)}`}>
+                  <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+                    <Text fw={700} lineClamp={1} style={{ minWidth: 0 }}>
+                      {event.title}
+                    </Text>
+                    <Badge color="grape" variant="light" size="sm">
+                      {(dateToApi(date) ?? '') === todayISO ? dv.psToday : dv.psUpcoming}
+                    </Badge>
+                  </Group>
                   <Text c="dimmed" size="sm">
-                    {formatShortDate(nextService.date)}
-                    {nextService.time ? ` · ${nextService.time.slice(0, 5)}` : ''}
+                    {formatShortDate(dateToApi(date) ?? '')}
+                    {event.start_time ? ` · ${event.start_time.slice(0, 5)}` : ''}
                   </Text>
                 </Box>
-                <Badge color="grape" variant="light">
-                  {nextService.date === todayISO ? dv.psToday : dv.psUpcoming}
-                </Badge>
-              </Group>
-              {nextService.theme ? (
-                <Text size="sm" lineClamp={2}>
-                  <Text span fw={600}>
-                    {dv.psTheme}:
-                  </Text>{' '}
-                  {nextService.theme}
-                </Text>
-              ) : null}
-              <Group gap="xs">
-                {setlistCount !== null ? (
-                  <Badge variant="light" color="indigo" leftSection={<IconBook2 size={12} />}>
-                    {setlistCount} {dv.psSetlists}
-                  </Badge>
-                ) : null}
-                <Badge variant="light" color="teal">
-                  {monthTotals.conversions} {dv.psConversions}
-                </Badge>
-              </Group>
+              ))}
             </Stack>
           ) : (
             <EmptyState label={dv.psNoUpcomingService} icon={<IconBuildingChurch size={30} />} />

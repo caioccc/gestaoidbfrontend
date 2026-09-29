@@ -35,6 +35,22 @@ a {
   text-decoration: none;
 }
 
+/**
+ * Carrossel horizontal sem barra de rolagem visível (abas, chip rows).
+ * Mantém o arrasto por toque/teclado; só esconde o track para não roubar
+ * altura da barra no mobile.
+ */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;

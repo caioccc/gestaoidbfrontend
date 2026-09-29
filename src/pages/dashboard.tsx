@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Select } from '@mantine/core';
+import { Group, Select } from '@mantine/core';
 import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
+import { MonthYearPicker } from '../components/MonthYearPicker';
 import SecretaryDashboard from '../components/SecretaryDashboard';
 import AdminView from '../components/dashboard/AdminView';
 import PastorView from '../components/dashboard/PastorView';
@@ -16,9 +17,16 @@ type DashboardView = 'ADMIN' | 'TESOUREIRO' | 'PASTOR';
 
 function buildYears(): number[] {
   const current = new Date().getFullYear();
-  const first = Math.min(FIRST_YEAR, current - 1);
-  const last = current + 1;
+  const first = Math.min(FIRST_YEAR, current - 4);
+  const last = current + 2;
   return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+function buildMonths() {
+  return Array.from({ length: 12 }, (_, index) => ({
+    value: String(index + 1),
+    label: `${index + 1}`,
+  }));
 }
 
 function resolveView(isAdmin: boolean, role: string | null): DashboardView | null {
@@ -36,9 +44,11 @@ export default function DashboardPage() {
   const isMobile = useIsMobile();
 
   const [year, setYear] = useState<number>(() => new Date().getFullYear());
+  const [month, setMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [hour, setHour] = useState<number | null>(null);
 
   const years = useMemo(buildYears, []);
+  const months = useMemo(buildMonths, []);
   const view = useMemo(() => resolveView(isAdmin, role ?? null), [isAdmin, role]);
 
   const staffWithoutChurch = !!user?.is_staff && !user.church;
@@ -82,7 +92,7 @@ export default function DashboardPage() {
         ? t.dashboardViews.subtitlePastor
         : t.dashboardViews.subtitleTreasurer;
 
-  const competence = hour === null ? null : `${t.months[new Date().getMonth()]} ${year}`;
+  const competence = hour === null ? null : `${t.months[month - 1]} ${year}`;
 
   return (
     <>
@@ -90,21 +100,23 @@ export default function DashboardPage() {
         title={greeting || t.dashboard.title}
         description={competence ? `${description} · ${competence}` : description}
       >
-        <Select
-          data-testid="dashboard-year"
-          label={isMobile ? undefined : t.dashboard.yearLabel}
-          aria-label={t.dashboard.yearLabel}
-          value={String(year)}
-          onChange={(value) => value && setYear(Number(value))}
-          data={years.map((item) => ({ value: String(item), label: String(item) }))}
+        <MonthYearPicker
+          data-testid="dashboard-period"
+          label={isMobile ? undefined : `${t.common.month}/${t.dashboard.yearLabel}`}
+          year={year}
+          month={month}
+          onChange={(nextYear, nextMonth) => {
+            setYear(nextYear);
+            setMonth(nextMonth);
+          }}
           size={isMobile ? 'sm' : 'md'}
-          w={isMobile ? 96 : 130}
+          w={isMobile ? 170 : 210}
         />
       </PageHeader>
 
-      {view === 'ADMIN' ? <AdminView year={year} /> : null}
-      {view === 'TESOUREIRO' ? <TreasurerView year={year} /> : null}
-      {view === 'PASTOR' ? <PastorView year={year} /> : null}
+      {view === 'ADMIN' ? <AdminView year={year} month={month} /> : null}
+      {view === 'TESOUREIRO' ? <TreasurerView year={year} month={month} /> : null}
+      {view === 'PASTOR' ? <PastorView year={year} month={month} /> : null}
     </>
   );
 }

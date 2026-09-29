@@ -20,6 +20,7 @@ import {
   IconAlertCircle,
   IconArrowLeft,
   IconBrandYoutube,
+  IconLock,
   IconPencil,
   IconRefresh,
   IconTrash,
@@ -174,11 +175,38 @@ export default function SongDetailPage() {
                 {song.chord_status ? (
                   <SongChordStatusBadge status={song.chord_status} detail={song.chord_error || undefined} />
                 ) : null}
+                {song.is_private ? (
+                  <Tooltip label={t.music.privateBadgeTip}>
+                    <Badge
+                      color="gray"
+                      variant="light"
+                      leftSection={<IconLock size={12} />}
+                      data-testid="song-visibility-badge"
+                    >
+                      {t.music.privateBadge}
+                    </Badge>
+                  </Tooltip>
+                ) : null}
               </Group>
-              <Text size="sm" c="dimmed">
-                {t.music.timesPlayed}: {song.times_played}
-                {song.last_played ? ` • ${t.music.lastPlayed}: ${song.last_played.slice(0, 10)}` : ''}
-              </Text>
+              <Stack gap={4} mt={6}>
+                <Text size="sm" fw={500}>{t.music.playedByBand}</Text>
+                {song.band_stats.length === 0 ? (
+                  <Text size="sm" c="dimmed">{t.music.noBandStats}</Text>
+                ) : (
+                  <Group gap="xs" wrap="wrap">
+                    {song.band_stats.map((stat) => (
+                      <Badge
+                        key={stat.band ?? 'none'}
+                        variant={stat.band ? 'dot' : 'outline'}
+                        color={stat.band ? stat.band_color : 'gray'}
+                        size="lg"
+                      >
+                        {stat.band_name || t.music.noBandLabel}: {stat.times_played}×
+                      </Badge>
+                    ))}
+                  </Group>
+                )}
+              </Stack>
               {song.created_by_name ? (
                 <Text size="xs" c="dimmed">{t.music.createdByLabel}: {song.created_by_name}</Text>
               ) : null}

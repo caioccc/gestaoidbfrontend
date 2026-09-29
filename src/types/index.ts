@@ -1725,6 +1725,17 @@ export type ChordStatus =
   | 'FAILED'
   | 'MANUAL';
 
+/** Execuções de uma música agrupadas pela banda do SETLIST (não pela banda
+ *  fixa da música). Setlists sem banda vêm com `band: null`. Sempre vazio
+ *  quando a música é privada. */
+export interface SongBandStat {
+  band: number | null;
+  band_name: string;
+  band_color: string;
+  times_played: number;
+  last_played: string | null;
+}
+
 export interface Song {
   id: number;
   church: number;
@@ -1745,9 +1756,10 @@ export interface Song {
   chords_json: ChordItem[];
   lyrics: string;
   tags: string;
-  times_played: number;
-  last_played: string | null;
+  band_stats: SongBandStat[];
   is_active: boolean;
+  /** Privada = visível apenas para quem cadastrou. */
+  is_private: boolean;
   chord_status: ChordStatus;
   chord_error: string;
   chord_retries: number;
@@ -1813,6 +1825,8 @@ export interface BandSetlistPayload {
   description: string;
   theme?: string;
   notes?: string;
+  /** Quando true, só o criador enxerga o setlist. */
+  is_private?: boolean;
   items?: BandSetlistItemPayload[];
 }
 
@@ -1843,6 +1857,7 @@ export interface BandSetlist {
   notes: string;
   created_by: number;
   created_by_name: string;
+  is_private: boolean;
   created_at: string;
   updated_at: string;
   items: BandSetlistItem[];

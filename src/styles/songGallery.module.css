@@ -188,6 +188,13 @@
   background-color: rgba(0, 0, 0, 0.62);
 }
 
+.lockBadge {
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 40%;
+  background-color: rgba(17, 24, 39, 0.82);
+}
+
 .duration {
   position: absolute;
   right: 8px;

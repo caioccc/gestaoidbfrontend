@@ -51,6 +51,58 @@ export function useListPagination<T>(items: readonly T[]): ListPaginationState<T
   };
 }
 
+interface ServerListPaginationState {
+  page: number;
+  setPage: (next: number) => void;
+  pageSize: number;
+  changePageSize: (next: number) => void;
+  total: number;
+  setTotal: (next: number) => void;
+  totalPages: number;
+  rangeStart: number;
+  rangeEnd: number;
+  reset: () => void;
+}
+
+/**
+ * Estado de paginação para listas que já vêm paginadas do servidor.
+ *
+ * Diferente de `useListPagination`, aqui não existe `pageItems`: a página
+ * renderiza direto o array retornado pela API, e informa o total com
+ * `setTotal(count)`. A busca precisa reagir a `page`/`pageSize` (e aos filtros,
+ * que devem chamar `reset()`), normalmente dentro de um `useEffect` da própria
+ * tela.
+ */
+export function useServerPagination(options?: { pageSize?: number }): ServerListPaginationState {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(options?.pageSize ?? PAGE_SIZE_OPTIONS[0]);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const changePageSize = (next: number) => {
+    setPageSize(next);
+    setPage(1);
+  };
+
+  return {
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    total,
+    setTotal,
+    totalPages,
+    rangeStart: total === 0 ? 0 : (page - 1) * pageSize + 1,
+    rangeEnd: Math.min(page * pageSize, total),
+    reset: () => setPage(1),
+  };
+}
+
 interface ListPaginationProps {
   page: number;
   onPageChange: (next: number) => void;

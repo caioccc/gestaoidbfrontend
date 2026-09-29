@@ -18,17 +18,38 @@ import { notifications } from '@mantine/notifications';
 import { IconLock, IconLockOpen, IconDownload } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
 import ExportModal from '../../../components/ExportModal';
+import { YearPicker } from '../../../components/MonthYearPicker';
 import { useLanguage } from '../../../i18n';
 import { MonthlyClosingsResponse } from '../../../types';
 import { formatBRL } from '../../../utils/format';
 import { saveBlob } from '../../../api/finance';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
+function buildYearOptions(existingYears: Array<number | string> = []) {
+  const current = new Date().getFullYear();
+  const start = Math.min(2022, current - 4);
+  const end = current + 2;
+  const values = new Set<string>([String(current)]);
+
+  for (let year = start; year <= end; year += 1) {
+    values.add(String(year));
+  }
+
+  existingYears.forEach((value) => {
+    const year = Number(value);
+    if (!Number.isNaN(year)) values.add(String(year));
+  });
+
+  return Array.from(values)
+    .map((value) => Number(value))
+    .sort((a, b) => b - a)
+    .map((year) => ({ value: String(year), label: String(year) }));
+}
 
 export default function ClosingsSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t } = useLanguage();
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  const yearOptions = buildYearOptions();
   const [data, setData] = useState<MonthlyClosingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -112,12 +133,11 @@ export default function ClosingsSection({ api, churchLabel }: { api: AdminFinanc
           >
             {t.exportPage.button}
           </Button>
-          <Select
+          <YearPicker
             data-testid="closings-year"
             label={t.common.year}
-            value={String(year)}
-            onChange={(v) => v && setYear(Number(v))}
-            data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+            year={year}
+            onChange={setYear}
             w={110}
           />
         </Stack>

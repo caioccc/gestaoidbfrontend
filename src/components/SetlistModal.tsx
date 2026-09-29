@@ -116,7 +116,13 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
     }
   };
 
-  const songData = songs.map((s) => ({ value: String(s.id), label: `${s.title}${s.artist ? ` — ${s.artist}` : ''}` }));
+  /* Músicas privadas seguem selecionáveis aqui (o Louvor monta o próprio
+   * repertório), mas ficam marcadas com cadeado para não haver surpresa
+   * quando o fluxo de culto for compartilhado. */
+  const songData = songs.map((s) => ({
+    value: String(s.id),
+    label: `${s.is_private ? '🔒 ' : ''}${s.title}${s.artist ? ` — ${s.artist}` : ''}`,
+  }));
 
   return (
     <Modal opened={opened} onClose={onClose} size="lg" centered title={t.music.setlistEdit}>

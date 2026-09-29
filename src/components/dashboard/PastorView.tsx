@@ -28,7 +28,6 @@ import {
 } from '@tabler/icons-react';
 import { accountsApi, growthGroupsApi } from '../../api/accounts';
 import { calendarEventsApi, financeApi } from '../../api/finance';
-import { musicApi } from '../../api/music';
 import { useAuth, useRoleHelpers } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n';
 import type {
@@ -42,6 +41,7 @@ import type {
   WorshipService,
 } from '../../types';
 import { daysSinceLastContact } from '../../utils/whatsapp';
+import { dateFromApi, dateToApi, expandEvents } from '../../utils/calendarRecurrence';
 import {
   DashboardTone,
   EmptyState,
@@ -69,7 +69,15 @@ function formatShortDate(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export default function PastorView({ year }: { year: number }) {
+function localDateISO(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export default function PastorView({ year, month }: { year: number; month: number }) {
   const { t } = useLanguage();
   const router = useRouter();
   const dv = t.dashboardViews;
@@ -86,11 +94,10 @@ export default function PastorView({ year }: { year: number }) {
   const [visits, setVisits] = useState<PastoralVisit[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [setlistCount, setSetlistCount] = useState<number | null>(null);
 
-  const currentMonth = new Date().getMonth() + 1;
+  const currentMonth = month;
   const currentMonthKey = `${year}-${String(currentMonth).padStart(2, '0')}`;
-  const todayISO = new Date().toISOString().slice(0, 10);
+  const todayISO = localDateISO();
 
   useEffect(() => {
     let active = true;
@@ -106,14 +113,10 @@ export default function PastorView({ year }: { year: number }) {
       calendarEventsApi.list(),
     ];
 
-    if (canSeeSetlists) {
-      requests.push(musicApi.bandSetlists({ month: currentMonthKey }).then((items) => items.length));
-    }
-
     Promise.allSettled(requests)
       .then((results) => {
         if (!active) return;
-        const [mem, grp, svc, pray, vis, fin, evt, setlists] = results;
+        const [mem, grp, svc, pray, vis, fin, evt] = results;
         if (mem.status === 'fulfilled') setMembers(mem.value as Member[]);
         if (grp.status === 'fulfilled') setGroups(grp.value as GrowthGroup[]);
         if (svc.status === 'fulfilled') setServices(svc.value as WorshipService[]);
@@ -121,7 +124,6 @@ export default function PastorView({ year }: { year: number }) {
         if (vis.status === 'fulfilled') setVisits(vis.value as PastoralVisit[]);
         if (fin.status === 'fulfilled') setSummary(fin.value as DashboardSummary);
         if (evt.status === 'fulfilled') setEvents(evt.value as CalendarEvent[]);
-        if (setlists?.status === 'fulfilled') setSetlistCount(setlists.value as number);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -147,13 +149,19 @@ export default function PastorView({ year }: { year: number }) {
     [services, currentMonthKey],
   );
 
-  const nextService = useMemo(
-    () =>
-      [...services]
-        .filter((service) => service.date >= todayISO)
-        .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null,
-    [services, todayISO],
-  );
+  const upcomingCultos = useMemo(() => {
+    const today = dateFromApi(todayISO);
+    const occurrences = expandEvents(
+      events.filter((event) => event.category === 'culto'),
+      today,
+      6,
+    );
+    return occurrences.sort((a, b) => {
+      const dateOrder = (dateToApi(a.date) ?? '').localeCompare(dateToApi(b.date) ?? '');
+      if (dateOrder !== 0) return dateOrder;
+      return (a.event.start_time ?? '23:59:59').localeCompare(b.event.start_time ?? '23:59:59');
+    });
+  }, [events, todayISO]);
 
   const pendingPrayers = useMemo(
     () => prayers.filter((prayer) => prayer.status === 'PENDING' || prayer.status === 'PRAYING'),
@@ -303,48 +311,24 @@ export default function PastorView({ year }: { year: number }) {
           loading={loading}
           skeletonHeight={200}
         >
-          {nextService ? (
-            <Stack gap="sm">
-              <Group justify="space-between" align="flex-start" wrap="nowrap">
-                <Box style={{ minWidth: 0 }}>
-                  <Text fw={700} size="lg" lineClamp={1}>
-                    {nextService.service_type_display}
-                  </Text>
+          {upcomingCultos.length > 0 ? (
+            <Stack gap="xs">
+              {upcomingCultos.map(({ date, event }) => (
+                <Box key={`${event.id}-${dateToApi(date)}`}>
+                  <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+                    <Text fw={700} size="lg" lineClamp={1} style={{ minWidth: 0 }}>
+                      {event.title}
+                    </Text>
+                    <Badge color="grape" variant="light" size="sm">
+                      {(dateToApi(date) ?? '') === todayISO ? dv.psToday : dv.psUpcoming}
+                    </Badge>
+                  </Group>
                   <Text c="dimmed" size="sm">
-                    {formatShortDate(nextService.date)}
-                    {nextService.time ? ` · ${nextService.time.slice(0, 5)}` : ''}
+                    {formatShortDate(dateToApi(date) ?? '')}
+                    {event.start_time ? ` · ${event.start_time.slice(0, 5)}` : ''}
                   </Text>
                 </Box>
-                <Badge color="grape" variant="light" size="lg">
-                  {nextService.date === todayISO ? dv.psToday : dv.psUpcoming}
-                </Badge>
-              </Group>
-              {nextService.theme ? (
-                <Text size="sm" lineClamp={2}>
-                  <Text span fw={600}>
-                    {dv.psTheme}:
-                  </Text>{' '}
-                  {nextService.theme}
-                </Text>
-              ) : null}
-              {nextService.preacher ? (
-                <Text size="sm" lineClamp={1}>
-                  <Text span fw={600}>
-                    {dv.psPreacher}:
-                  </Text>{' '}
-                  {nextService.preacher}
-                </Text>
-              ) : null}
-              <Group gap="xs">
-                {setlistCount !== null ? (
-                  <Badge variant="light" color="indigo" leftSection={<IconBook2 size={12} />}>
-                    {setlistCount} {dv.psSetlists}
-                  </Badge>
-                ) : null}
-                <Badge variant="light" color="teal" leftSection={<IconTrendingUp size={12} />}>
-                  {monthTotals.conversions} {dv.psConversions}
-                </Badge>
-              </Group>
+              ))}
             </Stack>
           ) : (
             <EmptyState label={dv.psNoUpcomingService} icon={<IconBuildingChurch size={30} />} />

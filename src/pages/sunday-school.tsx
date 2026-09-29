@@ -33,7 +33,6 @@ import {
   IconChecklist,
   IconClipboardCheck,
   IconDeviceFloppy,
-  IconDoor,
   IconDotsVertical,
   IconFileSpreadsheet,
   IconPencil,
@@ -48,6 +47,7 @@ import {
 import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import FilterDrawer from '../components/FilterDrawer';
+import { MonthYearPicker } from '../components/MonthYearPicker';
 import Layout from '../components/Layout';
 import MobileListToolbar from '../components/MobileListToolbar';
 import SundaySchoolSessionModal from '../components/SundaySchoolSessionModal';
@@ -200,18 +200,20 @@ function ClassesTab() {
           onOpenFilters={() => setClassFiltersOpen(true)}
           filterCount={classFilterCount}
           primary={
-            <Button
-              size="sm"
-              px="xs"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-              data-testid="new-class"
-            >
-              {t.sundaySchool.newClass}
-            </Button>
+            <Tooltip label={t.sundaySchool.newClass} withArrow>
+              <ActionIcon
+                variant="filled"
+                size="lg"
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+                aria-label={t.sundaySchool.newClass}
+                data-testid="new-class"
+              >
+                <IconPlus size={18} />
+              </ActionIcon>
+            </Tooltip>
           }
           testId="ebd-classes-toolbar"
         />
@@ -270,75 +272,80 @@ function ClassesTab() {
             <Paper
               key={c.id}
               withBorder
-              p="md"
+              p="sm"
               radius="md"
               shadow="xs"
               style={{ display: 'flex', flexDirection: 'column' }}
             >
-              <Group justify="space-between" align="flex-start" mb="xs" wrap="nowrap">
-                <Text fw={600} size="md" truncate style={{ flex: 1, minWidth: 0 }}>
-                  {c.name}
-                </Text>
-                <Group gap="xs" wrap="nowrap" style={{ flexShrink: 0 }}>
-                  <Badge size="sm" variant="light" color="grape">
+              <Group justify="space-between" align="flex-start" mb={6} wrap="nowrap" gap="xs">
+                <Group gap="xs" wrap="nowrap" align="center" style={{ flex: 1, minWidth: 0 }}>
+                  <Text fw={700} size="md" truncate style={{ minWidth: 0 }}>
+                    {c.name}
+                  </Text>
+                  <Badge size="sm" variant="light" color="grape" style={{ flexShrink: 0 }}>
                     {c.category_display}
                   </Badge>
-                  <Menu position="bottom-end" shadow="md">
-                    <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label={t.sundaySchool.editClass}>
-                        <IconDotsVertical size={16} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                      <Menu.Item
-                        leftSection={<IconPencil size={14} />}
-                        onClick={() => {
-                          setEditing(c);
-                          setFormOpen(true);
-                        }}
-                      >
-                        {t.common.edit}
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={<IconTrash size={14} />}
-                        color="red"
-                        onClick={() => setDeleting(c)}
-                      >
-                        {t.common.delete}
-                      </Menu.Item>
-                    </Menu.Dropdown>
-                  </Menu>
                 </Group>
+                <Menu position="bottom-end" shadow="md">
+                  <Menu.Target>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="lg"
+                      style={{ flexShrink: 0 }}
+                      aria-label={t.sundaySchool.editClass}
+                    >
+                      <IconDotsVertical size={18} />
+                    </ActionIcon>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      leftSection={<IconPencil size={14} />}
+                      onClick={() => {
+                        setEditing(c);
+                        setFormOpen(true);
+                      }}
+                    >
+                      {t.common.edit}
+                    </Menu.Item>
+                    <Menu.Item
+                      leftSection={<IconTrash size={14} />}
+                      color="red"
+                      onClick={() => setDeleting(c)}
+                    >
+                      {t.common.delete}
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
               </Group>
 
-              <Stack gap={6} style={{ flex: 1 }}>
-                <Group gap="xs" c="dimmed" wrap="nowrap">
-                  <IconUser size={14} />
-                  <Text size="xs" c="dimmed" truncate>
-                    {c.teacher_name || '—'}
-                  </Text>
-                </Group>
+              <Group gap={6} c="dimmed" wrap="nowrap" mb="xs">
+                <IconUser size={14} style={{ flexShrink: 0 }} />
+                <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                  {c.teacher_name || '—'}
+                </Text>
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                  •
+                </Text>
+                <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                  {t.sundaySchool.studentsCount.replace('{count}', String(c.enrollment_count))}
+                </Text>
                 {c.room_location ? (
-                  <Group gap="xs" c="dimmed" wrap="nowrap">
-                    <IconDoor size={14} />
-                    <Text size="xs" c="dimmed" truncate>
+                  <>
+                    <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+                      •
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
                       {c.room_location}
                     </Text>
-                  </Group>
+                  </>
                 ) : null}
-                <Badge
-                  variant="outline"
-                  color="gray"
-                  size="sm"
-                  style={{ alignSelf: 'flex-start' }}
-                >
-                  {t.sundaySchool.studentsCount.replace('{count}', String(c.enrollment_count))}
-                </Badge>
-              </Stack>
+              </Group>
 
-              <Group gap="xs" mt="md" wrap="nowrap">
+              <Box style={{ flex: 1 }} />
+
+              <Group gap="xs" mt="xs" wrap="nowrap">
                 <Button
-                  fullWidth
                   variant="light"
                   color="blue"
                   leftSection={<IconClipboardCheck size={16} />}
@@ -356,9 +363,10 @@ function ClassesTab() {
                   <ActionIcon
                     color="teal"
                     variant="light"
-                    size="lg"
+                    size="input-height"
                     disabled={!c.is_active}
                     onClick={() => setAnnounceFor(c)}
+                    aria-label={t.sundaySchool.announceWhatsAppHint}
                     data-testid={`announce-${c.id}`}
                   >
                     <IconBrandWhatsapp size={18} />
@@ -1093,11 +1101,6 @@ function ReportTab() {
     !!classId,
   ].filter(Boolean).length;
 
-  const years = useMemo(() => {
-    const y = now.getFullYear();
-    return [y - 2, y - 1, y, y + 1].map((v) => String(v));
-  }, [now]);
-
   useEffect(() => {
     accountsApi
       .sundaySchoolClasses()
@@ -1168,18 +1171,15 @@ function ReportTab() {
         <Paper withBorder p="sm" radius="md" mb="md">
         <Group justify="space-between" wrap="wrap" gap="sm">
           <Group align="flex-end" wrap="wrap" gap="sm">
-            <Select
-              label={t.sundaySchool.selectYear}
-              data={years.map((y) => ({ value: y, label: y }))}
-              value={year}
-              onChange={(v) => setYear(v ?? String(now.getFullYear()))}
-              w={110}
-            />
-            <Select
-              label={t.sundaySchool.selectMonth}
-              data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-              value={month}
-              onChange={(v) => setMonth(v ?? '1')}
+            <MonthYearPicker
+              data-testid="ebd-report-period"
+              label={`${t.common.month}/${t.common.year}`}
+              year={Number(year)}
+              month={Number(month)}
+              onChange={(nextYear, nextMonth) => {
+                setYear(String(nextYear));
+                setMonth(String(nextMonth));
+              }}
               w={200}
             />
             <Select
@@ -1465,19 +1465,15 @@ function ReportTab() {
         }}
         testId="ebd-report-filters"
       >
-        <Select
-          label={t.sundaySchool.selectYear}
-          data={years.map((y) => ({ value: y, label: y }))}
-          value={year}
-          onChange={(v) => setYear(v ?? initialYear)}
-          allowDeselect={false}
-        />
-        <Select
-          label={t.sundaySchool.selectMonth}
-          data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
-          value={month}
-          onChange={(v) => setMonth(v ?? initialMonth)}
-          allowDeselect={false}
+        <MonthYearPicker
+          data-testid="ebd-report-period-mobile"
+          label={`${t.common.month}/${t.common.year}`}
+          year={Number(year)}
+          month={Number(month)}
+          onChange={(nextYear, nextMonth) => {
+            setYear(String(nextYear));
+            setMonth(String(nextMonth));
+          }}
         />
         <Select
           label={t.sundaySchool.selectClass}

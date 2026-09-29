@@ -290,6 +290,7 @@ export const receiptsApi = {
   list: (params?: {
     page?: number;
     year?: number;
+    month?: number;
     receipt_type?: 'SAIDA' | 'ENTRADA';
     search?: string;
   }): Promise<Paginated<FinancialReceipt>> =>

@@ -28,6 +28,7 @@ import {
   IconHistory,
   IconLayoutGrid,
   IconList,
+  IconLock,
   IconMusic,
   IconNotebook,
   IconPencil,
@@ -53,7 +54,8 @@ import { musicApi } from '../api/music';
 import { formatDuration, formatMusicalKey } from '../utils/format';
 import galleryStyles from '../styles/songGallery.module.css';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
-import type { Band, ChordStatus, Song } from '../types';
+import type { Band, ChordStatus, Song, SongBandStat } from '../types';
+import type { VisibilityFilter } from '../api/music';
 
 type ViewMode = 'gallery' | 'list' | 'table';
 
@@ -90,6 +92,12 @@ const ORDERING_OPTIONS = [
   { value: '-artist', translationKey: 'orderArtistDesc' },
   { value: 'title', translationKey: 'orderTitleAsc' },
   { value: '-title', translationKey: 'orderTitleDesc' },
+] as const;
+
+const VISIBILITY_OPTIONS = [
+  { value: 'all', translationKey: 'visibilityAll' },
+  { value: 'public', translationKey: 'visibilityPublic' },
+  { value: 'private', translationKey: 'visibilityPrivate' },
 ] as const;
 
 function isViewMode(value: string | null): value is ViewMode {
@@ -139,6 +147,49 @@ function SongKeyBadges({ song, size = 'sm' }: { song: Song; size?: 'xs' | 'sm' }
         {song.bpm ?? '—'} {t.music.bpmLabel}
       </Badge>
     </Group>
+  );
+}
+
+function SongVisibilityBadge({ isPrivate, size = 'xs' }: {
+  isPrivate: boolean;
+  size?: 'xs' | 'sm';
+}) {
+  const { t } = useLanguage();
+  if (!isPrivate) return null;
+  return (
+    <Tooltip label={t.music.privateBadgeTip}>
+      <Badge
+        color="gray"
+        variant="light"
+        size={size}
+        leftSection={<IconLock size={12} />}
+        data-testid="song-visibility-badge"
+      >
+        {t.music.privateBadge}
+      </Badge>
+    </Tooltip>
+  );
+}
+
+function bandLabel(stat: SongBandStat, noBandLabel: string) {
+  return stat.band_name || noBandLabel;
+}
+
+/** "3x Alpha · 1x Sem banda" — substitui o antigo número agregado único. */
+function SongBandStatsText({ stats, size = 'xs' }: {
+  stats: SongBandStat[];
+  size?: 'xs' | 'sm';
+}) {
+  const { t } = useLanguage();
+  if (stats.length === 0) {
+    return <Text size={size} c="dimmed">{t.music.noBandStats}</Text>;
+  }
+  return (
+    <Text size={size} c="dimmed" style={{ whiteSpace: 'nowrap' }}>
+      {stats
+        .map((stat) => `${stat.times_played}× ${bandLabel(stat, t.music.noBandLabel)}`)
+        .join(' · ')}
+    </Text>
   );
 }
 
@@ -309,6 +360,11 @@ function SongGalleryView({
                     {song.band_name}
                   </span>
                 ) : null}
+                {song.is_private ? (
+                  <span className={galleryStyles.lockBadge} title={t.music.privateBadgeTip}>
+                    <IconLock size={12} />
+                  </span>
+                ) : null}
                 {duration ? (
                   <span className={galleryStyles.duration}>{duration}</span>
                 ) : null}
@@ -460,6 +516,7 @@ function SongListView({ songs, userId, onPlay, onHistory, onEdit, onDelete }: {
                 {song.created_by === userId ? (
                   <Badge variant="light" color="teal" size="xs">{t.music.mySong}</Badge>
                 ) : null}
+                <SongVisibilityBadge isPrivate={song.is_private} size="xs" />
                 <Text size="sm" c="dimmed" lineClamp={1}>{song.artist || '—'}</Text>
               </Group>
               <SongKeyBadges song={song} size="xs" />
@@ -476,9 +533,7 @@ function SongListView({ songs, userId, onPlay, onHistory, onEdit, onDelete }: {
               </Group>
             </Stack>
             <Stack gap={4} align="flex-end" style={{ flexShrink: 0 }}>
-              <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>
-                {t.music.playedTimes.replace('{count}', String(song.times_played))}
-              </Text>
+              <SongBandStatsText stats={song.band_stats} size="xs" />
               <Group gap={4} wrap="nowrap">
                 {isChordReady(song.chord_status) ? (
                   <Tooltip label={t.music.playerGo}>
@@ -530,7 +585,7 @@ function SongTableView({
               <Table.Th>{t.music.songArtistLabel}</Table.Th>
               <Table.Th>{t.music.churchKeyLabel}</Table.Th>
               <Table.Th>{t.music.bpmLabel}</Table.Th>
-              <Table.Th>{t.music.timesPlayed}</Table.Th>
+              <Table.Th>{t.music.playedByBand}</Table.Th>
               <Table.Th />
             </Table.Tr>
           </Table.Thead>
@@ -568,6 +623,7 @@ function SongTableView({
                     {song.created_by === userId ? (
                       <Badge variant="light" color="teal" size="xs">{t.music.mySong}</Badge>
                     ) : null}
+                    <SongVisibilityBadge isPrivate={song.is_private} size="xs" />
                   </Group>
                   <Text size="xs" c="dimmed">{song.tags}</Text>
                   <Group gap={6} mt={4}>
@@ -597,7 +653,24 @@ function SongTableView({
                   <Text size="sm">{song.bpm ?? '—'}</Text>
                 </Table.Td>
                 <Table.Td>
-                  <Text size="sm">{song.times_played}</Text>
+                  {song.band_stats.length === 0 ? (
+                    <Text size="sm" c="dimmed">—</Text>
+                  ) : (
+                    <Stack gap={2}>
+                      {song.band_stats.map((stat) => (
+                        <Group key={stat.band ?? 'none'} gap={6} wrap="nowrap">
+                          {stat.band ? (
+                            <Badge variant="dot" color={stat.band_color} size="xs">
+                              {bandLabel(stat, t.music.noBandLabel)}
+                            </Badge>
+                          ) : (
+                            <Text size="xs" c="dimmed">{t.music.noBandLabel}</Text>
+                          )}
+                          <Text size="sm" fw={600}>{stat.times_played}×</Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  )}
                 </Table.Td>
                 <Table.Td w={110}>
                   <SongTableActions
@@ -629,7 +702,9 @@ export default function SongsPage() {
   const [q, setQ] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [keyFilter, setKeyFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState('');
   const [bandFilter, setBandFilter] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<VisibilityFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [ordering, setOrdering] = useState('random');
@@ -641,11 +716,17 @@ export default function SongsPage() {
   const isCompact = useIsCompactList();
 
   const filterCount =
-    (bandFilter ? 1 : 0) + (keyFilter ? 1 : 0) + (ordering !== 'random' ? 1 : 0);
+    (bandFilter ? 1 : 0)
+    + (keyFilter ? 1 : 0)
+    + (tagFilter.trim() ? 1 : 0)
+    + (visibility !== 'all' ? 1 : 0)
+    + (ordering !== 'random' ? 1 : 0);
 
   const resetFilters = () => {
     setBandFilter(null);
     setKeyFilter(null);
+    setTagFilter('');
+    setVisibility('all');
     setOrdering('random');
     setPage(1);
   };
@@ -687,7 +768,9 @@ export default function SongsPage() {
         ordering,
         q: searchTerm || undefined,
         key: keyFilter || undefined,
+        tag: tagFilter.trim() || undefined,
         band: bandFilter ? Number(bandFilter) : undefined,
+        visibility,
       });
       setSongs(res.results);
       setTotal(res.count);
@@ -696,7 +779,7 @@ export default function SongsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, keyFilter, bandFilter, page, pageSize, ordering]);
+  }, [searchTerm, keyFilter, tagFilter, bandFilter, visibility, page, pageSize, ordering]);
 
   const loadBands = useCallback(async () => {
     try {
@@ -811,14 +894,18 @@ export default function SongsPage() {
               filterCount={filterCount}
               primary={
                 canViewMusic ? (
-                  <Button
-                    size="sm"
-                    px="xs"
-                    leftSection={<IconPlus size={14} />}
-                    onClick={openAdd}
-                  >
-                    {t.music.addSong}
-                  </Button>
+                  <Tooltip label={t.music.addSong} withArrow>
+                    <ActionIcon
+                      variant="filled"
+                      color="blue"
+                      size="lg"
+                      aria-label={t.music.addSong}
+                      onClick={openAdd}
+                      style={{ flexShrink: 0 }}
+                    >
+                      <IconPlus size={18} />
+                    </ActionIcon>
+                  </Tooltip>
                 ) : null
               }
               menuChildren={
@@ -897,6 +984,21 @@ export default function SongsPage() {
               }}
               clearable
               w={120}
+            />
+            <Select
+              aria-label={t.music.visibilityLabel}
+              leftSection={<IconLock size={15} />}
+              data={VISIBILITY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: t.music[option.translationKey],
+              }))}
+              value={visibility}
+              onChange={(value) => {
+                setVisibility((value as VisibilityFilter) ?? 'all');
+                setPage(1);
+              }}
+              allowDeselect={false}
+              w={160}
             />
             <Select
               aria-label={t.music.orderByLabel}
@@ -1013,6 +1115,19 @@ export default function SongsPage() {
           onClear={resetFilters}
           testId="songs-filters"
         >
+          <Text size="sm" fw={500}>{t.music.visibilityLabel}</Text>
+          <SegmentedControl
+            fullWidth
+            value={visibility}
+            onChange={(value) => {
+              setVisibility(value as VisibilityFilter);
+              setPage(1);
+            }}
+            data={VISIBILITY_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t.music[option.translationKey],
+            }))}
+          />
           <Select
             label={t.music.selectBand}
             data={bands.map((band) => ({ value: String(band.id), label: band.name }))}
@@ -1033,6 +1148,14 @@ export default function SongsPage() {
               setPage(1);
             }}
             clearable
+          />
+          <TextInput
+            label={t.music.tagsLabel}
+            value={tagFilter}
+            onChange={(event) => {
+              setTagFilter(event.currentTarget.value);
+              setPage(1);
+            }}
           />
           <Select
             label={t.music.orderByLabel}

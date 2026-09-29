@@ -60,7 +60,7 @@ function formatShortDate(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export default function TreasurerView({ year }: { year: number }) {
+export default function TreasurerView({ year, month }: { year: number; month: number }) {
   const { t } = useLanguage();
   const router = useRouter();
   const dv = t.dashboardViews;
@@ -75,7 +75,7 @@ export default function TreasurerView({ year }: { year: number }) {
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
   const [tithers, setTithers] = useState<Tither[]>([]);
 
-  const currentMonth = new Date().getMonth() + 1;
+  const currentMonth = month;
   const monthKey = `${year}-${String(currentMonth).padStart(2, '0')}`;
   const monthStart = `${monthKey}-01`;
   const monthEnd = `${monthKey}-${String(new Date(year, currentMonth, 0).getDate()).padStart(2, '0')}`;

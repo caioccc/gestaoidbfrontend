@@ -197,6 +197,45 @@ export interface MemberListResponse {
   results: Member[];
 }
 
+/** Envelope padrão das listagens paginadas no servidor. */
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export interface MaterialListParams {
+  page?: number;
+  page_size?: number;
+  search?: string;
+  location?: number;
+}
+
+export interface LoanListParams {
+  page?: number;
+  page_size?: number;
+  status?: string;
+  item?: number;
+}
+
+export interface MinutesListParams {
+  page?: number;
+  page_size?: number;
+  start_date?: string;
+  end_date?: string;
+  meeting_type?: string;
+  search?: string;
+}
+
+export interface CertificateListParams {
+  page?: number;
+  page_size?: number;
+  type?: string;
+  year?: string;
+  search?: string;
+}
+
 export interface MemberSubmissionListResponse {
   count: number;
   next: string | null;
@@ -408,6 +447,21 @@ export const accountsApi = {
   }): Promise<PrayerRequest[]> =>
     apiClient.get('/api/accounts/prayer-requests/', { params }).then((r) => r.data),
 
+  prayerRequestsPage: (params?: {
+    status?: PrayerRequestStatus;
+    category?: PrayerRequestCategory;
+    wants_visit?: boolean;
+    preferred_period?: PrayerRequestPreferredPeriod;
+    q?: string;
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<PrayerRequest>> =>
+    apiClient
+      .get('/api/accounts/prayer-requests/', {
+        params: { ...(params || {}), paginate: 1 },
+      })
+      .then((r) => r.data),
+
   prayerRequest: (id: number): Promise<PrayerRequest> =>
     apiClient.get(`/api/accounts/prayer-requests/${id}/`).then((r) => r.data),
 
@@ -522,6 +576,16 @@ export const accountsApi = {
   storageLocations: (): Promise<StorageLocation[]> =>
     apiClient.get('/api/accounts/storage-locations/').then((r) => r.data),
 
+  storageLocationsPage: (params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<StorageLocation>> =>
+    apiClient
+      .get('/api/accounts/storage-locations/', {
+        params: { ...(params || {}), paginate: 1 },
+      })
+      .then((r) => r.data),
+
   createStorageLocation: (payload: { name: string }): Promise<StorageLocation> =>
     apiClient
       .post('/api/accounts/storage-locations/', payload)
@@ -538,6 +602,11 @@ export const accountsApi = {
   materials: (): Promise<MaterialItem[]> =>
     apiClient.get('/api/accounts/materials/').then((r) => r.data),
 
+  materialsPage: (params?: MaterialListParams): Promise<PaginatedResponse<MaterialItem>> =>
+    apiClient
+      .get('/api/accounts/materials/', { params: { ...(params || {}), paginate: 1 } })
+      .then((r) => r.data),
+
   createMaterial: (payload: MaterialItemPayload): Promise<MaterialItem> =>
     apiClient.post('/api/accounts/materials/', materialFormData(payload)).then((r) => r.data),
 
@@ -549,6 +618,11 @@ export const accountsApi = {
 
   loans: (): Promise<Loan[]> =>
     apiClient.get('/api/accounts/loans/').then((r) => r.data),
+
+  loansPage: (params?: LoanListParams): Promise<PaginatedResponse<Loan>> =>
+    apiClient
+      .get('/api/accounts/loans/', { params: { ...(params || {}), paginate: 1 } })
+      .then((r) => r.data),
 
   createLoan: (payload: LoanPayload): Promise<Loan> =>
     apiClient.post('/api/accounts/loans/', payload).then((r) => r.data),
@@ -780,6 +854,13 @@ export const accountsApi = {
   }): Promise<ChurchMinutes[]> =>
     apiClient.get('/api/accounts/minutes/', { params }).then((r) => r.data),
 
+  minutesPage: (
+    params?: MinutesListParams & { meeting_type?: MeetingType }
+  ): Promise<PaginatedResponse<ChurchMinutes>> =>
+    apiClient
+      .get('/api/accounts/minutes/', { params: { ...(params || {}), paginate: 1 } })
+      .then((r) => r.data),
+
   createMinutes: (payload: ChurchMinutesPayload, pdf?: File | null): Promise<ChurchMinutes> => {
     const fd = new FormData();
     appendMinutesPayload(fd, payload);
@@ -873,10 +954,27 @@ export const accountsApi = {
   deleteCertificateTemplate: (id: number): Promise<void> =>
     apiClient.delete(`/api/accounts/certificate-templates/${id}/`).then(() => undefined),
 
+  certificateTemplatesPage: (params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<CertificateTemplate>> =>
+    apiClient
+      .get('/api/accounts/certificate-templates/', {
+        params: { ...(params || {}), paginate: 1 },
+      })
+      .then((r) => r.data),
+
   certificates: (
     params?: { type?: CertificateType; year?: string; search?: string },
   ): Promise<EcclesiasticalCertificate[]> =>
     apiClient.get('/api/accounts/certificates/', { params }).then((r) => r.data),
+
+  certificatesPage: (
+    params?: CertificateListParams & { type?: CertificateType },
+  ): Promise<PaginatedResponse<EcclesiasticalCertificate>> =>
+    apiClient
+      .get('/api/accounts/certificates/', { params: { ...(params || {}), paginate: 1 } })
+      .then((r) => r.data),
 
   issueCertificate: (
     payload: CertificateIssueData,

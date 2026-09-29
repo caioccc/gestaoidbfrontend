@@ -32,6 +32,7 @@ import {
   IconFileText,
   IconLayoutGrid,
   IconList,
+  IconLock,
   IconMusic,
   IconPencil,
   IconPlayerPlay,
@@ -55,11 +56,36 @@ import { formatMusicalKey } from '../utils/format';
 import galleryStyles from '../styles/setlistGallery.module.css';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import type { Band, BandSetlist, BandSetlistItem } from '../types';
+import type { VisibilityFilter } from '../api/music';
 
 type SetlistViewMode = 'gallery' | 'list' | 'table';
 
 const PAGE_SIZE = 10;
 const VIEW_MODE_STORAGE_KEY = 'gestao_idb_setlists_view_mode';
+
+const VISIBILITY_OPTIONS = [
+  { value: 'all', translationKey: 'visibilityAll' },
+  { value: 'public', translationKey: 'visibilityPublic' },
+  { value: 'private', translationKey: 'visibilityPrivate' },
+] as const;
+
+/** Selo de setlist privado, reaproveitado nas três visualizações. */
+function SetlistPrivateBadge({ size = 'xs' }: { size?: 'xs' | 'sm' }) {
+  const { t } = useLanguage();
+  return (
+    <Tooltip label={t.music.privateSetlistBadgeTip}>
+      <Badge
+        color="gray"
+        variant="light"
+        size={size}
+        leftSection={<IconLock size={12} />}
+        data-testid="setlist-visibility-badge"
+      >
+        {t.music.privateBadge}
+      </Badge>
+    </Tooltip>
+  );
+}
 
 function monthKey(d: Date): string {
   const y = d.getFullYear();
@@ -470,6 +496,16 @@ function SetlistGalleryCard({
           {setlist.theme ? (
             <span className={galleryStyles.badgeTop}>{setlist.theme}</span>
           ) : null}
+          {setlist.is_private ? (
+            <span
+              className={galleryStyles.badgeTop}
+              style={{ left: 'auto', right: 8 }}
+              title={t.music.privateSetlistBadgeTip}
+            >
+              <IconLock size={12} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              {t.music.privateBadge}
+            </span>
+          ) : null}
           <span className={galleryStyles.badgeCount}>
             {items.length} {t.music.songCountLabel}
           </span>
@@ -595,6 +631,7 @@ function SetlistListCard({
             {setlist.band_name ? (
               <Badge variant="dot" color={setlist.band_color} size="sm">{setlist.band_name}</Badge>
             ) : null}
+            {setlist.is_private ? <SetlistPrivateBadge size="sm" /> : null}
             <Badge variant="outline" color="gray" size="sm">
               {setlist.items.length} {t.music.songCountLabel}
             </Badge>
@@ -740,7 +777,10 @@ function SetlistTableView({
                     <Text size="sm" fw={600}>{formatDateLabel(setlist.date, locale)}</Text>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{setlist.description}</Text>
+                    <Group gap={6}>
+                      <Text size="sm">{setlist.description}</Text>
+                      {setlist.is_private ? <SetlistPrivateBadge size="xs" /> : null}
+                    </Group>
                     {items.length > 0 ? (
                       <Stack gap={2} mt={4}>
                         {items.slice(0, 3).map((item) => (
@@ -812,6 +852,7 @@ export default function SetlistsPage() {
 
   const [month, setMonth] = useState(() => monthKey(new Date()));
   const [bandFilter, setBandFilter] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<VisibilityFilter>('all');
   const [bands, setBands] = useState<Band[]>([]);
   const [setlists, setSetlists] = useState<BandSetlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -826,11 +867,14 @@ export default function SetlistsPage() {
 
   const defaultMonth = monthKey(new Date());
   const filterCount =
-    (bandFilter ? 1 : 0) + (month && month !== defaultMonth ? 1 : 0);
+    (bandFilter ? 1 : 0)
+    + (visibility !== 'all' ? 1 : 0)
+    + (month && month !== defaultMonth ? 1 : 0);
 
   const resetFilters = () => {
     setMonth(defaultMonth);
     setBandFilter(null);
+    setVisibility('all');
     setPage(1);
   };
 
@@ -841,6 +885,7 @@ export default function SetlistsPage() {
         await musicApi.bandSetlists({
           month: month || undefined,
           band: bandFilter ? Number(bandFilter) : undefined,
+          visibility,
         }),
       );
     } catch {
@@ -848,7 +893,7 @@ export default function SetlistsPage() {
     } finally {
       setLoading(false);
     }
-  }, [month, bandFilter]);
+  }, [month, bandFilter, visibility]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -974,6 +1019,22 @@ export default function SetlistsPage() {
               w={200}
               size="sm"
             />
+            <Select
+              placeholder={t.music.visibilityLabel}
+              leftSection={<IconLock size={15} />}
+              data={VISIBILITY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: t.music[option.translationKey],
+              }))}
+              value={visibility}
+              onChange={(value) => {
+                setVisibility((value as VisibilityFilter) ?? 'all');
+                setPage(1);
+              }}
+              allowDeselect={false}
+              w={150}
+              size="sm"
+            />
             <SegmentedControl
               value={viewMode}
               onChange={(value) => setViewMode(value as SetlistViewMode)}
@@ -1090,6 +1151,19 @@ export default function SetlistsPage() {
             }}
             clearable
             searchable
+          />
+          <Text size="sm" fw={500}>{t.music.visibilityLabel}</Text>
+          <SegmentedControl
+            fullWidth
+            value={visibility}
+            onChange={(value) => {
+              setVisibility(value as VisibilityFilter);
+              setPage(1);
+            }}
+            data={VISIBILITY_OPTIONS.map((option) => ({
+              value: option.value,
+              label: t.music[option.translationKey],
+            }))}
           />
         </FilterDrawer>
 

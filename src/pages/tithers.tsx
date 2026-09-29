@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Card,
   Group,
@@ -36,6 +36,7 @@ import {
   IconDotsVertical,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import { MonthYearPicker, YearPicker } from '../components/MonthYearPicker';
 import MoneyInput from '../components/MoneyInput';
 import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
@@ -43,7 +44,26 @@ import { TitherMatrix, TitherMatrixMember, Reconciliation, Tither, TitherRepeatA
 import { financeApi } from '../api/finance';
 import { toUpperCamelWords, formatBRL } from '../utils/format';
 
-const YEARS = [2022, 2023, 2024, 2025, 2026, 2027];
+function buildYearOptions(existingYears: Array<number | string> = []) {
+  const current = new Date().getFullYear();
+  const start = Math.min(2022, current - 4);
+  const end = current + 2;
+  const values = new Set<string>([String(current)]);
+
+  for (let year = start; year <= end; year += 1) {
+    values.add(String(year));
+  }
+
+  existingYears.forEach((value) => {
+    const year = Number(value);
+    if (!Number.isNaN(year)) values.add(String(year));
+  });
+
+  return Array.from(values)
+    .map((value) => Number(value))
+    .sort((a, b) => b - a)
+    .map((year) => ({ value: String(year), label: String(year) }));
+}
 
 export default function TithersPage() {
   const { t } = useLanguage();
@@ -70,6 +90,7 @@ export default function TithersPage() {
   const [memberMatrixYear, setMemberMatrixYear] = useState<number>(currentYear);
   const [memberMatrixMonths, setMemberMatrixMonths] = useState<(number | '')[]>(Array(12).fill(''));
   const [memberMatrixLoading, setMemberMatrixLoading] = useState(false);
+  const yearOptions = useMemo(() => buildYearOptions(), []);
 
   const [repeat, setRepeat] = useState<TitherRepeatAudit | null>(null);
   const [repeatLoading, setRepeatLoading] = useState(true);
@@ -293,20 +314,15 @@ export default function TithersPage() {
     <>
       <PageHeader title={t.tithersPage.title}>
         <Group gap="md" wrap="wrap">
-          <Select
-            data-testid="tithers-year"
-            label={t.common.year}
-            value={String(year)}
-            onChange={(v) => v && setYear(Number(v))}
-            data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
-            w={110}
-          />
-          <Select
-            data-testid="tithers-month"
-            label={t.common.month}
-            value={String(month)}
-            onChange={(v) => v && setMonth(Number(v))}
-            data={t.months.map((m, i) => ({ value: String(i + 1), label: m }))}
+          <MonthYearPicker
+            data-testid="tithers-period"
+            label={`${t.common.month}/${t.common.year}`}
+            year={year}
+            month={month}
+            onChange={(nextYear, nextMonth) => {
+              setYear(nextYear);
+              setMonth(nextMonth);
+            }}
             w={180}
           />
         </Group>
@@ -714,7 +730,7 @@ export default function TithersPage() {
                     void loadMemberMatrix(editing, y);
                   }
                 }}
-                data={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
+                data={yearOptions}
                 w={110}
                 disabled={memberMatrixLoading}
               />

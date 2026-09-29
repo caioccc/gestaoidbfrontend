@@ -55,6 +55,7 @@ import AuthGuard from '../components/AuthGuard';
 import ChurchMap from '../components/ChurchMap';
 import FilterDrawer from '../components/FilterDrawer';
 import MaskedTextInput from '../components/MaskedTextInput';
+import { MonthYearPicker } from '../components/MonthYearPicker';
 import MobileListToolbar from '../components/MobileListToolbar';
 import VisitationMap, { type VisitationAction } from '../components/VisitationMap';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
@@ -1058,21 +1059,16 @@ export default function VisitationPage() {
             >
               <IconChevronLeft size={16} />
             </ActionIcon>
-            <Select
-              value={String(month)}
-              onChange={(v) => v && setMonth(Number(v))}
-              data={monthOptions}
-              w={150}
-              allowDeselect={false}
+            <MonthYearPicker
+              data-testid="visitation-period-mobile"
+              year={year}
+              month={month}
+              onChange={(nextYear, nextMonth) => {
+                setYear(nextYear);
+                setMonth(nextMonth);
+              }}
               size="xs"
-            />
-            <Select
-              value={String(year)}
-              onChange={(v) => v && setYear(Number(v))}
-              data={yearOptions}
-              w={90}
-              allowDeselect={false}
-              size="xs"
+              w={180}
             />
             <ActionIcon
               variant="default"
@@ -1095,21 +1091,16 @@ export default function VisitationPage() {
               >
                 <IconChevronLeft size={16} />
               </ActionIcon>
-              <Select
-                value={String(month)}
-                onChange={(v) => v && setMonth(Number(v))}
-                data={monthOptions}
-                w={150}
-                allowDeselect={false}
+              <MonthYearPicker
+                data-testid="visitation-period"
+                year={year}
+                month={month}
+                onChange={(nextYear, nextMonth) => {
+                  setYear(nextYear);
+                  setMonth(nextMonth);
+                }}
                 size="xs"
-              />
-              <Select
-                value={String(year)}
-                onChange={(v) => v && setYear(Number(v))}
-                data={yearOptions}
-                w={90}
-                allowDeselect={false}
-                size="xs"
+                w={180}
               />
               <ActionIcon
                 variant="default"

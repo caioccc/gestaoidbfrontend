@@ -9,6 +9,7 @@ import {
   Group,
   Loader,
   Paper,
+  Progress,
   ScrollArea,
   Select,
   SimpleGrid,
@@ -47,6 +48,7 @@ import {
   toUpperCamelWords,
 } from '../../utils/format';
 import type { Kinship, PublicFormMeta } from '../../types';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface RelativeForm {
   name: string;
@@ -129,6 +131,7 @@ const toDateValue = (
 
 export default function PublicMemberFormPage() {
   const { t, locale } = useLanguage();
+  const isMobile = useIsMobile();
   const router = useRouter();
   const hash = typeof router.query.hash === 'string' ? router.query.hash : '';
 
@@ -373,6 +376,12 @@ export default function PublicMemberFormPage() {
   const maritalLabel =
     maritalOptions.find((o) => o.value === form.values.marital_status)
       ?.label ?? '';
+  const stepTitles = [
+    t.membersPage.stepPersonal,
+    t.membersPage.stepMinistry,
+    t.membersPage.addressTitle,
+    t.membersPage.stepFamily,
+  ];
 
   if (loading) {
     return (
@@ -457,12 +466,21 @@ export default function PublicMemberFormPage() {
           </Paper>
         ) : (
           <Paper withBorder radius="md" p="md">
+            {isMobile ? (
+              <Stack gap={4} mb="md">
+                <Text size="sm" fw={600}>
+                  Passo {step + 1} de {stepTitles.length}: {stepTitles[step]}
+                </Text>
+                <Progress value={((step + 1) / stepTitles.length) * 100} size="xs" />
+              </Stack>
+            ) : null}
             <Stepper
               active={step}
               onStepClick={setStep}
               allowNextStepsSelect={false}
               color="teal"
               size="sm"
+              styles={isMobile ? { steps: { display: 'none' } } : undefined}
             >
               <Stepper.Step label={t.membersPage.stepPersonal}>
                 <ScrollArea.Autosize mah={520} type="auto">

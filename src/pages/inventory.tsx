@@ -37,7 +37,6 @@ import {
   IconPencil,
   IconPlus,
   IconReceipt,
-  IconRefresh,
   IconSearch,
   IconTrash,
   IconTruckReturn,
@@ -46,7 +45,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
-import { ListPagination, useListPagination } from '../components/ListPagination';
+import { ListPagination, useServerPagination } from '../components/ListPagination';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { toISO, toSentenceCase, toUpperCamelWords, maskPhone } from '../utils/format';
@@ -98,6 +97,29 @@ function ItemsTab() {
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [toDelete, setToDelete] = useState<MaterialItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [dbSearch, setDbSearch] = useState('');
+
+  const {
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    total,
+    setTotal,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+  } = useServerPagination();
+
+  // A busca vai para o servidor (filtro antes da paginação), então espera
+  // a digitação parar para não disparar uma request por tecla.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDbSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [search, setPage]);
 
   const photoPreview = useMemo(() => {
     if (photoFile) return URL.createObjectURL(photoFile);
@@ -112,17 +134,25 @@ function ItemsTab() {
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([accountsApi.materials(), accountsApi.storageLocations()])
+    Promise.all([
+      accountsApi.materialsPage({ page, page_size: pageSize, search: dbSearch || undefined }),
+      accountsApi.storageLocations(),
+    ])
       .then(([mats, locs]) => {
-        setItems(mats);
+        setItems(mats.results);
+        setTotal(mats.count);
         setLocations(locs);
+        if (mats.results.length === 0 && mats.count > 0 && page > 1) {
+          setPage(page - 1);
+        }
       })
       .catch(() => {
         setItems([]);
+        setTotal(0);
         setLocations([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, pageSize, dbSearch, setPage, setTotal]);
 
   useEffect(() => {
     load();
@@ -210,18 +240,6 @@ function ItemsTab() {
     label: l.name,
   }));
 
-  const filtered = items.filter((item) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      item.name.toLowerCase().includes(q) ||
-      (item.description || '').toLowerCase().includes(q) ||
-      (item.location_name || '').toLowerCase().includes(q)
-    );
-  });
-
-  const itemPagination = useListPagination(filtered);
-
   const itemActions = (item: MaterialItem) => (
     <Group gap={4} justify="flex-end" wrap="nowrap">
       {item.manual && (
@@ -258,7 +276,7 @@ function ItemsTab() {
     </Group>
   );
 
-  const rows = itemPagination.pageItems.map((item) => {
+  const rows = items.map((item) => {
     const loan = item.current_loan;
     return (
       <Table.Tr key={item.id} data-testid={`item-row-${item.id}`}>
@@ -351,14 +369,6 @@ function ItemsTab() {
         />
         <Group gap="xs">
           <Button
-            variant="default"
-            leftSection={<IconRefresh size={16} />}
-            onClick={load}
-            data-testid="items-refresh"
-          >
-            {t.common.filter}
-          </Button>
-          <Button
             leftSection={<IconPlus size={16} />}
             onClick={openCreate}
             data-testid="items-new"
@@ -372,7 +382,7 @@ function ItemsTab() {
           <Center h={200}>
             <Loader />
           </Center>
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light">
               <IconBuildingWarehouse size={24} />
@@ -396,7 +406,7 @@ function ItemsTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {itemPagination.pageItems.map((item) => {
+              {items.map((item) => {
                 const loan = item.current_loan;
                 return (
                   <MobileItemCard
@@ -464,14 +474,14 @@ function ItemsTab() {
       </Card>
 
       <ListPagination
-        page={itemPagination.page}
-        onPageChange={itemPagination.setPage}
-        pageSize={itemPagination.pageSize}
-        onPageSizeChange={itemPagination.changePageSize}
-        total={itemPagination.total}
-        totalPages={itemPagination.totalPages}
-        rangeStart={itemPagination.rangeStart}
-        rangeEnd={itemPagination.rangeEnd}
+        page={page}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={changePageSize}
+        total={total}
+        totalPages={totalPages}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
         testId="inventory-items-pagination"
       />
 
@@ -608,16 +618,32 @@ function LocationsTab() {
   const [saving, setSaving] = useState(false);
   const [toDelete, setToDelete] = useState<StorageLocation | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const locationPagination = useListPagination(locations);
+  const {
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    total,
+    setTotal,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+  } = useServerPagination();
 
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .storageLocations()
-      .then(setLocations)
-      .catch(() => setLocations([]))
+      .storageLocationsPage({ page: page, page_size: pageSize })
+      .then((data) => {
+        setLocations(data.results);
+        setTotal(data.count);
+      })
+      .catch(() => {
+        setLocations([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, pageSize, setTotal]);
 
   useEffect(() => {
     load();
@@ -707,7 +733,7 @@ function LocationsTab() {
     </Group>
   );
 
-  const rows = locationPagination.pageItems.map((loc) => (
+  const rows = locations.map((loc) => (
     <Table.Tr key={loc.id} data-testid={`location-row-${loc.id}`}>
       <Table.Td>
         <Group gap="sm" wrap="nowrap">
@@ -726,14 +752,6 @@ function LocationsTab() {
   return (
     <>
       <Group gap="xs" mb="md" justify="flex-end">
-        <Button
-          variant="default"
-          leftSection={<IconRefresh size={16} />}
-          onClick={load}
-          data-testid="locations-refresh"
-        >
-          {t.common.filter}
-        </Button>
         <Button
           leftSection={<IconPlus size={16} />}
           onClick={openCreate}
@@ -768,7 +786,7 @@ function LocationsTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {locationPagination.pageItems.map((loc) => (
+              {locations.map((loc) => (
                 <MobileItemCard
                   key={loc.id}
                   testId={`location-mobile-${loc.id}`}
@@ -792,14 +810,14 @@ function LocationsTab() {
       </Card>
 
       <ListPagination
-        page={locationPagination.page}
-        onPageChange={locationPagination.setPage}
-        pageSize={locationPagination.pageSize}
-        onPageSizeChange={locationPagination.changePageSize}
-        total={locationPagination.total}
-        totalPages={locationPagination.totalPages}
-        rangeStart={locationPagination.rangeStart}
-        rangeEnd={locationPagination.rangeEnd}
+        page={page}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={changePageSize}
+        total={total}
+        totalPages={totalPages}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
         testId="inventory-locations-pagination"
       />
 
@@ -884,24 +902,58 @@ function LoansTab() {
   const [toDelete, setToDelete] = useState<Loan | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const {
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    total,
+    setTotal,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+  } = useServerPagination();
+
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([accountsApi.loans(), accountsApi.materials()])
-      .then(([ln, mat]) => {
-        setLoans(ln);
-        setItems(mat);
+    Promise.all([
+      accountsApi.loansPage({
+        page,
+        page_size: pageSize,
+        status: filter === 'all' ? undefined : filter,
+      }),
+    ])
+      .then(([ln]) => {
+        setLoans(ln.results);
+        setTotal(ln.count);
+        if (ln.results.length === 0 && ln.count > 0 && page > 1) {
+          setPage(page - 1);
+        }
       })
       .catch(() => {
         setLoans([]);
+        setTotal(0);
         setItems([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [page, pageSize, filter, setPage, setTotal]);
 
   useEffect(() => {
     load();
-    accountsApi.members?.().then(setMembers).catch(() => setMembers([]));
   }, [load]);
+
+  useEffect(() => {
+    if (!opened) return;
+    Promise.all([accountsApi.members(), accountsApi.materials()])
+      .then(([memberList, materialList]) => {
+        setMembers(memberList);
+        setItems(materialList);
+      })
+      .catch(() => {
+        setMembers([]);
+        setItems([]);
+      });
+  }, [opened]);
 
   const form = useForm<LoanFormValues>({
     initialValues: {
@@ -1052,26 +1104,6 @@ function LoansTab() {
     return base;
   }, [items, editing]);
 
-  const visibleLoans = useMemo(() => {
-    const list = [...loans];
-    if (filter === 'open') return list.filter(isOpen);
-    if (filter === 'overdue') return list.filter(isOverdue);
-    if (filter === 'returned') return list.filter((l) => !isOpen(l));
-    return list;
-  }, [loans, filter]);
-
-  const sortedLoans = useMemo(() => {
-    const open = visibleLoans
-      .filter(isOpen)
-      .sort((a, b) => a.expected_return.localeCompare(b.expected_return));
-    const returned = visibleLoans
-      .filter((l) => !isOpen(l))
-      .sort((a, b) => (b.returned_at || '').localeCompare(a.returned_at || ''));
-    return [...open, ...returned];
-  }, [visibleLoans]);
-
-  const loanPagination = useListPagination(sortedLoans);
-
   const loanWhatsApp = (loan: Loan, kind: 'receipt' | 'charge'): string | null => {
     if (!loan.contact_phone) return null;
     const msg =
@@ -1170,7 +1202,7 @@ function LoansTab() {
     );
   };
 
-  const loanRows = loanPagination.pageItems.map((loan) => {
+  const loanRows = loans.map((loan) => {
     const open = isOpen(loan);
     const overdue = isOverdue(loan);
     const dueToday = isDueToday(loan);
@@ -1255,11 +1287,14 @@ function LoansTab() {
       <Stack gap="xs" mb="md">
         <Group gap="xs" justify="space-between">
           <Grid w="100%" align="flex-end">
-            <Grid.Col span={{ base: 12, sm: 4 }}>
+            <Grid.Col span={{ base: 12, sm: 8 }}>
               <Select
                 label={t.inventoryPage.filterStatus}
                 value={filter}
-                onChange={(v) => setFilter(v || 'all')}
+                onChange={(v) => {
+                  setFilter(v || 'all');
+                  setPage(1);
+                }}
                 data={[
                   { value: 'all', label: t.inventoryPage.filterAll },
                   { value: 'open', label: t.inventoryPage.filterOpen },
@@ -1271,18 +1306,6 @@ function LoansTab() {
             </Grid.Col>
             <Grid.Col span={{ base: 12, sm: 4 }}>
               <Group gap="xs" justify="flex-end">
-                <Button
-                  variant="default"
-                  leftSection={<IconRefresh size={16} />}
-                  onClick={load}
-                  data-testid="loans-refresh"
-                >
-                  {t.common.filter}
-                </Button>
-              </Group>
-            </Grid.Col>
-            <Grid.Col span={{ base: 12, sm: 4 }}>
-              <Group justify="flex-end">
                 <Button
                   leftSection={<IconPlus size={16} />}
                   onClick={openCreate}
@@ -1329,7 +1352,7 @@ function LoansTab() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {loanPagination.pageItems.map((loan) => {
+              {loans.map((loan) => {
                 const open = isOpen(loan);
                 const overdue = isOverdue(loan);
                 const dueToday = isDueToday(loan);
@@ -1429,14 +1452,14 @@ function LoansTab() {
       </Card>
 
       <ListPagination
-        page={loanPagination.page}
-        onPageChange={loanPagination.setPage}
-        pageSize={loanPagination.pageSize}
-        onPageSizeChange={loanPagination.changePageSize}
-        total={loanPagination.total}
-        totalPages={loanPagination.totalPages}
-        rangeStart={loanPagination.rangeStart}
-        rangeEnd={loanPagination.rangeEnd}
+        page={page}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={changePageSize}
+        total={total}
+        totalPages={totalPages}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
         testId="inventory-loans-pagination"
       />
 

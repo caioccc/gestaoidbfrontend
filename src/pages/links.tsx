@@ -35,7 +35,6 @@ import {
   IconCopy,
   IconPlus,
   IconExternalLink,
-  IconRefresh,
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
@@ -204,13 +203,6 @@ export default function LinksPage() {
         <PageHeader title={t.linksPage.title} description={t.linksPage.subtitle} />
 
         <Group gap="xs" mb="lg" style={{ alignItems: 'center' }}>
-          <Button
-            variant="default"
-            leftSection={<IconRefresh size={16} />}
-            onClick={load}
-          >
-            {t.common.filter}
-          </Button>
           <Button leftSection={<IconPlus size={16} />} onClick={openCreate}>
             {t.linksPage.newLink}
           </Button>

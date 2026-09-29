@@ -1,20 +1,10 @@
 import React, { useMemo } from 'react';
-import { BarChart } from '@mantine/charts';
-import { Button } from '@mantine/core';
+import { Button, Group, Progress, Stack, Text } from '@mantine/core';
 import { useRouter } from 'next/router';
 import { IconTargetArrow } from '@tabler/icons-react';
 import { useLanguage } from '../../i18n';
 import type { LifecycleStage, Member } from '../../types';
-import { FUNNEL_STAGES } from '../../utils/whatsapp';
 import { EmptyState, SectionCard } from './primitives';
-
-const FUNNEL_LABEL_KEY = {
-  VISITOR: 'visitor',
-  INTEGRATION: 'integration',
-  ACTIVE: 'active',
-  ABSENT_CARE: 'absentCare',
-  TRANSITION: 'transition',
-} as const;
 
 export default function MemberFunnelCard({
   members,
@@ -28,15 +18,38 @@ export default function MemberFunnelCard({
   const dv = t.dashboardViews;
 
   const data = useMemo(
-    () =>
-      FUNNEL_STAGES.map((stage: LifecycleStage) => ({
-        stage: t.funnel[FUNNEL_LABEL_KEY[stage]],
-        total: members.filter((member) => (member.lifecycle_stage ?? 'ACTIVE') === stage).length,
-      })),
+    () => {
+      const totals = new Map<LifecycleStage, number>();
+      members.forEach((member) => {
+        const stage = member.lifecycle_stage ?? 'ACTIVE';
+        totals.set(stage, (totals.get(stage) ?? 0) + 1);
+      });
+
+      return [
+        {
+          key: 'visitors',
+          label: t.funnel.visitor,
+          total: (totals.get('VISITOR') ?? 0) + (totals.get('INTEGRATION') ?? 0),
+          color: 'violet',
+        },
+        {
+          key: 'active',
+          label: t.funnel.active,
+          total: totals.get('ACTIVE') ?? 0,
+          color: 'teal',
+        },
+        {
+          key: 'transition',
+          label: t.funnel.transition,
+          total: (totals.get('TRANSITION') ?? 0) + (totals.get('ABSENT_CARE') ?? 0),
+          color: 'orange',
+        },
+      ];
+    },
     [members, t.funnel],
   );
 
-  const empty = data.every((item) => item.total === 0);
+  const totalMembers = data.reduce((sum, item) => sum + item.total, 0);
 
   return (
     <SectionCard
@@ -56,17 +69,29 @@ export default function MemberFunnelCard({
         </Button>
       }
     >
-      {empty ? (
+      {totalMembers === 0 ? (
         <EmptyState label={t.common.noData} />
       ) : (
-        <BarChart
-          h={220}
-          data={data}
-          dataKey="stage"
-          series={[{ name: dv.psMembers, color: 'indigo.6' }]}
-          withLegend={false}
-          tickLine="y"
-        />
+        <Stack gap="md" mih={180} justify="center">
+          {data.map((item) => (
+            <Stack key={item.key} gap={4}>
+              <Group justify="space-between" gap="xs">
+                <Text size="sm" fw={600}>
+                  {item.label}
+                </Text>
+                <Text size="sm" fw={700} c={item.color}>
+                  {item.total}
+                </Text>
+              </Group>
+              <Progress
+                value={(item.total / totalMembers) * 100}
+                color={item.color}
+                size="lg"
+                aria-label={`${item.label}: ${item.total}`}
+              />
+            </Stack>
+          ))}
+        </Stack>
       )}
     </SectionCard>
   );

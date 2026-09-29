@@ -4,11 +4,13 @@ import {
   Alert,
   Box,
   Button,
+  Center,
   Grid,
   Group,
   Loader,
   Modal,
   Select,
+  SegmentedControl,
   Stack,
   Text,
   TextInput,
@@ -24,7 +26,9 @@ import {
   IconSearch,
   IconBrandYoutube,
   IconExternalLink,
+  IconLock,
   IconTrash,
+  IconWorld,
 } from '@tabler/icons-react';
 import { musicApi } from '../api/music';
 import { useLanguage } from '../i18n';
@@ -53,6 +57,7 @@ export type SongPayload = {
   chords_json?: Song['chords_json'];
   lyrics?: string;
   tags?: string;
+  is_private?: boolean;
 };
 
 export default function SongModal({ opened, onClose, editing, onSaved }: SongModalProps) {
@@ -69,6 +74,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   const [timeSignature, setTimeSignature] = useState('4/4');
   const [lyrics, setLyrics] = useState('');
   const [tags, setTags] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [chordsJson, setChordsJson] = useState<Song['chords_json']>([]);
   const [bands, setBands] = useState<Band[]>([]);
   const [bandId, setBandId] = useState<string | null>(null);
@@ -109,6 +115,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
     setTags(editing?.tags ?? '');
     setChordsJson(editing?.chords_json ?? []);
     setBandId(editing ? String(editing.band ?? '') : null);
+    setIsPrivate(editing?.is_private ?? false);
     setQuery(editing?.youtube_title || editing?.title || '');
   }, [opened, editing]);
 
@@ -228,6 +235,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       time_signature: timeSignature.trim() || '4/4',
       lyrics,
       tags: tags.trim(),
+      is_private: isPrivate,
     };
     // A extração de cifras agora é ASSÍNCRONA (worker local): o cadastro é
     // rápido e a música entra na fila (PENDING). Só manda os acordes quando o
@@ -247,8 +255,16 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       notifications.show({ color: 'green', message: t.music.songSaved });
       onSaved();
       onClose();
-    } catch {
-      notifications.show({ color: 'red', message: t.music.chordSaveError });
+    } catch (err) {
+      const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
+      const detail = (data?.detail ?? data?.is_private ?? data?.title) as
+        | string
+        | string[]
+        | undefined;
+      notifications.show({
+        color: 'red',
+        message: Array.isArray(detail) ? detail[0] : (detail ?? t.music.chordSaveError),
+      });
     } finally {
       setSaving(false);
     }
@@ -263,6 +279,38 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       title={editing ? t.music.editSong : t.music.addSong}
     >
       <Stack gap="md">
+        <Box>
+          <Text size="sm" fw={500} mb={6}>{t.music.visibilityLabel}</Text>
+          <SegmentedControl
+            fullWidth
+            value={isPrivate ? 'private' : 'public'}
+            onChange={(value) => setIsPrivate(value === 'private')}
+            data={[
+              {
+                value: 'public',
+                label: (
+                  <Center component="span" style={{ gap: 6 }}>
+                    <IconWorld size={15} />
+                    {t.music.visibilityPublic}
+                  </Center>
+                ),
+              },
+              {
+                value: 'private',
+                label: (
+                  <Center component="span" style={{ gap: 6 }}>
+                    <IconLock size={15} />
+                    {t.music.visibilityPrivate}
+                  </Center>
+                ),
+              },
+            ]}
+          />
+          <Text size="xs" c="dimmed" mt={6}>
+            {isPrivate ? t.music.visibilitySongTip : t.music.visibilityPublicTip}
+          </Text>
+        </Box>
+
         <TextInput
           label={t.music.searchYoutube}
           placeholder={t.music.searchYoutubePlaceholder}

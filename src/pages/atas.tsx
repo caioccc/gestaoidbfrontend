@@ -42,7 +42,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
-import { ListPagination, useListPagination } from '../components/ListPagination';
+import { ListPagination, useServerPagination } from '../components/ListPagination';
 import { RichText } from '../components/RichText';
 import ShareLinkModal from '../components/ShareLinkModal';
 import AtaTemplateModal from '../components/AtaTemplateModal';
@@ -101,7 +101,18 @@ export default function MinutesPage() {
   const [removingPdf, setRemovingPdf] = useState(false);
   const [qrMinutes, setQrMinutes] = useState<ChurchMinutes | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
-  const pagination = useListPagination(minutes);
+  const {
+    page,
+    setPage,
+    pageSize,
+    changePageSize,
+    total,
+    setTotal,
+    totalPages,
+    rangeStart,
+    rangeEnd,
+    reset,
+  } = useServerPagination();
   const [fSearch, setFSearch] = useState('');
   const [fRange, setFRange] = useState<[string | null, string | null]>([null, null]);
   const [fType, setFType] = useState<string | null>(null);
@@ -114,16 +125,27 @@ export default function MinutesPage() {
   const load = useCallback(() => {
     setLoading(true);
     accountsApi
-      .minutes({
+      .minutesPage({
+        page,
+        page_size: pageSize,
         ...(fRange[0] ? { start_date: fRange[0] } : {}),
         ...(fRange[1] ? { end_date: fRange[1] } : {}),
         ...(fType ? { meeting_type: fType as MeetingType } : {}),
         ...(fSearch.trim() ? { search: fSearch.trim() } : {}),
       })
-      .then((items) => setMinutes(items))
-      .catch(() => setMinutes([]))
+      .then((data) => {
+        setMinutes(data.results);
+        setTotal(data.count);
+        if (data.results.length === 0 && data.count > 0 && page > 1) {
+          setPage(page - 1);
+        }
+      })
+      .catch(() => {
+        setMinutes([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, [fRange, fType, fSearch]);
+  }, [page, pageSize, fRange, fType, fSearch, setPage, setTotal]);
 
   useEffect(() => {
     const handle = window.setTimeout(load, 300);
@@ -144,7 +166,7 @@ export default function MinutesPage() {
     setFSearch(dSearch);
     setFRange(dRange);
     setFType(dType);
-    pagination.reset();
+    reset();
     setFilterOpen(false);
   };
 
@@ -152,7 +174,7 @@ export default function MinutesPage() {
     setFSearch('');
     setFRange([null, null]);
     setFType(null);
-    pagination.reset();
+    reset();
   };
 
   const clearDraft = () => {
@@ -461,11 +483,11 @@ export default function MinutesPage() {
           <Group gap="xs" mb="sm" wrap="wrap">
             <Text size="xs" c="dimmed">
               {t.common.showingRange
-                .replace('{start}', String(pagination.rangeStart))
-                .replace('{end}', String(pagination.rangeEnd))
-                .replace('{total}', String(pagination.total))
-                .replace('{page}', String(pagination.page))
-                .replace('{totalPages}', String(pagination.totalPages))}
+                .replace('{start}', String(rangeStart))
+                .replace('{end}', String(rangeEnd))
+                .replace('{total}', String(total))
+                .replace('{page}', String(page))
+                .replace('{totalPages}', String(totalPages))}
             </Text>
             <Button
               variant="subtle"
@@ -517,7 +539,7 @@ export default function MinutesPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {pagination.pageItems.map((m) => (
+                  {minutes.map((m) => (
                     <Table.Tr key={m.id} data-testid={`minute-row-${m.id}`}>
                       <Table.Td>
                         <Text size="sm" fw={500}>
@@ -558,7 +580,7 @@ export default function MinutesPage() {
               </Table>
             </Box>
             <Stack hiddenFrom="lg" gap="xs" p="sm">
-              {pagination.pageItems.map((m) => (
+              {minutes.map((m) => (
                 <MobileItemCard
                   key={m.id}
                   testId={`minute-mobile-${m.id}`}
@@ -592,14 +614,14 @@ export default function MinutesPage() {
         )}
 
         <ListPagination
-          page={pagination.page}
-          onPageChange={pagination.setPage}
-          pageSize={pagination.pageSize}
-          onPageSizeChange={pagination.changePageSize}
-          total={pagination.total}
-          totalPages={pagination.totalPages}
-          rangeStart={pagination.rangeStart}
-          rangeEnd={pagination.rangeEnd}
+          page={page}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={changePageSize}
+          total={total}
+          totalPages={totalPages}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
           testId="minutes-pagination"
         />
 

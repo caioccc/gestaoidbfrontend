@@ -74,7 +74,6 @@ export default function SettingsPage() {
         responsibleEmail={profile?.responsible_email}
         onResetPassword={handleResetPassword}
         canResetPassword={isAdmin || !hasRole('SECRETARIA')}
-        showPrebenda={user?.church?.church_type !== 'CONGREGATION'}
         readOnly={readOnly}
       />
     </>

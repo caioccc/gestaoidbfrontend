@@ -41,9 +41,11 @@ import { FinancialExit } from '../types';
 import { financeApi } from '../api/finance';
 import { formatBRL, formatDate, toISO, toNumber, toSentenceCase } from '../utils/format';
 
-function yearRangeDefaults(): [string, string] {
-  const year = new Date().getFullYear();
-  return [`${year}-01-01`, `${year}-12-31`];
+function currentMonthRangeDefaults(): [string, string] {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return [toISO(start) ?? '', toISO(end) ?? ''];
 }
 
 function parseDateValue(v: Date | string | null): Date {
@@ -87,7 +89,7 @@ export default function ExitsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState<[string | null, string | null]>(yearRangeDefaults());
+  const [range, setRange] = useState<[string | null, string | null]>(currentMonthRangeDefaults());
   const [category, setCategory] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<FinancialExit | null>(null);
@@ -120,7 +122,7 @@ export default function ExitsPage() {
   useEffect(load, [page, range]);
 
   const resetFilters = () => {
-    setRange(yearRangeDefaults());
+    setRange(currentMonthRangeDefaults());
     setCategory(null);
     setPage(1);
   };
@@ -361,9 +363,17 @@ export default function ExitsPage() {
             onChange={setCategory}
             w={200}
           />
-          <Button data-testid="exit-filter-apply" variant="default" onClick={() => setPage(1)} leftSection={<IconRefresh size={16} />}>
-            {t.common.filter}
-          </Button>
+          <Tooltip label={t.common.refresh}>
+            <ActionIcon
+              data-testid="exit-filter-apply"
+              variant="default"
+              size="lg"
+              onClick={() => setPage(1)}
+              aria-label={t.common.refresh}
+            >
+              <IconRefresh size={18} />
+            </ActionIcon>
+          </Tooltip>
           <Button data-testid="exit-filter-clear" variant="subtle" onClick={resetFilters}>
             {t.common.clear}
           </Button>

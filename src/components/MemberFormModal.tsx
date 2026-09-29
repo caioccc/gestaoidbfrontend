@@ -7,6 +7,7 @@ import {
   Loader,
   Modal,
   MultiSelect,
+  Progress,
   ScrollArea,
   Select,
   SimpleGrid,
@@ -42,6 +43,7 @@ import type {
   CardConfig,
 } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 interface RelativeForm {
   id?: number;
@@ -144,6 +146,7 @@ export default function MemberFormModal({
   onSave,
 }: MemberFormModalProps) {
   const { t, locale } = useLanguage();
+  const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
@@ -474,6 +477,13 @@ export default function MemberFormModal({
     };
   };
 
+  const stepTitles = [
+    t.membersPage.stepPersonal,
+    t.membersPage.stepMinistry,
+    t.membersPage.stepFamily,
+    t.membersPage.stepCard,
+  ];
+
   return (
     <Modal
       opened={opened}
@@ -488,12 +498,21 @@ export default function MemberFormModal({
       centered
       size="xl"
     >
+      {isMobile ? (
+        <Stack gap={4} mb="md">
+          <Text size="sm" fw={600}>
+            Passo {step + 1} de {stepTitles.length}: {stepTitles[step]}
+          </Text>
+          <Progress value={((step + 1) / stepTitles.length) * 100} size="xs" />
+        </Stack>
+      ) : null}
         <Stepper
           active={step}
           onStepClick={(s) => setStep(s)}
           allowNextStepsSelect={viewOnly}
           color="teal"
           size="sm"
+          styles={isMobile ? { steps: { display: 'none' } } : undefined}
         >
           <Stepper.Step label={t.membersPage.stepPersonal}>
             <ScrollArea.Autosize mah={440} type="auto">
@@ -903,21 +922,56 @@ export default function MemberFormModal({
         </Stepper>
 
         {viewOnly ? (
-          <Group justify="flex-end" mt="lg">
-            {onEdit && (
-              <Button
-                variant="default"
-                leftSection={<IconPencil size={16} />}
-                onClick={onEdit}
-                data-testid="member-view-edit"
-              >
-                {t.common.edit}
+          isMobile ? (
+            <Stack gap="xs" mt="lg">
+              <Group justify="space-between" wrap="nowrap">
+                <Button
+                  variant="default"
+                  onClick={back}
+                  disabled={step === 0}
+                  data-testid="member-view-back"
+                >
+                  {t.membersPage.back}
+                </Button>
+                {step < 3 ? (
+                  <Button onClick={() => setStep((current) => current + 1)} data-testid="member-view-next">
+                    {t.membersPage.next}
+                  </Button>
+                ) : null}
+              </Group>
+              <Group justify="flex-end" gap="xs" wrap="wrap">
+                {onEdit && (
+                  <Button
+                    variant="default"
+                    leftSection={<IconPencil size={16} />}
+                    onClick={onEdit}
+                    data-testid="member-view-edit"
+                  >
+                    {t.common.edit}
+                  </Button>
+                )}
+                <Button onClick={onClose} data-testid="member-view-close">
+                  {t.common.close}
+                </Button>
+              </Group>
+            </Stack>
+          ) : (
+            <Group justify="flex-end" mt="lg">
+              {onEdit && (
+                <Button
+                  variant="default"
+                  leftSection={<IconPencil size={16} />}
+                  onClick={onEdit}
+                  data-testid="member-view-edit"
+                >
+                  {t.common.edit}
+                </Button>
+              )}
+              <Button onClick={onClose} data-testid="member-view-close">
+                {t.common.close}
               </Button>
-            )}
-            <Button onClick={onClose} data-testid="member-view-close">
-              {t.common.close}
-            </Button>
-          </Group>
+            </Group>
+          )
         ) : (
           <Group justify="space-between" mt="lg">
             <Button

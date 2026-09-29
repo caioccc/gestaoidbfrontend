@@ -25,7 +25,7 @@ import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
 import { financeApi, fetchAllPages } from '../api/finance';
 import { FinancialEntry, FinancialExit } from '../types';
-import { formatBRL, formatDate, toNumber } from '../utils/format';
+import { formatBRL, formatDate, toISO, toNumber } from '../utils/format';
 
 interface ExtractRow {
   id: string;
@@ -36,12 +36,16 @@ interface ExtractRow {
   amount: number;
 }
 
+function currentMonthRangeDefaults(): [string, string] {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return [toISO(start) ?? '', toISO(end) ?? ''];
+}
+
 export default function StatementPage() {
   const { t, locale } = useLanguage();
-  const [range, setRange] = useState<[string | null, string | null]>([
-    `${new Date().getFullYear()}-01-01`,
-    `${new Date().getFullYear()}-12-31`,
-  ]);
+  const [range, setRange] = useState<[string | null, string | null]>(currentMonthRangeDefaults());
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<ExtractRow[]>([]);
 

@@ -7,12 +7,10 @@ export default function Document() {
       <Head>
         <ColorSchemeScript defaultColorScheme="light" />
 
-        <title>Gestão IDB — Sistema Integrado de Gestão Eclesial</title>
         <meta
           name="description"
           content="Plataforma de gestão integrada para a Igreja de Deus no Brasil: secretaria, membresia, tesouraria, liturgia e prestação de contas oficial da Convenção Regional."
         />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#1c4ed8" />
         <meta name="msapplication-TileColor" content="#1c4ed8" />
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />

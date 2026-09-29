@@ -52,6 +52,8 @@ export default function ValidationPanel({
   role,
 }: ValidationPanelProps) {
   const { t } = useLanguage();
+  const [viewerOpen, setViewerOpen] = useState(false);
+
   if (loading) {
     return <Skeleton height={320} />;
   }
@@ -80,8 +82,6 @@ export default function ValidationPanel({
   // A competência precisa estar fechada para aprovar.
   const canApprove = closing.is_closed && !treasuryApproved;
   const canReject = !treasuryApproved;
-
-  const [viewerOpen, setViewerOpen] = useState(false);
 
   return (
     <Stack gap="lg">

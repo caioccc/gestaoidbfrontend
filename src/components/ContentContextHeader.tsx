@@ -115,9 +115,11 @@ export default function ContentContextHeader() {
       : null;
 
   const separator = (
-    <Text c="dimmed" size="sm" component="span">
-      ›
-    </Text>
+    <Box style={{ flexShrink: 0 }} component="span">
+      <Text c="dimmed" size="sm" component="span">
+        ›
+      </Text>
+    </Box>
   );
 
   return (
@@ -128,15 +130,28 @@ export default function ContentContextHeader() {
       style={{
         borderBottom: '1px solid var(--mantine-color-default-border)',
         backgroundColor: 'var(--mantine-color-default-hover)',
+        maxWidth: '100%',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
       }}
     >
-      <Group justify="space-between" gap="md" wrap="wrap">
-        <Group gap={6} wrap="wrap" miw={0}>
+      <Group
+        justify="space-between"
+        gap="md"
+        wrap="nowrap"
+        miw={0}
+        style={{ maxWidth: '100%' }}
+      >
+        <Group gap={6} wrap="nowrap" miw={0} style={{ flex: 1, minWidth: 0 }}>
           {rootCrumb && (
             <>
               <UnstyledButton
                 onClick={() => router.push(rootCrumb.href)}
-                style={{ color: 'var(--mantine-color-dimmed)', fontSize: 'var(--mantine-font-size-sm)' }}
+                style={{
+                  color: 'var(--mantine-color-dimmed)',
+                  fontSize: 'var(--mantine-font-size-sm)',
+                  flexShrink: 0,
+                }}
               >
                 {rootCrumb.label}
               </UnstyledButton>
@@ -144,23 +159,44 @@ export default function ContentContextHeader() {
             </>
           )}
 
-          <Group gap={6} wrap="nowrap" miw={0}>
-            <ThemeIcon color={isSede ? 'blue' : 'teal'} variant="light" size="sm">
+          <Group gap={6} wrap="nowrap" miw={0} style={{ flexShrink: 1, minWidth: 0 }}>
+            <ThemeIcon
+              color={isSede ? 'blue' : 'teal'}
+              variant="light"
+              size="sm"
+              style={{ flexShrink: 0 }}
+            >
               <IconBuildingChurch size={14} />
             </ThemeIcon>
-            <Text size="sm" fw={600} truncate maw={240}>
+            <Text
+              size="sm"
+              fw={600}
+              truncate
+              style={{
+                maxWidth: 'clamp(120px, 40vw, 300px)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                display: 'inline-block',
+              }}
+            >
               {church.name}
             </Text>
           </Group>
 
           {separator}
 
-          <Text size="sm" fw={700}>
+          <Text size="sm" fw={700} truncate style={{ minWidth: 0, flexShrink: 1 }}>
             {sectionLabel}
           </Text>
         </Group>
 
-        <Badge color={isSede ? 'blue' : 'teal'} variant="light" size="sm">
+        <Badge
+          color={isSede ? 'blue' : 'teal'}
+          variant="light"
+          size="sm"
+          style={{ flexShrink: 0 }}
+        >
           {badge}
         </Badge>
       </Group>
