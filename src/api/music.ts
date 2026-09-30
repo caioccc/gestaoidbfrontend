@@ -227,7 +227,9 @@ export const musicApi = {
     band?: number;
     visibility?: VisibilityFilter;
   }): Promise<Song[]> =>
-    apiClient.get('/api/music/songs/', { params: params ?? {} }).then((r) => r.data),
+    apiClient
+      .get('/api/music/songs/', { params: { page: 1, page_size: 100, ...params } })
+      .then((r) => r.data.results ?? r.data),
 
   songsPage: (params?: {
     page?: number;
