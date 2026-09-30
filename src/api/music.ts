@@ -12,7 +12,10 @@ import type {
   RosterBoardRow,
   SetlistItem,
   Song,
+  SongBulkResult,
   SongHistoryItem,
+  SongPayload,
+  SongPrefill,
   VolunteerRoster,
   WorshipSetlist,
   YouTubeSearchResponse,
@@ -246,24 +249,7 @@ export const musicApi = {
   song: (id: number): Promise<Song> =>
     apiClient.get(`/api/music/songs/${id}/`).then((r) => r.data),
 
-  createSong: (payload: {
-    title: string;
-    artist?: string;
-    band?: number | null;
-    youtube_id?: string;
-    youtube_title?: string;
-    thumbnail_url?: string;
-    duration_seconds?: number;
-    original_key?: string;
-    church_key?: string;
-    bpm?: number;
-    time_signature?: string;
-    chords?: string;
-    chords_json?: Song['chords_json'];
-    lyrics?: string;
-    tags?: string;
-    is_private?: boolean;
-  }): Promise<Song> =>
+  createSong: (payload: SongPayload): Promise<Song> =>
     apiClient.post('/api/music/songs/', payload).then((r) => r.data),
 
   updateSong: (id: number, payload: Partial<Song>): Promise<Song> =>
@@ -281,6 +267,22 @@ export const musicApi = {
   checkYoutube: (videoId: string): Promise<{ found: boolean; song: Song | null }> =>
     apiClient
       .get('/api/music/songs/check-youtube/', { params: { video_id: videoId } })
+      .then((r) => r.data),
+
+  /** Versão em lote de `checkYoutube` para o modal de múltiplos: uma
+   *  requisição para todos os youtube_id ainda sem pré-cadastro. Só devolve
+   *  os que já existem em alguma igreja (evita novo scraping). */
+  checkYoutubeBulk: (videoIds: string[]): Promise<{ found: Record<string, SongPrefill> }> =>
+    apiClient
+      .post('/api/music/songs/check-youtube-bulk/', { video_ids: videoIds })
+      .then((r) => r.data),
+
+  /** Cadastro em lote ("Adicionar Múltiplos"). Cada linha é criada de
+   *  forma independente: as respostas trazem `created`/`skipped`/`failed`
+   *  e um `results` por índice. Apenas ADMIN. */
+  bulkCreateSongs: (songs: SongPayload[]): Promise<SongBulkResult> =>
+    apiClient
+      .post('/api/music/songs/bulk-create/', { songs })
       .then((r) => r.data),
 
   // ---------------------------------------------------------------------------

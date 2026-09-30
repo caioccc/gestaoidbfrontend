@@ -32,7 +32,7 @@ import {
 } from '@tabler/icons-react';
 import { musicApi } from '../api/music';
 import { useLanguage } from '../i18n';
-import type { Band, Song, YouTubeSearchResult } from '../types';
+import type { Band, Song, YouTubeSearchResult, SongPayload } from '../types';
 
 interface SongModalProps {
   opened: boolean;
@@ -40,25 +40,6 @@ interface SongModalProps {
   editing: Song | null;
   onSaved: () => void;
 }
-
-export type SongPayload = {
-  title: string;
-  artist?: string;
-  band?: number | null;
-  youtube_id?: string;
-  youtube_title?: string;
-  thumbnail_url?: string;
-  duration_seconds?: number;
-  original_key?: string;
-  church_key?: string;
-  bpm?: number;
-  time_signature?: string;
-  chords?: string;
-  chords_json?: Song['chords_json'];
-  lyrics?: string;
-  tags?: string;
-  is_private?: boolean;
-};
 
 export default function SongModal({ opened, onClose, editing, onSaved }: SongModalProps) {
   const { t } = useLanguage();

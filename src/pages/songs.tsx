@@ -35,6 +35,7 @@ import {
   IconPlayerPlay,
   IconPlus,
   IconSearch,
+  IconStack2,
   IconTable,
   IconTrash,
   IconUsersGroup,
@@ -44,6 +45,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import SongModal from '../components/SongModal';
+import SongsBulkAddModal from '../components/SongsBulkAddModal';
 import BandModal from '../components/BandModal';
 import FilterDrawer from '../components/FilterDrawer';
 import MobileListToolbar from '../components/MobileListToolbar';
@@ -693,7 +695,7 @@ export default function SongsPage() {
   const { t } = useLanguage();
   const router = useRouter();
   const { user } = useAuth();
-  const { canManageMusic, canViewMusic } = useRoleHelpers(user);
+  const { canManageMusic, canViewMusic, isAdmin } = useRoleHelpers(user);
 
   const [songs, setSongs] = useState<Song[]>([]);
   const [total, setTotal] = useState(0);
@@ -710,6 +712,7 @@ export default function SongsPage() {
   const [ordering, setOrdering] = useState('random');
   const [viewMode, setViewMode] = useState<ViewMode>('gallery');
   const [modalOpen, setModalOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [bandsOpen, setBandsOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -909,14 +912,24 @@ export default function SongsPage() {
                 ) : null
               }
               menuChildren={
-                canManageMusic ? (
-                  <Menu.Item
-                    leftSection={<IconUsersGroup size={15} />}
-                    onClick={() => setBandsOpen(true)}
-                  >
-                    {t.music.bandManage}
-                  </Menu.Item>
-                ) : undefined
+                <>
+                  {canManageMusic ? (
+                    <Menu.Item
+                      leftSection={<IconUsersGroup size={15} />}
+                      onClick={() => setBandsOpen(true)}
+                    >
+                      {t.music.bandManage}
+                    </Menu.Item>
+                  ) : null}
+                  {isAdmin ? (
+                    <Menu.Item
+                      leftSection={<IconStack2 size={15} />}
+                      onClick={() => setBulkOpen(true)}
+                    >
+                      {t.music.addSongsBulk}
+                    </Menu.Item>
+                  ) : null}
+                </>
               }
               menuLabel={t.music.songsTitle}
               testId="songs-toolbar"
@@ -931,6 +944,17 @@ export default function SongsPage() {
               {canViewMusic ? (
                 <Button leftSection={<IconPlus size={18} />} onClick={openAdd} size="sm">
                   {t.music.addSong}
+                </Button>
+              ) : null}
+              {isAdmin ? (
+                <Button
+                  variant="light"
+                  leftSection={<IconStack2 size={18} />}
+                  onClick={() => setBulkOpen(true)}
+                  size="sm"
+                  data-testid="songs-add-multiple"
+                >
+                  {t.music.addSongsBulk}
                 </Button>
               ) : null}
             </Group>
@@ -1190,6 +1214,14 @@ export default function SongsPage() {
           editing={editingSong}
           onSaved={() => void load()}
         />
+
+        {isAdmin ? (
+          <SongsBulkAddModal
+            opened={bulkOpen}
+            onClose={() => setBulkOpen(false)}
+            onSaved={() => void load()}
+          />
+        ) : null}
 
         <BandModal
           opened={bandsOpen}

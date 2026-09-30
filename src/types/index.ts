@@ -1770,6 +1770,25 @@ export interface Song {
   created_at: string;
 }
 
+export type SongPayload = {
+  title: string;
+  artist?: string;
+  band?: number | null;
+  youtube_id?: string;
+  youtube_title?: string;
+  thumbnail_url?: string;
+  duration_seconds?: number;
+  original_key?: string;
+  church_key?: string;
+  bpm?: number;
+  time_signature?: string;
+  chords?: string;
+  chords_json?: Song['chords_json'];
+  lyrics?: string;
+  tags?: string;
+  is_private?: boolean;
+};
+
 export interface PaginatedSongs {
   count: number;
   next: string | null;
@@ -1810,6 +1829,47 @@ export interface ChordifyData {
   derivedBpm?: number;
   message?: string;
   error?: string;
+}
+
+/** Dados de pré-cadastro devolvidos por `POST /songs/check-youtube-bulk/`
+ *  (subset de `Song`, espelha `SongPrefillSerializer` no backend). */
+export interface SongPrefill {
+  id: number;
+  youtube_id: string;
+  title: string;
+  artist: string;
+  thumbnail_url: string;
+  original_key: string;
+  church_key: string;
+  bpm: number | null;
+  time_signature: string;
+  chords_json: ChordItem[];
+  lyrics: string;
+  tags: string;
+  /** O vídeo já está no repertório da igreja ativa (o bulk-create vai
+   *  ignorá-lo); quando `false`, é pré-cadastro de outra igreja. */
+  same_church: boolean;
+}
+
+/** Uma linha do resultado de `POST /songs/bulk-create/`. O `index` é a
+ *  posição da linha no array enviado — é ele que permite casar o erro
+ *  devolvido com a linha da tabela de selecionados. */
+export interface SongBulkRowResult {
+  index: number;
+  status: 'created' | 'skipped' | 'failed';
+  id?: number;
+  youtube_id?: string;
+  title?: string;
+  reason?: 'already_registered';
+  errors?: Record<string, string[] | string>;
+}
+
+export interface SongBulkResult {
+  created: number;
+  skipped: number;
+  failed: number;
+  results: SongBulkRowResult[];
+  songs: Song[];
 }
 
 export interface BandSetlistItemPayload {
