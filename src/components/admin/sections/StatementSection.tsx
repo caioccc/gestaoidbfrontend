@@ -128,6 +128,7 @@ export default function StatementSection({ api, churchLabel }: { api: AdminFinan
               onChange={setRange}
               clearable
               locale={locale}
+              valueFormat="DD/MM/YYYY"
             />
           </Box>
           <Button variant="default" data-testid="statement-filter" onClick={load}>

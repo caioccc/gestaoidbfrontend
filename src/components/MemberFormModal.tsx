@@ -20,12 +20,14 @@ import {
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
+import RelativesFormSection from './RelativesFormSection';
 import { useLanguage } from '../i18n';
 import {
+  hasFullName,
   isValidCpf,
   isValidEmail,
   toISO,
@@ -205,7 +207,7 @@ export default function MemberFormModal({
   const form = useForm<MemberFormValues>({
     initialValues: EMPTY_FORM,
     validate: {
-      name: (v) => (v.trim().length ? null : t.membersPage.name),
+      name: (v) => (hasFullName(v) ? null : t.membersPage.fullNameRequired),
       email: (v) => (v && !isValidEmail(v) ? t.email : null),
       cpf: (v) =>
         v && v.replace(/\D/g, '').length === 11 && !isValidCpf(v)
@@ -532,7 +534,8 @@ export default function MemberFormModal({
                   <Grid.Col span={{ base: 12, sm: 8 }}>
                     <Stack gap="sm">
                       <TextInput
-                        label={t.membersPage.name}
+                        label={t.membersPage.fullNameLabel}
+                        placeholder={t.membersPage.fullNamePlaceholder}
                         required
                         readOnly={viewOnly}
                         data-testid="member-name"
@@ -814,94 +817,19 @@ export default function MemberFormModal({
                     {...form.getInputProps('mother_name')}
                   />
                 </SimpleGrid>
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text fw={600} size="sm">
-                      {t.membersPage.relatives}
-                    </Text>
-                    {!viewOnly && (
-                      <Button
-                        size="xs"
-                        variant="light"
-                        leftSection={<IconPlus size={14} />}
-                        onClick={addRelative}
-                        data-testid="member-add-relative"
-                      >
-                        {t.membersPage.addRelative}
-                      </Button>
-                    )}
-                  </Group>
-                  {form.values.relatives.map((r, i) => (
-                    <Group
-                      key={i}
-                      gap="xs"
-                      align="flex-end"
-                      wrap="nowrap"
-                      data-testid={`member-relative-${i}`}
-                    >
-                      <TextInput
-                        label={t.membersPage.relativeName}
-                        style={{ flex: 2 }}
-                        readOnly={viewOnly}
-                        error={form.errors[`relatives.${i}.name`]}
-                        value={r.name}
-                        onChange={(e) =>
-                          form.setFieldValue(`relatives.${i}.name`, e.currentTarget.value)
-                        }
-                      />
-                      <Select
-                        label={t.membersPage.relativeKinship}
-                        placeholder={t.membersPage.relativeKinship}
-                        style={{ flex: 1.4 }}
-                        disabled={viewOnly}
-                        data={kinshipOptions}
-                        error={form.errors[`relatives.${i}.kinship`]}
-                        value={r.kinship}
-                        onChange={(v) =>
-                          form.setFieldValue(
-                            `relatives.${i}.kinship`,
-                            (v as Kinship) || ''
-                          )
-                        }
-                      />
-                      <DateInput
-                        label={t.membersPage.birthDate}
-                        style={{ flex: 1.2 }}
-                        locale={locale}
-                        valueFormat="DD/MM/YYYY"
-                        clearable
-                        readOnly={viewOnly}
-                        value={r.birth_date}
-                        onChange={(value) =>
-                          form.setFieldValue(
-                            `relatives.${i}.birth_date`,
-                            toDateValue(value)
-                          )
-                        }
-                      />
-                      <MaskedTextInput
-                        label={t.membersPage.phone}
-                        style={{ flex: 1.4 }}
-                        mask="(00) 00000-0000"
-                        readOnly={viewOnly}
-                        value={r.phone}
-                        onAccept={(value: string) =>
-                          form.setFieldValue(`relatives.${i}.phone`, value)
-                        }
-                      />
-                      {!viewOnly && (
-                        <ActionIcon
-                          color="red"
-                          variant="light"
-                          onClick={() => removeRelative(i)}
-                          data-testid={`member-remove-relative-${i}`}
-                        >
-                          <IconTrash size={16} />
-                        </ActionIcon>
-                      )}
-                    </Group>
-                  ))}
-                </Stack>
+                <RelativesFormSection
+                  relatives={form.values.relatives}
+                  errors={form.errors}
+                  kinshipOptions={kinshipOptions}
+                  locale={locale}
+                  readOnly={viewOnly}
+                  onAdd={addRelative}
+                  onRemove={removeRelative}
+                  onChange={(index, field, value) =>
+                    form.setFieldValue(`relatives.${index}.${field}`, value as never)
+                  }
+                  testIdPrefix="member"
+                />
               </Stack>
             </ScrollArea.Autosize>
           </Stepper.Step>

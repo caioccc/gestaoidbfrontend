@@ -6,8 +6,18 @@ import '@mantine/dropzone/styles.css';
 import '@mantine/carousel/styles.css';
 import '@mantine/tiptap/styles.css';
 import 'mantine-datatable/styles.css';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import 'dayjs/locale/pt-br';
 import 'dayjs/locale/es';
+
+// CRITICO: sem este plugin o dayjs ignora o 2o argumento de `dayjs(val, format)`
+// e faz o parse com o construtor nativo `new Date(string)`, que interpreta
+// "12/04/1997" no padrao americano MM/DD/YYYY (4 de dezembro) em vez de
+// DD/MM/YYYY (12 de abril). O Mantine chama `dayjs(val, valueFormat, locale)`
+// no DateInput/DatePickerInput, entao sem o plugin TODOS os campos de data do
+// projeto trocam dia e mes.
+dayjs.extend(customParseFormat);
 
 import React from 'react';
 import type { AppProps } from 'next/app';

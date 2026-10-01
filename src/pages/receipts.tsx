@@ -641,6 +641,7 @@ export default function ReceiptsPage() {
               locale={locale}
               value={form.values.date}
               onChange={(v) => form.setFieldValue('date', parseReceiptDate(v))}
+              valueFormat="DD/MM/YYYY"
             />
 
             {/* Vinculação (origem) */}

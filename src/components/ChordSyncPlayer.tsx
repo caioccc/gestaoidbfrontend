@@ -1,19 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionIcon,
   Badge,
   Box,
   Button,
   Card,
+  Collapse,
+  Drawer,
   Grid,
   Group,
+  Paper,
   SegmentedControl,
   Slider,
   Stack,
   Text,
   Tooltip,
+  getDefaultZIndex,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import {
+  IconAdjustmentsHorizontal,
   IconMaximize,
   IconMinimize,
   IconMinus,
@@ -22,9 +28,12 @@ import {
   IconPlayerSkipBack,
   IconPlayerSkipForward,
   IconPlus,
+  IconVideo,
+  IconVideoOff,
 } from '@tabler/icons-react';
 import ReactPlayer from 'react-player';
 import { useLanguage } from '../i18n';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   chordAt,
   dedupeChords,
@@ -35,7 +44,7 @@ import type { ChordItem } from '../types';
 import { formatMusicalKey } from '../utils/format';
 import ChordTimeline from './ChordTimeline';
 import SongChordsTimeline from './SongChordsTimeline';
-import PlayerToolsBar from './PlayerToolsBar';
+import PlayerToolsBar, { TOUCH_TARGET, touchStyles } from './PlayerToolsBar';
 
 interface ChordSyncPlayerProps {
   youtubeId: string;
@@ -68,6 +77,16 @@ function formatTime(s: number): string {
 
 type DisplayMode = 'diagrams' | 'simple' | 'grade';
 
+/**
+ * Padding horizontal do `AppShell.Main` (`padding="md"` = 1rem).
+ *
+ * O mini player usa esse valor para encostar nas bordas da tela em vez de
+ * deixar uma "franja" de 16px dos dois lados.
+ */
+const APP_SHELL_PADDING_PX = 16;
+
+const TABULAR_NUMS = { fontVariantNumeric: 'tabular-nums' } as const;
+
 export default function ChordSyncPlayer({
   youtubeId,
   chords,
@@ -83,6 +102,7 @@ export default function ChordSyncPlayer({
   controlsRef,
 }: ChordSyncPlayerProps) {
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
   const playerRef = React.useRef<HTMLVideoElement | null>(null);
   const progressRef = React.useRef(0);
   const loopSeekAtRef = React.useRef(0);
@@ -97,6 +117,19 @@ export default function ChordSyncPlayer({
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const [toolsOpen, { open: openTools, close: closeTools }] = useDisclosure(false);
+
+  // No celular o video 16:9 come metade da viewport e empurra os controles de
+  // audio para fora da tela, entao ele inicia recolhido (modo "so audio"). No
+  // desktop o espaco sobra e ele inicia aberto. A decisao fica no primeiro
+  // effect porque `useIsMobile` devolve `false` durante o SSR.
+  const videoInitRef = useRef(false);
+  useEffect(() => {
+    if (videoInitRef.current) return;
+    videoInitRef.current = true;
+    setVideoOpen(!isMobile);
+  }, [isMobile]);
 
   const transposedChords = useMemo(
     () => transposeChordsJson(chords, transpose),
@@ -232,211 +265,480 @@ export default function ChordSyncPlayer({
     };
   }, [controlsRef, skip, seekTo]);
 
-  return (
-    <Stack gap="md">
-      <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
-        <Group gap={6} wrap="wrap">
+  const togglePlay = useCallback(() => setPlaying((p) => !p), []);
+
+  const activeChordLabel =
+    canSync && currentMatch >= 0
+      ? displayChords[currentMatch]?.note_fmt || displayChords[currentMatch]?.note || ''
+      : '';
+
+  const durationMax = Math.max(duration, 1);
+  const progressClamped = Math.min(progress, durationMax);
+
+  /**
+   * O iframe fica sempre montado: esconder o video com `Collapse` (altura zero)
+   * e nao com `display: none` evita que o ReactPlayer remonte e reinicie a
+   * reproducao a cada toque no botao de mostrar/ocultar.
+   */
+  const videoFrame = (
+    <Box
+      style={{
+        position: 'relative',
+        width: '100%',
+        paddingTop: '56.25%',
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#000',
+      }}
+    >
+      <ReactPlayer
+        ref={playerRef}
+        src={`https://www.youtube.com/watch?v=${youtubeId}`}
+        width="100%"
+        height="100%"
+        style={{ position: 'absolute', top: 0, left: 0 }}
+        playing={playing}
+        controls={false}
+        playbackRate={playbackRate}
+        onPlay={() => setPlaying(true)}
+        onPause={() => {
+          setPlaying(false);
+          syncFromElement();
+        }}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={handleEnded}
+      />
+    </Box>
+  );
+
+  const seekSlider = (
+    <Slider
+      style={{ flex: 1, minWidth: 0 }}
+      size={isMobile ? 'md' : 'xs'}
+      min={0}
+      max={durationMax}
+      step={0.1}
+      value={progressClamped}
+      onChange={seekTo}
+      onChangeEnd={seekTo}
+      aria-label={t.music.playerTransport}
+    />
+  );
+
+  const timeLabel = (value: number, align: 'left' | 'right') => (
+    <Text
+      size="xs"
+      c="dimmed"
+      w={44}
+      ta={align}
+      style={TABULAR_NUMS}
+    >
+      {formatTime(value)}
+    </Text>
+  );
+
+  const chordsCard = (
+    <Card withBorder p={isMobile ? 6 : 'md'} style={{ width: '100%' }}>
+      {canSync ? (
+        <Stack gap={8}>
+          {displayMode === 'grade' ? (
+            <SongChordsTimeline
+              chords={displayChords}
+              currentTime={progress}
+              bpm={bpm ?? null}
+              beatsPerBar={beatsPerBar}
+              onSeek={seekTo}
+            />
+          ) : (
+            <ChordTimeline
+              chords={displayChords}
+              activeIndex={currentIdx}
+              progress={progress}
+              simpleMode={displayMode === 'simple'}
+              onSeek={seekTo}
+            />
+          )}
+          <Text size="xs" c="dimmed" ta="center" truncate>
+            {title ? `${title} — ` : ''}
+            {t.music.transposeHint}
+          </Text>
+        </Stack>
+      ) : (
+        <Text c="dimmed" p="lg" ta="center">
+          {t.music.noChordsForSync}
+        </Text>
+      )}
+    </Card>
+  );
+
+  const transportButtonSize = isMobile ? TOUCH_TARGET : 'lg';
+
+  const transportControls = (
+    <Group gap={4} justify="center" wrap="nowrap">
+      <Tooltip label={t.music.back10}>
+        <ActionIcon
+          variant="light"
+          size={transportButtonSize}
+          onClick={() => skip(-10)}
+          aria-label={t.music.back10}
+        >
+          <IconPlayerSkipBack size={18} />
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={playing ? t.music.playerPause : t.music.playerPlay}>
+        <ActionIcon
+          variant="filled"
+          color="violet"
+          size={isMobile ? TOUCH_TARGET + 8 : 'lg'}
+          onClick={togglePlay}
+          aria-label={playing ? t.music.playerPause : t.music.playerPlay}
+        >
+          {playing ? <IconPlayerPause size={22} /> : <IconPlayerPlay size={22} />}
+        </ActionIcon>
+      </Tooltip>
+      <Tooltip label={t.music.forward10}>
+        <ActionIcon
+          variant="light"
+          size={transportButtonSize}
+          onClick={() => skip(10)}
+          aria-label={t.music.forward10}
+        >
+          <IconPlayerSkipForward size={18} />
+        </ActionIcon>
+      </Tooltip>
+    </Group>
+  );
+
+  const stageModeButton = (compact: boolean) =>
+    onToggleStageMode ? (
+      <Tooltip label={stageMode ? t.music.exitStageMode : t.music.stageMode}>
+        <Button
+          fullWidth={compact}
+          variant={stageMode ? 'filled' : 'light'}
+          color="blue"
+          size={compact ? 'md' : 'sm'}
+          style={compact ? touchStyles.root : undefined}
+          onClick={onToggleStageMode}
+          aria-pressed={stageMode}
+          leftSection={
+            stageMode ? <IconMinimize size={18} /> : <IconMaximize size={18} />
+          }
+        >
+          {stageMode ? t.music.exitStageMode : t.music.stageMode}
+        </Button>
+      </Tooltip>
+    ) : null;
+
+  // Stepper de tom: [Tom original] [−] [TOM] [+]. No celular os quatro
+  // alvos disputam a largura da tela, entao os dois botoes de texto/badge
+  // esticam (flex: 1) e os de seta ficam em 44px fixos.
+  const keyStepper = (compact: boolean) => (
+    <Stack gap={4} style={compact ? { width: '100%' } : undefined}>
+      <Text size="xs" c="dimmed" fw={600}>
+        {t.music.playerKeyLabel}
+      </Text>
+      <Group gap={compact ? 4 : 0} wrap="nowrap">
+        <Tooltip label={t.music.transposeReset}>
           <Button
-            size="xs"
+            size={compact ? 'md' : 'xs'}
             variant={isOriginalKey ? 'filled' : 'light'}
             color={isOriginalKey ? 'grape' : undefined}
             disabled={!originalKey}
             onClick={() => setTranspose(0)}
+            style={compact ? { ...touchStyles.root, flex: 1, minWidth: 0 } : undefined}
           >
-            {t.music.originalKeyLabel}
+            <Text size="xs" fw={700} truncate style={{ minWidth: 0 }}>
+              {t.music.originalKeyLabel}
+            </Text>
           </Button>
-          <Group gap={0} wrap="nowrap">
-            <Tooltip label={t.music.transposeDown}>
-              <ActionIcon
-                variant="light"
-                size="lg"
-                style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                onClick={() => setTranspose((x) => Math.max(x - 1, -7))}
-                disabled={transpose <= -7}
-              >
-                <IconMinus size={16} />
-              </ActionIcon>
-            </Tooltip>
-            <Badge
-              variant="light"
-              color="grape"
-              size="lg"
-              tt="none"
-              radius={0}
-              styles={{ root: { height: 34, display: 'flex', alignItems: 'center' } }}
-            >
-              <Tooltip label={transpose !== 0 ? `${t.music.transposeLabel}: ${transpose > 0 ? '+' : ''}${transpose} ${t.music.semitones}` : t.music.transposeLabel}>
-                <span>
-                  {displayedKey || '—'}
-                  {transpose !== 0 ? ` (${transpose > 0 ? '+' : ''}${transpose})` : ''}
-                </span>
-              </Tooltip>
-            </Badge>
-            <Tooltip label={t.music.transposeUp}>
-              <ActionIcon
-                variant="light"
-                size="lg"
-                style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                onClick={() => setTranspose((x) => Math.min(x + 1, 7))}
-                disabled={transpose >= 7}
-              >
-                <IconPlus size={16} />
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        </Group>
-
-        <Group gap={6} wrap="nowrap">
-          <SegmentedControl
-            size="xs"
-            value={displayMode}
-            onChange={(v) => setDisplayMode(v as DisplayMode)}
-            data={[
-              { value: 'diagrams', label: t.music.guitarDiagrams },
-              { value: 'simple', label: t.music.simpleChords },
-              { value: 'grade', label: t.music.gradeRhythm },
-            ]}
-          />
-          {onToggleStageMode ? (
-            <Tooltip label={stageMode ? t.music.exitStageMode : t.music.stageMode}>
-              <ActionIcon
-                variant={stageMode ? 'filled' : 'light'}
-                color="blue"
-                size="lg"
-                onClick={onToggleStageMode}
-              >
-                {stageMode ? <IconMinimize size={18} /> : <IconMaximize size={18} />}
-              </ActionIcon>
-            </Tooltip>
-          ) : null}
-        </Group>
+        </Tooltip>
+        <Tooltip label={t.music.transposeDown}>
+          <ActionIcon
+            variant="light"
+            size={compact ? TOUCH_TARGET : 'lg'}
+            style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+            onClick={() => setTranspose((x) => Math.max(x - 1, -7))}
+            disabled={transpose <= -7}
+            aria-label={t.music.transposeDown}
+          >
+            <IconMinus size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Badge
+          variant="light"
+          color="grape"
+          size="lg"
+          tt="none"
+          radius={0}
+          styles={{
+            root: {
+              height: compact ? TOUCH_TARGET : 34,
+              minWidth: compact ? 56 : undefined,
+              flex: compact ? 1 : undefined,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+          }}
+        >
+          <Tooltip
+            label={
+              transpose !== 0
+                ? `${t.music.transposeLabel}: ${transpose > 0 ? '+' : ''}${transpose} ${t.music.semitones}`
+                : t.music.transposeLabel
+            }
+          >
+            <span>
+              {displayedKey || '—'}
+              {transpose !== 0 ? ` (${transpose > 0 ? '+' : ''}${transpose})` : ''}
+            </span>
+          </Tooltip>
+        </Badge>
+        <Tooltip label={t.music.transposeUp}>
+          <ActionIcon
+            variant="light"
+            size={compact ? TOUCH_TARGET : 'lg'}
+            style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
+            onClick={() => setTranspose((x) => Math.min(x + 1, 7))}
+            disabled={transpose >= 7}
+            aria-label={t.music.transposeUp}
+          >
+            <IconPlus size={18} />
+          </ActionIcon>
+        </Tooltip>
       </Group>
-
-      <Grid gap="md">
-        <Grid.Col span={{ base: 12, md: stageMode ? 12 : 5 }}>
-          <Stack gap="xs">
-            <Box
-              style={{
-                position: 'relative',
-                width: '100%',
-                paddingTop: '56.25%',
-                borderRadius: 8,
-                overflow: 'hidden',
-                backgroundColor: '#000',
-              }}
-            >
-              <ReactPlayer
-                ref={playerRef}
-                src={`https://www.youtube.com/watch?v=${youtubeId}`}
-                width="100%"
-                height="100%"
-                style={{ position: 'absolute', top: 0, left: 0 }}
-                playing={playing}
-                controls={false}
-                playbackRate={playbackRate}
-                onPlay={() => setPlaying(true)}
-                onPause={() => {
-                  setPlaying(false);
-                  syncFromElement();
-                }}
-                onLoadedMetadata={handleLoadedMetadata}
-                onEnded={handleEnded}
-              />
-            </Box>
-
-            <Group gap={4} justify="center">
-              <Tooltip label={t.music.back10}>
-                <ActionIcon variant="light" size="lg" onClick={() => skip(-10)}>
-                  <IconPlayerSkipBack size={18} />
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label={playing ? t.music.playerPause : t.music.playerPlay}>
-                <ActionIcon
-                  variant="filled"
-                  color="violet"
-                  size="lg"
-                  onClick={() => setPlaying((p) => !p)}
-                >
-                  {playing ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
-                </ActionIcon>
-              </Tooltip>
-              <Tooltip label={t.music.forward10}>
-                <ActionIcon variant="light" size="lg" onClick={() => skip(10)}>
-                  <IconPlayerSkipForward size={18} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-
-            <Group gap="sm" px={4}>
-              <Text size="xs" c="dimmed" w={44} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {formatTime(progress)}
-              </Text>
-              <Slider
-                style={{ flex: 1 }}
-                size="xs"
-                min={0}
-                max={Math.max(duration, 1)}
-                step={0.1}
-                value={Math.min(progress, Math.max(duration, 1))}
-                onChange={seekTo}
-                onChangeEnd={seekTo}
-              />
-              <Text size="xs" c="dimmed" w={44} ta="right" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                {formatTime(duration)}
-              </Text>
-            </Group>
-
-            <PlayerToolsBar
-              progress={progress}
-              playbackRate={playbackRate}
-              onPlaybackRateChange={handlePlaybackRate}
-              loopA={loopA}
-              loopB={loopB}
-              onMarkA={markLoopA}
-              onMarkB={markLoopB}
-              onClearLoop={clearLoop}
-              bpm={bpm ?? null}
-              timeSignature={timeSignature}
-              metronomeOn={metronomeOn}
-              onToggleMetronome={() => setMetronomeOn((s) => !s)}
-            />
-          </Stack>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: stageMode ? 12 : 7 }}>
-          <Card withBorder p="md">
-            {canSync ? (
-              <Stack gap={8}>
-                {displayMode === 'grade' ? (
-                  <SongChordsTimeline
-                    chords={displayChords}
-                    currentTime={progress}
-                    bpm={bpm ?? null}
-                    beatsPerBar={beatsPerBar}
-                    onSeek={seekTo}
-                  />
-                ) : (
-                  <ChordTimeline
-                    chords={displayChords}
-                    activeIndex={currentIdx}
-                    progress={progress}
-                    simpleMode={displayMode === 'simple'}
-                    onSeek={seekTo}
-                  />
-                )}
-                <Text size="xs" c="dimmed" ta="center" truncate>
-                  {title ? `${title} — ` : ''}
-                  {t.music.transposeHint}
-                </Text>
-              </Stack>
-            ) : (
-              <Text c="dimmed" p="lg" ta="center">
-                {t.music.noChordsForSync}
-              </Text>
-            )}
-          </Card>
-        </Grid.Col>
-      </Grid>
     </Stack>
   );
+
+  const viewControl = (compact: boolean) => (
+    <Stack gap={4} style={compact ? { width: '100%' } : undefined}>
+      <Text size="xs" c="dimmed" fw={600}>
+        {t.music.playerViewLabel}
+      </Text>
+      <SegmentedControl
+        fullWidth={compact}
+        size={compact ? 'md' : 'xs'}
+        value={displayMode}
+        onChange={(v) => setDisplayMode(v as DisplayMode)}
+        styles={compact ? touchStyles : undefined}
+        aria-label={t.music.playerViewLabel}
+        data={[
+          { value: 'diagrams', label: t.music.guitarDiagrams },
+          { value: 'simple', label: t.music.simpleChords },
+          { value: 'grade', label: t.music.gradeRhythm },
+        ]}
+      />
+    </Stack>
+  );
+
+  const toolsBar = (compact: boolean) => (
+    <PlayerToolsBar
+      progress={progress}
+      playbackRate={playbackRate}
+      onPlaybackRateChange={handlePlaybackRate}
+      loopA={loopA}
+      loopB={loopB}
+      onMarkA={markLoopA}
+      onMarkB={markLoopB}
+      onClearLoop={clearLoop}
+      bpm={bpm ?? null}
+      timeSignature={timeSignature}
+      metronomeOn={metronomeOn}
+      onToggleMetronome={() => setMetronomeOn((s) => !s)}
+      isMobile={compact}
+    />
+  );
+
+  const videoToggle = (
+    <Button
+      fullWidth
+      variant={videoOpen ? 'light' : 'default'}
+      size="md"
+      style={touchStyles.root}
+      onClick={() => setVideoOpen((v) => !v)}
+      aria-expanded={videoOpen}
+      leftSection={videoOpen ? <IconVideoOff size={18} /> : <IconVideo size={18} />}
+    >
+      {videoOpen ? t.music.hideVideo : t.music.showVideo}
+    </Button>
+  );
+
+  /**
+   * Mini player do rodape.
+   *
+   * `position: sticky` e nao `fixed`: ele gruda no rodape da viewport apenas
+   * enquanto o player esta em tela e nunca cobre o conteudo, porque continua
+   * ocupando espaco no fluxo normal.
+   */
+  const miniPlayer = (
+    <Paper
+      withBorder
+      radius={0}
+      p="xs"
+      // Leitores de tela nao anunciam "12:34 / Am" sem um rotulo: o acorde
+      // atual e a informacao principal do musicianista durante o culto.
+      aria-label={`${t.music.playerTransport} — ${t.music.playerCurrentChord}: ${
+        activeChordLabel || displayedKey || '—'
+      }`}
+      style={{
+        position: 'sticky',
+        bottom: 0,
+        // `getDefaultZIndex('app')` (100) e o mesmo nivel do `AppShell.Header`.
+        // Com 30 a barra "vaza" para fora do Main e o rodape do AppShell
+        // (mesmo nivel 100, porem declarado antes no DOM) a cobre.
+        zIndex: getDefaultZIndex('app'),
+        marginInline: -APP_SHELL_PADDING_PX,
+        paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
+        backgroundColor: 'var(--mantine-color-body)',
+        boxShadow: '0 -6px 18px rgba(0, 0, 0, 0.14)',
+      }}
+    >
+      <Group gap={6} wrap="nowrap" align="center">
+        <Tooltip label={t.music.back10}>
+          <ActionIcon
+            variant="subtle"
+            size={TOUCH_TARGET}
+            onClick={() => skip(-10)}
+            aria-label={t.music.back10}
+          >
+            <IconPlayerSkipBack size={20} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={playing ? t.music.playerPause : t.music.playerPlay}>
+          <ActionIcon
+            variant="filled"
+            color="violet"
+            size={TOUCH_TARGET + 8}
+            onClick={togglePlay}
+            aria-label={playing ? t.music.playerPause : t.music.playerPlay}
+          >
+            {playing ? <IconPlayerPause size={24} /> : <IconPlayerPlay size={24} />}
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label={t.music.forward10}>
+          <ActionIcon
+            variant="subtle"
+            size={TOUCH_TARGET}
+            onClick={() => skip(10)}
+            aria-label={t.music.forward10}
+          >
+            <IconPlayerSkipForward size={20} />
+          </ActionIcon>
+        </Tooltip>
+
+        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+          <Group justify="space-between" wrap="nowrap" gap={6}>
+            {timeLabel(progress, 'left')}
+            <Text
+              size="sm"
+              fw={800}
+              c={activeChordLabel ? 'grape' : 'dimmed'}
+              truncate
+              maw="45%"
+              // `minWidth: 0` e obrigatorio para o `truncate` funcionar dentro
+              // de um flex container sem estourar a barra.
+              style={{ minWidth: 0 }}
+            >
+              {activeChordLabel || displayedKey || '—'}
+            </Text>
+            {timeLabel(duration, 'right')}
+          </Group>
+          {seekSlider}
+        </Stack>
+
+        <Tooltip label={t.music.playerMoreControls}>
+          <ActionIcon
+            variant="light"
+            size={TOUCH_TARGET}
+            onClick={openTools}
+            aria-label={t.music.playerMoreControls}
+          >
+            <IconAdjustmentsHorizontal size={20} />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Paper>
+  );
+
+  return (
+    <>
+      <Stack gap="md">
+        {isMobile ? (
+          <Stack gap="sm">
+            <Stack gap="xs">
+              <Collapse
+                expanded={videoOpen || stageMode}
+                keepMounted
+                keepMountedMode="display-none"
+              >
+                {videoFrame}
+              </Collapse>
+              {!stageMode ? videoToggle : null}
+            </Stack>
+            {chordsCard}
+            {miniPlayer}
+          </Stack>
+        ) : (
+          <>
+            <Group justify="space-between" align="flex-end" wrap="wrap" gap="xs">
+              {keyStepper(false)}
+              <Group gap="xs" wrap="nowrap" align="flex-end">
+                {viewControl(false)}
+                {stageModeButton(false)}
+              </Group>
+            </Group>
+
+            <Grid gap="md">
+              <Grid.Col span={{ base: 12, md: stageMode ? 12 : 5 }}>
+                <Stack gap="xs">
+                  {videoFrame}
+                  {transportControls}
+                  <Group gap="sm" px={4} wrap="nowrap">
+                    {timeLabel(progress, 'left')}
+                    {seekSlider}
+                    {timeLabel(duration, 'right')}
+                  </Group>
+                  {toolsBar(false)}
+                </Stack>
+              </Grid.Col>
+
+              <Grid.Col span={{ base: 12, md: stageMode ? 12 : 7 }}>
+                {chordsCard}
+              </Grid.Col>
+            </Grid>
+          </>
+        )}
+      </Stack>
+
+      <Drawer
+        opened={isMobile && toolsOpen}
+        onClose={closeTools}
+        position="bottom"
+        title={t.music.playerMoreControls}
+        // `size` so resolve chaves de tema; a altura vem do `--drawer-height`
+        // para acompanhar a viewport do celular (dvh) em vez de um px fixo.
+        vars={() => ({ root: { '--drawer-height': 'min(80dvh, 620px)' } })}
+        styles={{
+          body: { paddingBottom: 'max(12px, env(safe-area-inset-bottom))' },
+        }}
+      >
+        <Stack gap="md">
+          {keyStepper(true)}
+          {viewControl(true)}
+          {toolsBar(true)}
+          {stageModeButton(true)}
+          <Button
+            fullWidth
+            variant="default"
+            size="md"
+            style={touchStyles.root}
+            onClick={closeTools}
+          >
+            {t.common.close}
+          </Button>
+        </Stack>
+      </Drawer>
+    </>
+  );
 }
+

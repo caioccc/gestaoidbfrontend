@@ -33,7 +33,9 @@ import ChordSyncPlayer, {
 } from '../../../components/ChordSyncPlayer';
 import Layout from '../../../components/Layout';
 import LyricsSheet from '../../../components/LyricsSheet';
+import { TOUCH_TARGET, touchStyles } from '../../../components/PlayerToolsBar';
 import { useLanguage } from '../../../i18n';
+import { useIsMobile } from '../../../hooks/useIsMobile';
 import { musicApi } from '../../../api/music';
 import { formatMusicalKey } from '../../../utils/format';
 import { dedupeChords, keyDistance, transposeChordsJson } from '../../../utils/chords';
@@ -100,6 +102,7 @@ function ChordStrip({ chords }: { chords: ChordItem[] }) {
 export default function SetlistPlayerPage() {
   const router = useRouter();
   const { t } = useLanguage();
+  const isMobile = useIsMobile();
   const id = Number(router.query.id);
 
   const [setlist, setSetlist] = useState<BandSetlist | null>(null);
@@ -234,19 +237,23 @@ export default function SetlistPlayerPage() {
         {setlist ? (
           <>
             <Card withBorder p="md" mb="md">
-              <Stack gap="md">
+              <Stack gap="sm">
                 <Group justify="space-between" align="center" wrap="wrap" gap="xs">
-                  <Group gap="xs" wrap="wrap">
+                  <Group gap="xs" wrap="nowrap" miw={0} style={{ flex: 1, minWidth: 0 }}>
                     <Button
                       variant="default"
                       size="sm"
                       leftSection={<IconArrowLeft size={16} />}
                       onClick={() => void router.push('/setlists')}
+                      style={{ minHeight: TOUCH_TARGET, flexShrink: 0 }}
+                      aria-label={t.music.setlistsTitle}
                     >
-                      {t.music.setlistsTitle}
+                      <Box component="span" visibleFrom="xs">
+                        {t.music.setlistsTitle}
+                      </Box>
                     </Button>
-                    <Box>
-                      <Text fw={700} size="lg" truncate maw="100%">
+                    <Box style={{ minWidth: 0 }}>
+                      <Text fw={700} size="lg" truncate>
                         {title}
                       </Text>
                       <Badge variant="light" size="sm">
@@ -255,11 +262,11 @@ export default function SetlistPlayerPage() {
                     </Box>
                   </Group>
 
-                  <Group gap={6} wrap="nowrap">
+                  <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
                     <Tooltip label={t.music.playerQueue}>
                       <ActionIcon
                         variant="light"
-                        size="lg"
+                        size={isMobile ? TOUCH_TARGET : 'lg'}
                         aria-label={t.music.playerQueue}
                         onClick={openQueue}
                       >
@@ -271,7 +278,7 @@ export default function SetlistPlayerPage() {
                     >
                       <ActionIcon
                         variant="light"
-                        size="lg"
+                        size={isMobile ? TOUCH_TARGET : 'lg'}
                         aria-label={stageMode ? t.music.playerExitFullscreen : t.music.playerFullscreen}
                         onClick={() => setStageMode((s) => !s)}
                       >
@@ -281,22 +288,31 @@ export default function SetlistPlayerPage() {
                   </Group>
                 </Group>
 
-                <Group justify="center" align="center" gap="md" wrap="wrap">
+                {/*
+                  Navegacao de faixa em uma barra unica: `<  Musica 1 de 3  >`.
+
+                  O `miw={240}` do titulo somado a `wrap` fazia a seta de avanco
+                  quebrar para a linha de baixo, centralizada sob o titulo. Com
+                  `wrap="nowrap"` e `minWidth: 0` no titulo quem encolhe e o
+                  texto (via `truncate`), nunca as setas.
+                */}
+                <Group justify="center" align="center" gap="xs" wrap="nowrap">
                   <Tooltip label={t.music.playerPrev}>
                     <ActionIcon
                       variant="light"
                       color="blue"
-                      size="xl"
+                      size={isMobile ? TOUCH_TARGET : 'xl'}
                       disabled={current === 0}
                       aria-label={t.music.playerPrev}
                       onClick={goPrev}
+                      style={{ flexShrink: 0 }}
                     >
                       <IconChevronLeft size={22} />
                     </ActionIcon>
                   </Tooltip>
 
-                  <Box ta="center" miw={240} maw={560} style={{ flex: 1 }}>
-                    <Text size="xs" tt="uppercase" fw={600} c="dimmed">
+                  <Box ta="center" style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="xs" tt="uppercase" fw={600} c="dimmed" truncate>
                       {t.music.playerSongOf
                         .replace('{current}', String(current + 1))
                         .replace('{total}', String(Math.max(entries.length, 1)))}
@@ -304,24 +320,29 @@ export default function SetlistPlayerPage() {
                     <Text fw={700} size="lg" truncate>
                       {entry?.song?.title ?? entry?.item.song_title ?? '—'}
                     </Text>
-                    <Text size="xs" c="dimmed" truncate>
-                      {entry?.song?.artist ?? ''}
-                    </Text>
-                    {entry?.song && displayKey ? (
-                      <Badge variant="light" color="grape" size="sm">
-                        {t.music.transposeLabel}: {displayKey}
-                      </Badge>
-                    ) : null}
+                    <Group gap={6} justify="center" wrap="nowrap" miw={0}>
+                      {entry?.song?.artist ? (
+                        <Text size="xs" c="dimmed" truncate>
+                          {entry.song.artist}
+                        </Text>
+                      ) : null}
+                      {entry?.song && displayKey ? (
+                        <Badge variant="light" color="grape" size="sm" style={{ flexShrink: 0 }}>
+                          {t.music.transposeLabel}: {displayKey}
+                        </Badge>
+                      ) : null}
+                    </Group>
                   </Box>
 
                   <Tooltip label={t.music.playerNext}>
                     <ActionIcon
                       variant="light"
                       color="blue"
-                      size="xl"
+                      size={isMobile ? TOUCH_TARGET : 'xl'}
                       disabled={entries.length === 0 || current === entries.length - 1}
                       aria-label={t.music.playerNext}
                       onClick={goNext}
+                      style={{ flexShrink: 0 }}
                     >
                       <IconChevronRight size={22} />
                     </ActionIcon>
@@ -340,6 +361,9 @@ export default function SetlistPlayerPage() {
                   <SegmentedControl
                     value={view}
                     onChange={(v) => setView(v as View)}
+                    fullWidth={isMobile}
+                    size={isMobile ? 'md' : 'sm'}
+                    styles={isMobile ? touchStyles : undefined}
                     data={[
                       { value: 'player', label: t.music.playerTab },
                       { value: 'chords', label: t.music.lyricsWithChordsLabel },
@@ -436,6 +460,7 @@ export default function SetlistPlayerPage() {
                 }}
                 style={{
                   width: '100%',
+                  minHeight: TOUCH_TARGET,
                   borderRadius: 'var(--mantine-radius-md)',
                   border: active
                     ? '1px solid var(--mantine-primary-color-filled)'

@@ -137,6 +137,7 @@ export default function StatementPage() {
               onChange={setRange}
               clearable
               locale={locale}
+              valueFormat="DD/MM/YYYY"
             />
           </Box>
           <Button variant="default" data-testid="statement-filter" onClick={load}>

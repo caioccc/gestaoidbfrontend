@@ -182,6 +182,27 @@ export function isValidEmail(value: string) {
   return /^\S+@\S+\.\S+$/.test(String(value ?? '').trim());
 }
 
+/**
+ * Exige nome E sobrenome: duas ou mais palavras, cada uma com 2+ caracteres.
+ *
+ * Ignora acentos e pontuacao, para que "Joao D." e "José da Silva" passem,
+ * mas "Joao" ou "J" falhem. Espacos extras no fim sao tolerados.
+ */
+export function hasFullName(value: string): boolean {
+  const words = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length < 2) return false;
+
+  const meaningful = words
+    .map((word) => word.replace(/[^\p{L}\p{N}]/gu, ''))
+    .filter(Boolean);
+
+  return meaningful.length >= 2 && meaningful.every((word) => word.length >= 2);
+}
+
 export function onlyDigits(value: string): string {
   return String(value ?? '').replace(/\D/g, '');
 }

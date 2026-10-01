@@ -7,17 +7,28 @@
 
 .strip {
   display: flex;
-  overflow-x: hidden;
+  /* `hidden` cortava os compassos finais sem nenhuma forma de chegar ate eles:
+     o `scrollIntoView` do componente tambem nao tinha efeito. `auto` mantem a
+     rolagem horizontal que a esteira precisa. */
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  width: 100%;
+  max-width: 100%;
   height: 110px;
   align-items: stretch;
   background-color: var(--mantine-color-body);
   border-radius: var(--mantine-radius-sm);
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .track {
   position: relative;
   display: flex;
   align-items: stretch;
+  /* Musicas com poucos acordes nao podem encolher a faixa e deixar a caixa
+     vazia a direita. */
+  min-width: 100%;
 }
 
 .beat {
@@ -35,6 +46,20 @@
   font: inherit;
   cursor: pointer;
   transition: background-color 90ms linear;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Alvo de toque: 70px de coluna com 110px de altura ja passa do minimo de
+   44px, mas no celular a coluna estreita para 56px e continua tocavel. */
+@media (max-width: 768px) {
+  .beat {
+    width: 56px;
+    min-width: 56px;
+  }
+
+  .label {
+    font-size: var(--mantine-font-size-lg);
+  }
 }
 
 .beat:hover {

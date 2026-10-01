@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text } from '@mantine/core';
 import { IconClock } from '@tabler/icons-react';
 import type { ChordItem } from '../types';
@@ -30,6 +30,20 @@ export default function ChordTimeline({
   onSeek,
 }: ChordTimelineProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [compact, setCompact] = useState(false);
+
+  // Cards menores no celular: o de diagrama tem 84px + a capa 60px, e a fileira
+  // precisa caber ~2.5 cards numa tela de 360px para o "dedo" alcançar o acorde
+  // ativo sem arrastar a esteira antes.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia('(max-width: 768px)');
+    const sync = () => setCompact(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -42,18 +56,33 @@ export default function ChordTimeline({
 
   if (!chords.length) return null;
 
+  const inactiveWidth = compact ? (simpleMode ? 66 : 70) : simpleMode ? 78 : 84;
+  const activeWidth = compact ? (simpleMode ? 86 : 92) : simpleMode ? 100 : 108;
+
   return (
     <Box
       ref={containerRef}
+      // `w-full` explicito: o pai (`Card`/`Stack`) pode ter largura colapsada
+      // por `align-items`, e sem isso a esteira ficava estreita e cortava o
+      // primeiro/last acorde em vez de rolar.
+      w="100%"
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 8,
+        gap: compact ? 6 : 8,
+        width: '100%',
+        maxWidth: '100%',
         overflowX: 'auto',
         overflowY: 'hidden',
-        padding: '12px 4px 10px',
+        // O padding lateral vive no container, e nao no parent, para o card
+        // ativo nunca encostar na borda da tela durante o scroll.
+        padding: compact ? '10px 2px 8px' : '12px 4px 10px',
         scrollbarWidth: 'thin',
         scrollSnapType: 'x proximity',
+        WebkitOverflowScrolling: 'touch',
+        // Impede que o container estoure a largura do Card quando o texto do
+        // acorde e longo.
+        minWidth: 0,
       }}
     >
       {chords.map((chord, i) => {
@@ -61,8 +90,7 @@ export default function ChordTimeline({
         const distance = Math.abs(i - activeIndex);
         const opacity = isActive ? 1 : Math.max(0.25, 1 - distance * 0.24);
         const scaled = isActive ? 1.08 : 1;
-        const activeWidth = simpleMode ? 100 : 108;
-        const cardWidth = isActive ? activeWidth : simpleMode ? 78 : 84;
+        const cardWidth = isActive ? activeWidth : inactiveWidth;
         const start = chord.start ?? 0;
         const end = chord.end != null ? chord.end : start + 1;
         const pct = end > start ? clamp(((progress - start) / (end - start)) * 100, 0, 100) : 0;
@@ -84,7 +112,8 @@ export default function ChordTimeline({
               gap: simpleMode ? 2 : 6,
               width: cardWidth,
               height: simpleMode ? 54 : undefined,
-              minHeight: simpleMode ? 54 : 116,
+              // Alvo de toque: nenhum acorde deve ficar abaixo de 44px.
+              minHeight: simpleMode ? 54 : compact ? 100 : 116,
               padding: simpleMode ? '6px 8px' : '10px 6px',
               border: isActive
                 ? '2px solid var(--mantine-primary-color-filled)'
@@ -102,6 +131,7 @@ export default function ChordTimeline({
               transition: 'transform 180ms ease, opacity 180ms ease, border-color 180ms ease',
               scrollSnapAlign: 'center',
               overflow: 'hidden',
+              WebkitTapHighlightColor: 'transparent',
             }}
           >
             {isActive ? (
@@ -145,8 +175,8 @@ export default function ChordTimeline({
             {!simpleMode && chord.image ? (
               <Box
                 style={{
-                  width: isActive ? 76 : 60,
-                  height: isActive ? 54 : 42,
+                  width: isActive ? (compact ? 60 : 76) : compact ? 48 : 60,
+                  height: isActive ? (compact ? 44 : 54) : compact ? 36 : 42,
                   borderRadius: 6,
                   overflow: 'hidden',
                   backgroundColor: 'var(--mantine-color-gray-2)',

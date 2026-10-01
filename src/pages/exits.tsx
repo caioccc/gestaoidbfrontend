@@ -351,6 +351,7 @@ export default function ExitsPage() {
               onChange={setRange}
               clearable
               locale={locale}
+              valueFormat="DD/MM/YYYY"
             />
           </Box>
           <Select
@@ -475,6 +476,7 @@ export default function ExitsPage() {
               value={form.values.date}
               onChange={(v) => form.setFieldValue('date', parseDateValue(v))}
               locale={locale}
+              valueFormat="DD/MM/YYYY"
             />
             <TextInput
               data-testid="exit-description"

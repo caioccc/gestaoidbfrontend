@@ -1425,6 +1425,7 @@ export default function CalendarEventsBoard({
                     form.setFieldValue('anchor', v ? (typeof v === 'string' ? dateFromApi(v) : v) : null)
                   }
                   locale={locale}
+                  valueFormat="DD/MM/YYYY"
                 />
                 <DateInput
                   data-testid="event-repeat-end"
@@ -1438,6 +1439,7 @@ export default function CalendarEventsBoard({
                     )
                   }
                   locale={locale}
+                  valueFormat="DD/MM/YYYY"
                 />
               </>
             )}
@@ -1451,6 +1453,7 @@ export default function CalendarEventsBoard({
                   form.setFieldValue('date', v ? (typeof v === 'string' ? dateFromApi(v) : v) : null)
                 }
                 locale={locale}
+                valueFormat="DD/MM/YYYY"
               />
             )}
             <TextInput

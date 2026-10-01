@@ -6,6 +6,7 @@ import {
   Group,
   Loader,
   Modal,
+  Progress,
   Select,
   Stack,
   Stepper,
@@ -19,6 +20,7 @@ import { IconHeartHandshake, IconHandStop, IconPray } from '@tabler/icons-react'
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import MaskedTextInput from './MaskedTextInput';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   PrayerRequestCategory,
   PrayerRequestPreferredPeriod,
@@ -59,8 +61,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
     label: t.prayerRequestsPage.periodLabel[k],
   }));
   const [active, setActive] = useState(0);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');  const [phone, setPhone] = useState('');
   const [category, setCategory] = useState<PrayerRequestCategory | null>(null);
   const [description, setDescription] = useState('');
   const [wantsVisit, setWantsVisit] = useState(false);
@@ -79,10 +80,21 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const isMobile = useIsMobile();
+
   const STEP_KEYS: ReadonlyArray<'contact' | 'reason' | 'visit' | 'review'> = wantsVisit
     ? ['contact', 'reason', 'visit', 'review']
     : ['contact', 'reason', 'review'];
-  const currentKey = STEP_KEYS[Math.min(active, STEP_KEYS.length - 1)];
+  const currentIndex = Math.min(active, STEP_KEYS.length - 1);
+  const currentKey = STEP_KEYS[currentIndex];
+
+  // No mobile o Stepper e esconder e o cabecalho fica "Passo X de Y: <titulo>".
+  const STEP_TITLES: Record<(typeof STEP_KEYS)[number], string> = {
+    contact: t.prayerPublicModal.stepContact,
+    reason: t.prayerPublicModal.stepReason,
+    visit: t.prayerPublicModal.stepVisit,
+    review: t.prayerPublicModal.stepReview,
+  };
 
   useEffect(() => {
     if (!opened) return;
@@ -269,13 +281,30 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
             {t.prayerPublicModal.subtitle}
           </Text>
 
+          {isMobile ? (
+            <Stack gap={4} mb="md">
+              <Text size="sm" fw={700}>
+                {t.prayerPublicModal.stepCounter
+                  .replace('{current}', String(currentIndex + 1))
+                  .replace('{total}', String(STEP_KEYS.length))
+                  .replace('{label}', STEP_TITLES[currentKey])}
+              </Text>
+              <Progress
+                value={((currentIndex + 1) / STEP_KEYS.length) * 100}
+                size="xs"
+                radius="xl"
+              />
+            </Stack>
+          ) : null}
+
           <Stepper
-            active={Math.min(active, STEP_KEYS.length - 1)}
+            active={currentIndex}
             allowNextStepsSelect={false}
             onStepClick={(i) => {
-              if (i <= Math.min(active, STEP_KEYS.length - 1)) setActive(i);
+              if (i <= currentIndex) setActive(i);
             }}
             iconSize={28}
+            styles={isMobile ? { steps: { display: 'none' } } : undefined}
           >
             <Stepper.Step label={t.prayerPublicModal.stepContact}>
               <Stack gap="sm">

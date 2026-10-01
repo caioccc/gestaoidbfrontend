@@ -1542,6 +1542,7 @@ export default function VisitationPage() {
                     )
                   }
                   error={form.errors.scheduled_date}
+                  valueFormat="DD/MM/YYYY"
                 />
               </Group>
 

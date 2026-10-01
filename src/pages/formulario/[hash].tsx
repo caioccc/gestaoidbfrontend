@@ -25,19 +25,15 @@ import {
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import {
-  IconBuildingChurch,
-  IconCheck,
-  IconPlus,
-  IconSend,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconBuildingChurch, IconCheck, IconSend } from '@tabler/icons-react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { publicFormApi } from '../../api/accounts';
 import { useLanguage } from '../../i18n';
 import ImageUpload from '../../components/ImageUpload';
+import RelativesFormSection from '../../components/RelativesFormSection';
 import {
+  hasFullName,
   isValidCpf,
   isValidEmail,
   maskCep,
@@ -146,7 +142,7 @@ export default function PublicMemberFormPage() {
   const form = useForm<FormValues>({
     initialValues: EMPTY_FORM,
     validate: {
-      name: (v) => (v.trim().length ? null : t.membersPage.name),
+      name: (v) => (hasFullName(v) ? null : t.membersPage.fullNameRequired),
       church_entry_other: (v, values) =>
         values.church_entry === 'OUTRO' && !v.trim().length
           ? t.membersPage.churchEntryOtherRequired
@@ -499,7 +495,8 @@ export default function PublicMemberFormPage() {
                       <Grid.Col span={{ base: 12, sm: 8 }}>
                         <Stack gap="sm">
                           <TextInput
-                            label={t.membersPage.name}
+                            label={t.membersPage.fullNameLabel}
+                            placeholder={t.membersPage.fullNamePlaceholder}
                             required
                             data-testid="pf-name"
                             {...form.getInputProps('name')}
@@ -740,93 +737,21 @@ export default function PublicMemberFormPage() {
                         {...form.getInputProps('mother_name')}
                       />
                     </SimpleGrid>
-                    <Stack gap="xs">
-                      <Group justify="space-between">
-                        <Text fw={600} size="sm">
-                          {t.membersPage.relatives}
-                        </Text>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          leftSection={<IconPlus size={14} />}
-                          onClick={addRelative}
-                          data-testid="pf-add-relative"
-                        >
-                          {t.membersPage.addRelative}
-                        </Button>
-                      </Group>
-                      {form.values.relatives.map((r, i) => (
-                        <Group
-                          key={i}
-                          gap="xs"
-                          align="flex-end"
-                          wrap="nowrap"
-                          data-testid={`pf-relative-${i}`}
-                        >
-                          <TextInput
-                            label={t.membersPage.relativeName}
-                            style={{ flex: 2 }}
-                            error={form.errors[`relatives.${i}.name`]}
-                            value={r.name}
-                            onChange={(e) =>
-                              form.setFieldValue(
-                                `relatives.${i}.name`,
-                                e.currentTarget.value,
-                              )
-                            }
-                          />
-                          <Select
-                            label={t.membersPage.relativeKinship}
-                            placeholder={t.membersPage.relativeKinship}
-                            style={{ flex: 1.4 }}
-                            data={kinshipOptions}
-                            error={form.errors[`relatives.${i}.kinship`]}
-                            value={r.kinship}
-                            onChange={(v) =>
-                              form.setFieldValue(
-                                `relatives.${i}.kinship`,
-                                (v as Kinship) || '',
-                              )
-                            }
-                          />
-                          <DateInput
-                            label={t.membersPage.birthDate}
-                            style={{ flex: 1.2 }}
-                            locale={locale}
-                            valueFormat="DD/MM/YYYY"
-                            clearable
-                            value={r.birth_date}
-                            onChange={(value) =>
-                              form.setFieldValue(
-                                `relatives.${i}.birth_date`,
-                                toDateValue(value),
-                              )
-                            }
-                          />
-                          <TextInput
-                            label={t.membersPage.phone}
-                            style={{ flex: 1.4 }}
-                            placeholder="(00) 00000-0000"
-                            maxLength={15}
-                            value={r.phone}
-                            onChange={(e) =>
-                              form.setFieldValue(
-                                `relatives.${i}.phone`,
-                                maskPhone(e.currentTarget.value),
-                              )
-                            }
-                          />
-                          <ActionIcon
-                            color="red"
-                            variant="light"
-                            onClick={() => removeRelative(i)}
-                            data-testid={`pf-remove-relative-${i}`}
-                          >
-                            <IconTrash size={16} />
-                          </ActionIcon>
-                        </Group>
-                      ))}
-                    </Stack>
+                    <RelativesFormSection
+                      relatives={form.values.relatives}
+                      errors={form.errors}
+                      kinshipOptions={kinshipOptions}
+                      locale={locale}
+                      onAdd={addRelative}
+                      onRemove={removeRelative}
+                      onChange={(index, field, value) =>
+                        form.setFieldValue(
+                          `relatives.${index}.${field}`,
+                          value as never,
+                        )
+                      }
+                      testIdPrefix="pf"
+                    />
                     <Divider my="xs" />
                     <Text fw={600} size="sm">
                       {t.publicForm.review}
