@@ -9,6 +9,7 @@ import {
   Text,
   Title,
   Loader,
+  Skeleton,
   Select,
   Divider,
   Box,
@@ -19,6 +20,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
+import { SkeletonFormFields } from './LoadingSkeleton';
 import ImageUpload from './ImageUpload';
 import { useLanguage } from '../i18n';
 import { toUpperCamelWords } from '../utils/format';
@@ -262,13 +264,33 @@ export default function ChurchProfileForm({
     }
   };
 
-  if (loading) {
-    return (
-      <Box ta="center" py="xl">
-        <Loader />
-      </Box>
-    );
-  }
+    if (loading) {
+      return (
+        <Paper withBorder radius="md" p="md">
+          <Stack gap="lg">
+            <Stack gap="sm">
+              <Skeleton height={20} width="38%" radius="sm" />
+              <SkeletonFormFields count={2} cols={{ base: 1, sm: 2 }} />
+              <Skeleton height={11} width="74%" radius="sm" />
+              <Group align="flex-end" gap="md">
+                <Stack gap={6}>
+                  <Skeleton height={12} width="52%" radius="sm" />
+                  <Skeleton height={120} width={200} radius="md" />
+                </Stack>
+              </Group>
+            </Stack>
+
+            <Divider label={<Skeleton height={13} width={118} radius="sm" />} labelPosition="left" />
+
+            <SkeletonFormFields count={4} cols={{ base: 1, sm: 2 }} />
+
+            <Divider label={<Skeleton height={13} width={142} radius="sm" />} labelPosition="left" />
+
+            <SkeletonFormFields count={6} cols={{ base: 1, sm: 2 }} />
+          </Stack>
+        </Paper>
+      );
+    }
 
   return (
     <>

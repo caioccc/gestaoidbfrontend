@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Center, Container, Loader, Paper, Text } from '@mantine/core';
+import { Container, Paper, Text } from '@mantine/core';
 import { useRouter } from 'next/router';
 import { useLanguage } from '../../i18n';
 import { publicCalendarApi } from '../../api/finance';
 import type { PublicCalendarPayload } from '../../types';
 import PublicCalendarAgenda from '../../components/PublicCalendarAgenda';
+import { SkeletonCalendarAgenda } from '../../components/LoadingSkeleton';
 
 export default function PublicCalendarPage() {
   const { t } = useLanguage();
@@ -38,11 +39,9 @@ export default function PublicCalendarPage() {
 
   return (
     <Container size="lg" py="xl">
-      {loading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : error || !payload ? (
+        {loading ? (
+          <SkeletonCalendarAgenda />
+        ) : error || !payload ? (
         <Paper withBorder radius="md" p="xl" ta="center">
           <Text size="lg">{t.publicCalendar.invalid}</Text>
         </Paper>

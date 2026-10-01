@@ -3,9 +3,7 @@ import {
   ActionIcon,
   Badge,
   Button,
-  Center,
   Group,
-  Loader,
   Modal,
   ScrollArea,
   Stack,
@@ -16,6 +14,7 @@ import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import MessageTemplateFormModal from './MessageTemplateFormModal';
+import { SkeletonActionRows } from './LoadingSkeleton';
 import type { MessageTemplate } from '../types';
 
 interface MessageTemplatesModalProps {
@@ -102,11 +101,11 @@ export default function MessageTemplatesModal({
               {t.sender.newTemplate}
             </Button>
           </Group>
-          {loading ? (
-            <Center py="xl">
-              <Loader />
-            </Center>
-          ) : templates.length === 0 ? (
+            {loading ? (
+              <ScrollArea.Autosize mah={420} type="auto">
+                <SkeletonActionRows count={6} titleWidth="45%" badges={2} actions={2} />
+              </ScrollArea.Autosize>
+            ) : templates.length === 0 ? (
             <Text size="sm" c="dimmed" py="sm">
               {t.sender.emptyTemplates}
             </Text>

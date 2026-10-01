@@ -18,10 +18,8 @@ import {
   SegmentedControl,
   NumberInput,
   MultiSelect,
-  ActionIcon,
-  Loader,
-  Center,
-  Divider,
+    ActionIcon,
+    Divider,
   ScrollArea,
   Code,
   ThemeIcon,
@@ -56,6 +54,7 @@ import {
   isoWeekday,
 } from '../utils/calendarRecurrence';
 import ShareLinkModal from './ShareLinkModal';
+import { SkeletonCalendarBoard } from './LoadingSkeleton';
 import {
   CalendarEvent,
   CalendarEventAudience,
@@ -1151,11 +1150,9 @@ export default function CalendarEventsBoard({
       </Drawer>
 
       <Paper withBorder radius="md" p={isMobile ? 'xs' : 'md'}>
-        {loading ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : view === 'month' ? (
+          {loading ? (
+            <SkeletonCalendarBoard view={view} />
+          ) : view === 'month' ? (
           <SimpleGrid cols={7} spacing={4}>
             {WEEKDAYS.map((d, i) => (
               <Text key={i} size="xs" fw={700} c="dimmed" ta="center" tt="uppercase">

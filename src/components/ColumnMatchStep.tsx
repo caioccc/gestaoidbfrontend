@@ -7,9 +7,9 @@ import {
   Badge,
   Alert,
   Group,
-  Select,
-  Loader,
-  ThemeIcon,
+    Select,
+    Skeleton,
+    ThemeIcon,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -119,16 +119,33 @@ export default function ColumnMatchStep({
     (k) => inspection?.expected.some((c) => c.key === k)
   ).length;
 
-  if (loading) {
-    return (
-      <Stack align="center" py="xl">
-        <Loader />
-        <Text size="sm" c="dimmed">
-          {t.importPage.mappingLoading}
-        </Text>
-      </Stack>
-    );
-  }
+    if (loading) {
+      return (
+        <Stack gap="md">
+          <Group justify="space-between" wrap="wrap">
+            <Skeleton height={20} width="42%" radius="sm" />
+            <Group gap="xs">
+              <Skeleton height={22} width={104} radius="xl" />
+              <Skeleton height={22} width={92} radius="xl" />
+            </Group>
+          </Group>
+
+          <Skeleton height={44} radius="md" />
+
+          <Paper withBorder p="md" radius="md">
+            <Stack gap="sm">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Stack key={i} gap={2}>
+                  <Skeleton height={13} width={`${40 + ((i * 23) % 40)}%`} radius="sm" />
+                  <Skeleton height={36} radius="md" />
+                  {i % 2 === 1 ? <Skeleton height={10} width={64} radius="sm" /> : null}
+                </Stack>
+              ))}
+            </Stack>
+          </Paper>
+        </Stack>
+      );
+    }
 
   if (!inspection) {
     return (

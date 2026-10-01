@@ -3,11 +3,10 @@ import {
   Badge,
   Button,
   Card,
-  Center,
   Group,
-  Loader,
   Modal,
   Select,
+  Skeleton,
   Stack,
   Table,
   Text,
@@ -23,6 +22,7 @@ import {
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MemberTransfer, MemberTransferStatus } from '../types';
+import { SkeletonTableOnly } from './LoadingSkeleton';
 
 function statusBadge(status: MemberTransferStatus, t: any) {
   const map: Record<MemberTransferStatus, { color: string; label: string }> = {
@@ -251,11 +251,16 @@ export default function TransfersTab() {
         </Button>
       </Group>
 
-      {loading ? (
-        <Center py="xl">
-          <Loader />
-        </Center>
-      ) : (
+        {loading ? (
+          <Stack gap="md">
+            {[t.transfers.incomingTitle, t.transfers.outgoingTitle].map((title) => (
+              <Card key={title} withBorder shadow="sm" p="md">
+                <Skeleton height={18} width={180} mb="sm" radius="sm" />
+                <SkeletonTableOnly rows={5} columns={5} rowHeight={44} />
+              </Card>
+            ))}
+          </Stack>
+        ) : (
         <Stack gap="md">
           <Card withBorder shadow="sm" p="md">
             <Text fw={600} mb="sm">

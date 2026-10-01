@@ -6,11 +6,9 @@ import {
   Box,
   Button,
   Card,
-  Center,
   ColorInput,
   Divider,
   Group,
-  Loader,
   Modal,
   SimpleGrid,
   Stack,
@@ -23,6 +21,7 @@ import { IconDeviceFloppy, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { musicApi } from '../api/music';
 import ImageUpload from './ImageUpload';
+import { SkeletonColorEntityCards } from './LoadingSkeleton';
 import type { Band } from '../types';
 
 interface BandModalProps {
@@ -89,9 +88,9 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
   return (
     <Modal opened={opened} onClose={onClose} size="lg" centered title={t.music.bandManage}>
       <Stack gap="md">
-        {loading ? (
-          <Center py="xl"><Loader /></Center>
-        ) : bands.length === 0 ? (
+          {loading ? (
+            <SkeletonColorEntityCards count={6} cols={{ base: 1, sm: 2 }} />
+          ) : bands.length === 0 ? (
           <Card withBorder p="lg">
             <Text c="dimmed">{t.music.noBands}</Text>
           </Card>

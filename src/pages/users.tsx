@@ -8,7 +8,6 @@ import {
   Badge,
   Button,
   Center,
-  Loader,
   ThemeIcon,
   Modal,
   TextInput,
@@ -29,6 +28,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { SkeletonResponsiveTable } from '../components/LoadingSkeleton';
 import { ListPagination, useListPagination } from '../components/ListPagination';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
@@ -282,11 +282,9 @@ export default function UsersPage() {
         </PageHeader>
 
         <Card withBorder shadow="sm" p={0}>
-          {loading ? (
-            <Center h={200}>
-              <Loader />
-            </Center>
-          ) : users.length === 0 ? (
+            {loading ? (
+              <SkeletonResponsiveTable rows={10} columns={4} breakpoint="sm" inCard={false} />
+            ) : users.length === 0 ? (
             <Stack align="center" py="xl" gap="sm">
               <ThemeIcon size={48} radius="xl" color="gray" variant="light">
                 <IconUserShield size={24} />

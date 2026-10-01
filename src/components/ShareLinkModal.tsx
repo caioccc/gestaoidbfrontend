@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Box,
   Button,
   Center,
   Group,
-  Loader,
   Modal,
   Stack,
   Text,
@@ -16,6 +16,7 @@ import {
   IconRefresh,
 } from '@tabler/icons-react';
 import QrShareCard, { downloadQrPng } from './QrShareCard';
+import { SkeletonQrShare } from './LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import { copyToClipboard } from '../utils/share';
 
@@ -110,17 +111,19 @@ export default function ShareLinkModal({
           </Text>
         ) : null}
 
-        {loading || error || !url ? (
-          <Center h={240}>
-            {error ? (
-              <Text size="sm" c="red">
-                {t.qrShare.error}
-              </Text>
+          {loading || error || !url ? (
+            error ? (
+              <Center h={240}>
+                <Text size="sm" c="red">
+                  {t.qrShare.error}
+                </Text>
+              </Center>
             ) : (
-              <Loader />
-            )}
-          </Center>
-        ) : (
+              <Box w="100%">
+                <SkeletonQrShare size={200} buttons={3} />
+              </Box>
+            )
+          ) : (
           <>
             <QrShareCard ref={qrRef} url={url} />
             <Text

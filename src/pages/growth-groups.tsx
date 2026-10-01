@@ -4,9 +4,7 @@ import {
   Badge,
   Box,
   Button,
-  Center,
   Group,
-  Loader,
   Modal,
   Paper,
   SegmentedControl,
@@ -31,6 +29,7 @@ import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import GrowthGroupsMap, { type SimulationPoint } from '../components/GrowthGroupsMap';
 import GrowthGroupsTable from '../components/GrowthGroupsTable';
+import { SkeletonKpiRow, SkeletonPanel } from '../components/LoadingSkeleton';
 import GrowthGroupFormModal from '../components/GrowthGroupFormModal';
 import { accountsApi, churchLinksApi, growthGroupsApi } from '../api/accounts';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
@@ -266,12 +265,10 @@ export default function GrowthGroupsPage() {
           )}
         </PageHeader>
 
-        {loading ? (
-          <Center h="40vh">
-            <Loader />
-          </Center>
-        ) : (
-          <Stack gap="md">
+        <Stack gap="md">
+          {loading ? (
+            <SkeletonKpiRow count={4} cols={{ base: 2, md: 4 }} withHint />
+          ) : (
             <SimpleGrid cols={{ base: 2, md: 4 }} spacing="sm">
               <KpiCard
                 label={t.growthGroups.kpiActive}
@@ -298,31 +295,37 @@ export default function GrowthGroupsPage() {
                 )}
               />
             </SimpleGrid>
+          )}
 
-            {overlapCount > 0 && (
-              <Alert
-                color="orange"
-                variant="light"
-                radius="md"
-                icon={<IconAlertTriangle size={18} />}
-                title={t.growthGroups.overlapTitle}
-              >
-                {t.growthGroups.overlapAlert.replace('{count}', String(overlapCount))}
-              </Alert>
-            )}
-
-            <SegmentedControl
-              value={tab}
-              onChange={(value) => setTab(value as 'dashboard' | 'table')}
-              size="sm"
+          {!loading && overlapCount > 0 && (
+            <Alert
+              color="orange"
+              variant="light"
               radius="md"
-              data={[
-                { value: 'dashboard', label: t.growthGroups.dashboardTab },
-                { value: 'table', label: t.growthGroups.tableTab },
-              ]}
-            />
+              icon={<IconAlertTriangle size={18} />}
+              title={t.growthGroups.overlapTitle}
+            >
+              {t.growthGroups.overlapAlert.replace('{count}', String(overlapCount))}
+            </Alert>
+          )}
 
-            {tab === 'dashboard' ? (
+          <SegmentedControl
+            value={tab}
+            onChange={(value) => setTab(value as 'dashboard' | 'table')}
+            size="sm"
+            radius="md"
+            data={[
+              { value: 'dashboard', label: t.growthGroups.dashboardTab },
+              { value: 'table', label: t.growthGroups.tableTab },
+            ]}
+          />
+
+          {tab === 'dashboard' ? (
+            loading ? (
+              <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+                <SkeletonPanel height={420} />
+              </Paper>
+            ) : (
               <Stack gap="sm">
                 <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
                   <GrowthGroupsMap
@@ -405,10 +408,11 @@ export default function GrowthGroupsPage() {
                   </Paper>
                 )}
               </Stack>
-            ) : (
-              <GrowthGroupsTable
+            )
+          ) : (
+            <GrowthGroupsTable
                 groups={filtered}
-                loading={false}
+                loading={loading}
                 canEdit={canEdit}
                 canDelete={canDelete}
                 search={search}
@@ -420,8 +424,7 @@ export default function GrowthGroupsPage() {
                 onDelete={setToDelete}
               />
             )}
-          </Stack>
-        )}
+        </Stack>
 
         <GrowthGroupFormModal
           opened={formOpen}

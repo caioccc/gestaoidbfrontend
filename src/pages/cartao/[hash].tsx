@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Center, Container, Group, Loader, Paper, Stack, Text, Title } from '@mantine/core';
+import { Container, Group, Paper, Skeleton, Stack, Text, Title } from '@mantine/core';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import MemberCard from '../../components/MemberCard';
@@ -42,11 +42,34 @@ export default function PublicMemberCardPage() {
   if (!card) {
     return (
       <Container size="sm" py="xl">
-        {loading ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : error ? (
+          {loading ? (
+            <Stack gap="md" align="center">
+              <Stack gap={4} ta="center">
+                <Skeleton height={28} width="62%" mx="auto" radius="sm" />
+                <Skeleton height={13} width="38%" mx="auto" radius="sm" />
+              </Stack>
+
+              <Skeleton
+                width={400}
+                height={250}
+                radius={12}
+                maw="100%"
+                style={{ maxWidth: '100%' }}
+              />
+
+              <Paper withBorder radius="md" p="sm" w="100%" maw={400}>
+                <Group gap="lg" justify="center" wrap="wrap">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Stack key={i} gap={2} ta="center">
+                      <Skeleton height={11} width={78} radius="sm" />
+                      <Skeleton height={14} width={92} radius="sm" />
+                    </Stack>
+                  ))}
+                </Group>
+                <Skeleton height={11} width="70%" mx="auto" mt="xs" radius="sm" />
+              </Paper>
+            </Stack>
+          ) : error ? (
           <Paper withBorder radius="md" p="xl" ta="center">
             <Text size="lg">{t.publicCard.invalid}</Text>
           </Paper>

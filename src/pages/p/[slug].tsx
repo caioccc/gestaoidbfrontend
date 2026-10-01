@@ -6,12 +6,12 @@ import {
   Box,
   Button,
   Center,
-  Group,
-  Loader,
-  Modal,
-  NumberInput,
-  Paper,
-  Stack,
+    Group,
+    Modal,
+    NumberInput,
+    Paper,
+    Skeleton,
+    Stack,
   Text,
   Title,
   useMantineColorScheme,
@@ -24,6 +24,7 @@ import { LinkTypeIcon } from '../../components/linkIcons';
 import { copyToClipboard } from '../../utils/share';
 import { buildPixPayload } from '../../utils/pix';
 import QrShareCard from '../../components/QrShareCard';
+import { SkeletonPublicHeader, SkeletonPublicLinkRows } from '../../components/LoadingSkeleton';
 import PrayerRequestPublicModal from '../../components/PrayerRequestPublicModal';
 import type {
   PublicChurchLink,
@@ -203,11 +204,21 @@ export default function PublicLinksPage() {
           } 42%)`,
         }}
       >
-        {loading && (
-          <Center h="60vh">
-            <Loader size="lg" color="white" />
-          </Center>
-        )}
+          {loading && (
+            <Stack align="center" pt="xl" pb="lg" px="md" gap="md" maw={520} mx="auto" style={{ width: '100%' }}>
+              <SkeletonPublicHeader avatarSize={88} titleWidth="70%" subtitleWidth="40%" tone="dark" />
+              <SkeletonPublicLinkRows count={5} tone="dark" />
+              <Paper
+                radius="md"
+                p="sm"
+                mt="lg"
+                withBorder
+                style={{ width: '100%', borderColor: 'var(--mantine-color-default-border)' }}
+              >
+                <Skeleton height={11} width="62%" mx="auto" radius="sm" />
+              </Paper>
+            </Stack>
+          )}
 
         {error && (
           <Center h="70vh">

@@ -4,9 +4,9 @@ import {
   Button,
   Divider,
   Group,
-  Loader,
   Modal,
   Select,
+  Skeleton,
   Stack,
   Text,
   TextInput,
@@ -126,9 +126,30 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
 
   return (
     <Modal opened={opened} onClose={onClose} size="lg" centered title={t.music.setlistEdit}>
-      {loading ? (
-        <Group justify="center" py="xl"><Loader /></Group>
-      ) : (
+        {loading ? (
+          <Stack gap="md" py="xs">
+            <Skeleton height={12} width="60%" radius="sm" />
+            <Stack gap={6}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Group key={i} gap="xs" align="flex-end" wrap="nowrap">
+                  <Skeleton height={28} width={24} radius="sm" />
+                  <Group gap={2} wrap="nowrap">
+                    <Skeleton height={28} width={28} radius="md" />
+                    <Skeleton height={28} width={28} radius="md" />
+                  </Group>
+                  <Skeleton height={28} width={280} radius="md" />
+                  <Skeleton height={28} style={{ flex: 1 }} radius="md" />
+                  <Skeleton height={28} width={28} radius="md" />
+                </Group>
+              ))}
+            </Stack>
+            <Skeleton height={26} width={140} radius="md" />
+            <Divider />
+            <Group justify="flex-end">
+              <Skeleton height={36} width={110} radius="md" />
+            </Group>
+          </Stack>
+        ) : (
         <Stack gap="md">
           <Text size="sm" c="dimmed">{t.music.addToSetlistHint}</Text>
 

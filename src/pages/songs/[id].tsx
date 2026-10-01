@@ -13,6 +13,7 @@ import {
   Menu,
   Paper,
   SegmentedControl,
+  Skeleton,
   Stack,
   Table,
   Text,
@@ -41,6 +42,7 @@ import ChordSyncPlayer from '../../components/ChordSyncPlayer';
 import LyricsSheet from '../../components/LyricsSheet';
 import SongChordStatusBadge from '../../components/SongChordStatusBadge';
 import { TOUCH_TARGET, touchStyles } from '../../components/PlayerToolsBar';
+import { SkeletonPageHeader, SkeletonPanel } from '../../components/LoadingSkeleton';
 import { useLanguage } from '../../i18n';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useAuth } from '../../contexts/AuthContext';
@@ -128,15 +130,25 @@ export default function SongDetailPage() {
     }
   };
 
-  if (loading || !song) {
-    return (
-      <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
-        <Layout>
-          <Center py="xl"><Loader /></Center>
-        </Layout>
-      </AuthGuard>
-    );
-  }
+    if (loading || !song) {
+      return (
+        <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
+          <Layout>
+            <Stack gap="md">
+              <SkeletonPageHeader width="30%" subWidth="18%" />
+              <Paper withBorder p="xs">
+                <Group gap="xs" wrap="nowrap">
+                  <Skeleton width={18} height={18} radius="sm" />
+                  <Skeleton height={14} width={190} radius="sm" />
+                  <Skeleton height={14} width={110} radius="sm" />
+                </Group>
+              </Paper>
+              <SkeletonPanel height={420} />
+            </Stack>
+          </Layout>
+        </AuthGuard>
+      );
+    }
 
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>

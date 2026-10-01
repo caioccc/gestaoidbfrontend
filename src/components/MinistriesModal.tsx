@@ -5,11 +5,9 @@ import {
   Box,
   Button,
   Card,
-  Center,
   ColorInput,
   Divider,
   Group,
-  Loader,
   Modal,
   SimpleGrid,
   Stack,
@@ -21,6 +19,7 @@ import { notifications } from '@mantine/notifications';
 import { IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { musicApi } from '../api/music';
+import { SkeletonColorEntityCards } from './LoadingSkeleton';
 import type { Ministry, MinistryRole } from '../types';
 
 interface MinistriesModalProps {
@@ -112,9 +111,14 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
   return (
     <Modal opened={opened} onClose={onClose} size="xl" centered title={t.music.ministryManage}>
       <Stack gap="md">
-        {loading ? (
-          <Center py="xl"><Loader /></Center>
-        ) : (
+          {loading ? (
+            <SkeletonColorEntityCards
+              count={6}
+              cols={{ base: 1, md: 2 }}
+              withBadge={false}
+              badgesSection
+            />
+          ) : (
           <SimpleGrid cols={{ base: 1, md: 2 }}>
             {ministries.map((m) => (
               <Card key={m.id} withBorder p="md">

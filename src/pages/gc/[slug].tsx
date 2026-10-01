@@ -7,13 +7,13 @@ import {
   Box,
   Button,
   Card,
-  Center,
-  Group,
-  Loader,
-  Paper,
-  Select,
-  SimpleGrid,
-  Stack,
+    Center,
+    Group,
+    Paper,
+    Select,
+    SimpleGrid,
+    Skeleton,
+    Stack,
   Text,
   TextInput,
   Title,
@@ -31,6 +31,11 @@ import {
 } from '@tabler/icons-react';
 import { publicGrowthGroupsApi } from '../../api/accounts';
 import type { PublicGrowthGroup, PublicGrowthGroupsPayload } from '../../api/accounts';
+import {
+  SkeletonActionRows,
+  SkeletonFormFields,
+  SkeletonPublicHeader,
+} from '../../components/LoadingSkeleton';
 import { useLanguage } from '../../i18n';
 import type { TranslationDict } from '../../i18n';
 import type { GrowthGroupWeekday } from '../../types';
@@ -458,11 +463,32 @@ export default function PublicGrowthGroupsPage() {
           } 38%)`,
         }}
       >
-        {loading && (
-          <Center h="60vh">
-            <Loader size="lg" color="white" />
-          </Center>
-        )}
+          {loading && (
+            <Box pb="xl">
+              <Stack align="center" pt="xl" pb="lg" px="md" gap="md">
+                <SkeletonPublicHeader avatarSize={64} tone="dark" />
+              </Stack>
+
+              <Box maw={1180} mx="auto" px="md" style={{ width: '100%' }}>
+                <Stack gap="md">
+                  <Paper withBorder radius="md" p="md" shadow="xs">
+                    <Stack gap="sm">
+                      <SkeletonFormFields count={1} cols={{ base: 1 }} showLabels={false} />
+                      <Stack gap={6}>
+                        <Skeleton height={12} width="34%" radius="sm" />
+                        <SkeletonFormFields count={2} cols={{ base: 1, sm: 2 }} labelWidth="55%" />
+                      </Stack>
+                      <Group justify="space-between">
+                        <Skeleton height={11} width={110} radius="sm" />
+                      </Group>
+                    </Stack>
+                  </Paper>
+
+                  <SkeletonActionRows count={4} titleWidth="55%" badges={3} actions={1} bordered />
+                </Stack>
+              </Box>
+            </Box>
+          )}
 
         {error && (
           <Center h="70vh">

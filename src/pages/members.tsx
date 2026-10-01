@@ -12,8 +12,6 @@ import {
   Modal,
   TextInput,
   Table,
-  Center,
-  Loader,
   Avatar,
   Tabs,
   Checkbox,
@@ -62,6 +60,11 @@ import Layout from '../components/Layout';
 import MemberFormModal from '../components/MemberFormModal';
 import MemberCardModal from '../components/MemberCardModal';
 import MemberCardBatchModal from '../components/MemberCardBatchModal';
+import {
+  SkeletonEntityCards,
+  SkeletonMobileCards,
+  SkeletonTableCells,
+} from '../components/LoadingSkeleton';
 import MemberDocumentsModal from '../components/MemberDocumentsModal';
 import MemberImportTab from '../components/MemberImportTab';
 import CardConfigTab from '../components/CardConfigTab';
@@ -1039,9 +1042,14 @@ function MembersTab({
 
       <Card withBorder shadow="sm" p={0}>
         {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
+          <>
+            <Box visibleFrom="lg">
+              <SkeletonTableCells rows={10} columns={isWide ? 7 : 6} />
+            </Box>
+            <Box hiddenFrom="lg">
+              <SkeletonMobileCards count={6} />
+            </Box>
+          </>
         ) : total === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="gray" variant="light">
@@ -1476,12 +1484,10 @@ function AreasTab() {
           {t.membersPage.addArea}
         </Button>
       </Group>
-      <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : areas.length === 0 ? (
+        <Card withBorder shadow="sm" p={0}>
+          {loading ? (
+            <SkeletonEntityCards count={6} cols={{ base: 1, sm: 2, md: 3 }} />
+          ) : areas.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light">
               <IconBuildingChurch size={24} />

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/router';
-import { Center, Stack, Text, Button, Loader } from '@mantine/core';
+import { Center, Stack, Text, Button } from '@mantine/core';
 import { IconArrowLeft } from '@tabler/icons-react';
 import AuthGuard from '../../../components/AuthGuard';
 import Layout from '../../../components/Layout';
@@ -9,6 +9,7 @@ import { accountsApi } from '../../../api/accounts';
 import { Church } from '../../../types';
 import { useLanguage } from '../../../i18n';
 import { SECTIONS } from '../../../components/admin/sections';
+import { SkeletonPageHeader, SkeletonPanel } from '../../../components/LoadingSkeleton';
 
 export default function CongregationSectionPage() {
   const { t } = useLanguage();
@@ -47,17 +48,18 @@ export default function CongregationSectionPage() {
     load();
   }, [router.isReady, load]);
 
-  if (!router.isReady || !resolved) {
-    return (
-      <AuthGuard roles={['PASTOR']}>
-        <Layout>
-          <Center h="60vh">
-            <Loader />
-          </Center>
-        </Layout>
-      </AuthGuard>
-    );
-  }
+    if (!router.isReady || !resolved) {
+      return (
+        <AuthGuard roles={['PASTOR']}>
+          <Layout>
+            <Stack gap="md">
+              <SkeletonPageHeader />
+              <SkeletonPanel />
+            </Stack>
+          </Layout>
+        </AuthGuard>
+      );
+    }
 
   const renderSection = SECTIONS[sectionName ?? ''];
 

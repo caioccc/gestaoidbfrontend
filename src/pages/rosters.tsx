@@ -6,9 +6,7 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Group,
-  Loader,
   Modal,
   Select,
   SimpleGrid,
@@ -36,6 +34,7 @@ import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MinistriesModal from '../components/MinistriesModal';
 import SetlistModal from '../components/SetlistModal';
+import { SkeletonRosterCards } from '../components/LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
@@ -172,11 +171,9 @@ export default function RostersPage() {
           </Group>
         </PageHeader>
 
-        {loading ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : rosters.length === 0 ? (
+          {loading ? (
+            <SkeletonRosterCards count={6} />
+          ) : rosters.length === 0 ? (
           <Card withBorder p="xl">
             <Text c="dimmed">{!canManageMusic || onlyMine ? t.music.myRostersEmpty : t.music.rosterEmpty}</Text>
           </Card>

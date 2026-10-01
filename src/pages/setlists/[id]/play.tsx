@@ -10,8 +10,8 @@ import {
   Divider,
   Drawer,
   Group,
-  Loader,
   SegmentedControl,
+  Skeleton,
   Stack,
   Text,
   Tooltip,
@@ -34,6 +34,7 @@ import ChordSyncPlayer, {
 import Layout from '../../../components/Layout';
 import LyricsSheet from '../../../components/LyricsSheet';
 import { TOUCH_TARGET, touchStyles } from '../../../components/PlayerToolsBar';
+import { SkeletonPanel } from '../../../components/LoadingSkeleton';
 import { useLanguage } from '../../../i18n';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { musicApi } from '../../../api/music';
@@ -221,15 +222,30 @@ export default function SetlistPlayerPage() {
     return transposeChordsJson(dedupeChords(entry.song.chords_json ?? []), offset);
   }, [entry]);
 
-  if (loading) {
-    return (
-      <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
-        <Layout>
-          <Center py="xl"><Loader /></Center>
-        </Layout>
-      </AuthGuard>
-    );
-  }
+    if (loading) {
+      return (
+        <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
+          <Layout>
+            <Stack gap="md">
+              <Card withBorder p="md">
+                <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                  <Group gap="sm" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                    <Skeleton height={32} width={110} radius="md" />
+                    <Skeleton height={32} width={180} radius="md" />
+                  </Group>
+                  <Group gap="xs">
+                    <Skeleton height={32} width={90} radius="md" />
+                    <Skeleton height={32} width={90} radius="md" />
+                    <Skeleton height={32} width={44} radius="md" />
+                  </Group>
+                </Group>
+              </Card>
+              <SkeletonPanel height={520} />
+            </Stack>
+          </Layout>
+        </AuthGuard>
+      );
+    }
 
   return (
     <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>

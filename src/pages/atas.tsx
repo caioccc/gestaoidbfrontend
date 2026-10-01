@@ -5,11 +5,9 @@ import {
   Box,
   Button,
   Card,
-  Center,
   FileInput,
   Group,
   Indicator,
-  Loader,
   Modal,
   Paper,
   Select,
@@ -42,6 +40,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { SkeletonResponsiveTable } from '../components/LoadingSkeleton';
 import { ListPagination, useServerPagination } from '../components/ListPagination';
 import { RichText } from '../components/RichText';
 import ShareLinkModal from '../components/ShareLinkModal';
@@ -500,11 +499,9 @@ export default function MinutesPage() {
           </Group>
         )}
 
-        {loading ? (
-          <Center h="40vh">
-            <Loader />
-          </Center>
-        ) : minutes.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={8} columns={6} />
+          ) : minutes.length === 0 ? (
           <Card withBorder p="xl" ta="center" c="dimmed">
             <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
               <IconFileText size={24} />

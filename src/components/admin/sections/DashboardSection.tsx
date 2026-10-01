@@ -9,11 +9,10 @@ import {
   Title,
   ThemeIcon,
   Paper,
-  Skeleton,
-  Loader,
-  Center,
-  Badge,
-} from '@mantine/core';
+    Skeleton,
+    Center,
+    Badge,
+  } from '@mantine/core';
 import { BarChart, DonutChart } from '@mantine/charts';
 import {
   IconArrowUpCircle,
@@ -21,6 +20,7 @@ import {
   IconScale,
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
+import { SkeletonPanel } from '../../LoadingSkeleton';
 import { useLanguage } from '../../../i18n';
 import { DashboardSummary } from '../../../types';
 import { fetchAllPages } from '../../../api/finance';
@@ -181,11 +181,9 @@ export default function DashboardSection({ api, churchLabel }: { api: AdminFinan
           <Title order={4} mb="md">
             {t.dashboard.entriesVsExits}
           </Title>
-          {loading ? (
-            <Center h={280}>
-              <Loader />
-            </Center>
-          ) : (
+            {loading ? (
+              <SkeletonPanel height={280} />
+            ) : (
             <BarChart
               h={280}
               data={barData}

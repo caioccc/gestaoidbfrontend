@@ -9,7 +9,6 @@ import {
   Center,
   Group,
   Indicator,
-  Loader,
   Modal,
   Paper,
   Select,
@@ -38,6 +37,7 @@ import PageHeader from "../components/PageHeader";
 import AuthGuard from "../components/AuthGuard";
 import Layout from "../components/Layout";
 import MobileItemCard from "../components/MobileItemCard";
+import { SkeletonResponsiveTable } from "../components/LoadingSkeleton";
 import {
   ListPagination,
   useListPagination,
@@ -349,11 +349,9 @@ function IssuedTab() {
         </Group>
       )}
 
-      {loading ? (
-        <Center h={220}>
-          <Loader />
-        </Center>
-      ) : certificates.length === 0 ? (
+        {loading ? (
+          <SkeletonResponsiveTable rows={7} columns={5} />
+        ) : certificates.length === 0 ? (
         <Card withBorder>
           <Center h={160}>
             <Stack gap="sm" align="center">
@@ -707,11 +705,9 @@ function TemplatesTab() {
         </Box>
       </Group>
 
-      {loading ? (
-        <Center h={220}>
-          <Loader />
-        </Center>
-      ) : templates.length === 0 ? (
+        {loading ? (
+          <SkeletonResponsiveTable rows={7} columns={5} breakpoint="lg" />
+        ) : templates.length === 0 ? (
         <Card withBorder>
           <Center h={160}>
             <Text c="dimmed">{t.certificates.emptyTemplates}</Text>

@@ -5,11 +5,11 @@ import {
   Center,
   ColorInput,
   Group,
-  Loader,
   Modal,
   Paper,
   Select,
   SimpleGrid,
+  Skeleton,
   Stack,
   Switch,
   Text,
@@ -42,6 +42,10 @@ import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import LinkModal from '../components/LinkModal';
 import SortableLinkRow from '../components/SortableLinkRow';
+import {
+  SkeletonFormFields,
+  SkeletonLinkRows,
+} from '../components/LoadingSkeleton';
 import { churchLinksApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { buildLinksUrl, copyToClipboard } from '../utils/share';
@@ -208,11 +212,34 @@ export default function LinksPage() {
           </Button>
         </Group>
 
-        {loading ? (
-          <Center h="50vh">
-            <Loader size="lg" />
-          </Center>
-        ) : (
+          {loading ? (
+            <Stack gap="md" maw={900}>
+              <Paper withBorder p="md" radius="md" mb="lg">
+                <Stack gap="md">
+                  <Group justify="space-between" wrap="wrap" gap="xs">
+                    <Stack gap={6}>
+                      <Skeleton height={16} width={190} radius="sm" />
+                      <Skeleton height={11} width={280} radius="sm" />
+                    </Stack>
+                    <Skeleton width={54} height={24} radius="md" />
+                  </Group>
+                  <SkeletonFormFields count={4} />
+                  <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+                    <Group gap="xs">
+                      <Skeleton height={36} width={120} radius="md" />
+                      <Skeleton height={36} width={130} radius="md" />
+                    </Group>
+                    <Skeleton height={36} width={140} radius="md" />
+                  </Group>
+                </Stack>
+              </Paper>
+
+              <Stack gap="xs">
+                <Skeleton height={11} width={220} radius="sm" />
+                <SkeletonLinkRows count={5} />
+              </Stack>
+            </Stack>
+          ) : (
           <Stack gap="md">
             <Paper withBorder p="md" radius="md" mb="lg" maw={900}>
               <Stack gap="md">

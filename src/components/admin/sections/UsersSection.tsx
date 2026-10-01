@@ -6,8 +6,6 @@ import {
   Stack,
   Badge,
   Button,
-  Center,
-  Loader,
   ThemeIcon,
   Modal,
   TextInput,
@@ -25,6 +23,7 @@ import {
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
 import { ListPagination, useListPagination } from '../../../components/ListPagination';
+import { SkeletonTableOnly } from '../../LoadingSkeleton';
 import { useLanguage } from '../../../i18n';
 import { useAuth, useRoleHelpers } from '../../../contexts/AuthContext';
 import { accountsApi } from '../../../api/accounts';
@@ -233,11 +232,9 @@ export default function UsersSection({
       </PageHeader>
 
       <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : users.length === 0 ? (
+          {loading ? (
+            <SkeletonTableOnly rows={10} columns={4} />
+          ) : users.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="gray" variant="light">
               <IconUserShield size={24} />

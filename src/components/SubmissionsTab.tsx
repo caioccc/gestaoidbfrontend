@@ -9,7 +9,6 @@ import {
   Checkbox,
   Code,
   Group,
-  Loader,
   Menu,
   Modal,
   Paper,
@@ -41,6 +40,7 @@ import { formatDate } from '../utils/format';
 import { buildFormUrl, copyToClipboard } from '../utils/share';
 import ShareLinkModal from './ShareLinkModal';
 import MobileItemCard from './MobileItemCard';
+import { SkeletonResponsiveTable } from './LoadingSkeleton';
 import type { MemberSubmission, MemberSubmissionStatus } from '../types';
 
 type Filter = MemberSubmissionStatus | 'ALL';
@@ -379,11 +379,9 @@ export default function SubmissionsTab() {
       </Group>
 
       <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : items.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={8} columns={6} breakpoint="md" inCard={false} />
+          ) : items.length === 0 ? (
           <Center py={60}>
             <Stack align="center" gap="sm">
               <ThemeIcon size={64} radius="xl" color="gray" variant="light">

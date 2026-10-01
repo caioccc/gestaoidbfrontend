@@ -8,7 +8,6 @@ import {
   Center,
   Flex,
   Group,
-  Loader,
   Menu,
   Modal,
   Paper,
@@ -55,6 +54,7 @@ import { useLanguage } from '../i18n';
 import MemberFormModal from './MemberFormModal';
 import SendWhatsAppModal from './SendWhatsAppModal';
 import VisitorFormModal, { type VisitorFormValues } from './VisitorFormModal';
+import { SkeletonKanbanBoard } from './LoadingSkeleton';
 import {
   FUNNEL_STAGES,
   daysSinceLastContact,
@@ -642,13 +642,11 @@ export default function MembersFunnelTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draggingId, boards]);
 
-  if (loading) {
-    return (
-      <Center py="xl">
-        <Loader />
-      </Center>
-    );
-  }
+    if (loading) {
+      return (
+        <SkeletonKanbanBoard columns={FUNNEL_COLUMNS.length} cardsPerColumn={3} />
+      );
+    }
 
   if (error) {
     return (

@@ -6,11 +6,9 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Checkbox,
   Grid,
   Group,
-  Loader,
   Paper,
   Progress,
   Select,
@@ -39,6 +37,12 @@ import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
 import MemberFormModal from '../components/MemberFormModal';
 import SendWhatsAppModal from '../components/SendWhatsAppModal';
+import {
+  SkeletonAccordionRows,
+  SkeletonDistributionCards,
+  SkeletonKpiRow,
+  SkeletonTableOnly,
+} from '../components/LoadingSkeleton';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { useLanguage } from '../i18n';
@@ -1018,11 +1022,20 @@ export default function MembersReportsPage() {
           </Tabs>
         </PageHeader>
 
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : (
+          {loading ? (
+            tab === 'composition' ? (
+              <Stack gap="md">
+                <SkeletonKpiRow count={3} cols={{ base: 1, sm: 3 }} />
+                <SkeletonDistributionCards count={6} bars={4} />
+              </Stack>
+            ) : tab === 'areas' ? (
+              <SkeletonAccordionRows items={3} panelRows={5} panelColumns={3} />
+            ) : tab === 'listing' ? (
+              <SkeletonTableOnly rows={10} columns={8} />
+            ) : (
+              <SkeletonTableOnly rows={10} columns={7} />
+            )
+          ) : (
           <>
             {tab === 'composition' && (
               <CompositionTab members={members} t={t} />

@@ -10,7 +10,6 @@ import {
   Menu,
   Paper,
   Select,
-  Skeleton,
   Stack,
   Table,
   Text,
@@ -25,6 +24,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import MobileItemCard from './MobileItemCard';
+import { SkeletonMobileCards, SkeletonTableCells } from './LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import type { GrowthGroup, GrowthGroupWeekday } from '../types';
 
@@ -104,11 +104,13 @@ export default function GrowthGroupsTable({
 
   if (loading) {
     return (
-      <Paper withBorder p="md">
-        <Skeleton height={40} mb="md" radius="md" />
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} height={40} mb="sm" radius="md" />
-        ))}
+      <Paper withBorder>
+        <Box visibleFrom="sm">
+          <SkeletonTableCells rows={6} columns={9} rowHeight={44} />
+        </Box>
+        <Stack hiddenFrom="sm" gap="xs" p="sm">
+          <SkeletonMobileCards count={6} avatarSize={40} />
+        </Stack>
       </Paper>
     );
   }

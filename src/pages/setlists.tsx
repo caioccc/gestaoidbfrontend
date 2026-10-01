@@ -48,6 +48,11 @@ import FilterDrawer from '../components/FilterDrawer';
 import MobileListToolbar from '../components/MobileListToolbar';
 import SetlistsModal from '../components/SetlistsModal';
 import SetlistShareModal from '../components/SetlistShareModal';
+import {
+  SkeletonMediaRow,
+  SkeletonSongGallery,
+  SkeletonTableCells,
+} from '../components/LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import type { SupportedLocale } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
@@ -1065,7 +1070,27 @@ export default function SetlistsPage() {
         ) : null}
 
         {loading ? (
-          <Center py="xl"><Loader /></Center>
+          viewMode === 'gallery' ? (
+            <SkeletonSongGallery
+              count={PAGE_SIZE}
+              cols={{ base: 1, xs: 2, sm: 2, md: 3, lg: 4 }}
+              spacing="lg"
+            />
+          ) : viewMode === 'list' ? (
+            <Stack gap="md">
+              {Array.from({ length: PAGE_SIZE }).map((_, i) => (
+                <Paper key={i} withBorder radius="lg" p="md">
+                  <SkeletonMediaRow mediaWidth={220} mediaHeight={104} />
+                </Paper>
+              ))}
+            </Stack>
+          ) : (
+            <Paper withBorder>
+              <Table.ScrollContainer minWidth={900}>
+                <SkeletonTableCells rows={PAGE_SIZE} columns={7} />
+              </Table.ScrollContainer>
+            </Paper>
+          )
         ) : setlists.length === 0 ? (
           <Card withBorder p="xl">
             <Text c="dimmed">{t.music.noSetlists}</Text>

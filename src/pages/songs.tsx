@@ -7,7 +7,6 @@ import {
   Card,
   Center,
   Group,
-  Loader,
   Menu,
   Pagination,
   Paper,
@@ -50,6 +49,7 @@ import BandModal from '../components/BandModal';
 import FilterDrawer from '../components/FilterDrawer';
 import MobileListToolbar from '../components/MobileListToolbar';
 import SongChordStatusBadge, { chordStatusMeta, isChordReady } from '../components/SongChordStatusBadge';
+import { SkeletonSongGallery, SkeletonSongListRow, SkeletonTableCells } from '../components/LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
@@ -1065,7 +1065,23 @@ export default function SongsPage() {
         )}
 
         {loading ? (
-          <Center py="xl"><Loader /></Center>
+          viewMode === 'gallery' ? (
+            <SkeletonSongGallery count={pageSize} />
+          ) : viewMode === 'list' ? (
+            <Stack gap="xs">
+              {Array.from({ length: pageSize }).map((_, i) => (
+                <Paper key={i} withBorder radius="md" p="sm">
+                  <SkeletonSongListRow />
+                </Paper>
+              ))}
+            </Stack>
+          ) : (
+            <Paper withBorder style={{ overflow: 'hidden' }}>
+              <Table.ScrollContainer minWidth={800}>
+                <SkeletonTableCells rows={pageSize} columns={7} />
+              </Table.ScrollContainer>
+            </Paper>
+          )
         ) : songs.length === 0 ? (
           <Card withBorder p="xl">
             <Text c="dimmed">{t.music.noSongs}</Text>

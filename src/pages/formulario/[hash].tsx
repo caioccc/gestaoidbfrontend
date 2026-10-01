@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActionIcon,
   Button,
-  Center,
   Container,
   Divider,
   Grid,
@@ -13,6 +12,7 @@ import {
   ScrollArea,
   Select,
   SimpleGrid,
+  Skeleton,
   Stack,
   Stepper,
   Table,
@@ -32,6 +32,7 @@ import { publicFormApi } from '../../api/accounts';
 import { useLanguage } from '../../i18n';
 import ImageUpload from '../../components/ImageUpload';
 import RelativesFormSection from '../../components/RelativesFormSection';
+import { SkeletonFormFields } from '../../components/LoadingSkeleton';
 import {
   hasFullName,
   isValidCpf,
@@ -379,15 +380,34 @@ export default function PublicMemberFormPage() {
     t.membersPage.stepFamily,
   ];
 
-  if (loading) {
-    return (
-      <Container size="md" py="xl">
-        <Center py="xl">
-          <Loader />
-        </Center>
-      </Container>
-    );
-  }
+    if (loading) {
+      return (
+        <Container size="lg" py="xl">
+          <Paper withBorder radius="md" p="md" mb="md" bg="gray.0">
+            <Group gap="sm" wrap="nowrap">
+              <Skeleton circle radius="xl" height={40} width={40} style={{ flexShrink: 0 }} />
+              <Stack gap={4} style={{ minWidth: 0 }}>
+                <Skeleton height={20} width="56%" radius="sm" />
+                <Skeleton height={12} width="38%" radius="sm" />
+              </Stack>
+            </Group>
+            <Stack gap={7} mt="sm">
+              <Skeleton height={12} width="92%" radius="sm" />
+              <Skeleton height={12} width="64%" radius="sm" />
+            </Stack>
+          </Paper>
+
+          <Paper withBorder radius="md" p="md">
+            <Group gap="xs" mb="md" wrap="nowrap">
+              {Array.from({ length: Math.max(stepTitles.length, 3) }).map((_, i) => (
+                <Skeleton key={i} height={28} width={104} radius="xl" />
+              ))}
+            </Group>
+            <SkeletonFormFields count={4} cols={{ base: 1, sm: 2 }} />
+          </Paper>
+        </Container>
+      );
+    }
 
   if (error || !meta) {
     return (

@@ -6,10 +6,8 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Checkbox,
   Group,
-  Loader,
   Menu,
   Modal,
   Stack,
@@ -29,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
 import MobileItemCard from '../../../components/MobileItemCard';
+import { SkeletonMobileCards, SkeletonTableCells } from '../../LoadingSkeleton';
 import MemberFormModal from '../../../components/MemberFormModal';
 import MemberCardModal from '../../../components/MemberCardModal';
 import { useLanguage } from '../../../i18n';
@@ -240,9 +239,14 @@ export default function MembersSection({
       </PageHeader>
       <Card withBorder shadow="sm" p={0}>
         {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
+          <>
+            <Box visibleFrom="sm">
+              <SkeletonTableCells rows={10} columns={7} />
+            </Box>
+            <Box hiddenFrom="sm">
+              <SkeletonMobileCards count={6} />
+            </Box>
+          </>
         ) : members.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="gray" variant="light">

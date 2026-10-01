@@ -6,11 +6,11 @@ import {
   Badge,
   Box,
   Button,
-  Center,
-  Group,
-  Loader,
-  Paper,
-  Stack,
+    Center,
+    Group,
+    Paper,
+    Skeleton,
+    Stack,
   Text,
   Title,
   useMantineColorScheme,
@@ -27,6 +27,7 @@ import type { PublicMemberProfile } from '../../types';
 import { useLanguage } from '../../i18n';
 import { buildWhatsAppUrl } from '../../utils/whatsapp';
 import { downloadVcf, memberPublicProfileUrl } from '../../utils/memberCard';
+import { SkeletonPublicHeader } from '../../components/LoadingSkeleton';
 
 export default function PublicMemberProfilePage() {
   const { t } = useLanguage();
@@ -96,11 +97,44 @@ export default function PublicMemberProfilePage() {
           } 36%)`,
         }}
       >
-        {loading && (
-          <Center h="60vh">
-            <Loader size="lg" color="white" />
-          </Center>
-        )}
+          {loading && (
+            <Box pb="xl">
+              <Stack align="center" pt="xl" pb="lg" px="md" gap="xs">
+                <SkeletonPublicHeader avatarSize={64} tone="dark" titleWidth="50%" subtitleWidth="30%" />
+              </Stack>
+
+              <Center px="md">
+                <Paper withBorder radius="lg" shadow="sm" p="lg" maw={520} w="100%">
+                  <Stack gap="md" align="center">
+                    <Skeleton circle height={120} width={120} radius="50%" />
+                    <Stack gap={4} align="center" ta="center">
+                      <Skeleton height={26} width="62%" radius="sm" />
+                      <Skeleton height={13} width="38%" radius="sm" />
+                    </Stack>
+                    <Group gap={6} justify="center" wrap="wrap">
+                      <Skeleton height={22} width={92} radius="sm" />
+                      <Skeleton height={22} width={78} radius="sm" />
+                    </Group>
+                    <Skeleton height={36} width="100%" radius="sm" />
+                    <Group gap="lg" justify="center">
+                      <Stack gap={2} align="center">
+                        <Skeleton height={11} width={78} radius="sm" />
+                        <Skeleton height={14} width={92} radius="sm" />
+                      </Stack>
+                      <Stack gap={2} align="center">
+                        <Skeleton height={11} width={78} radius="sm" />
+                        <Skeleton height={14} width={92} radius="sm" />
+                      </Stack>
+                    </Group>
+                    <Stack gap="sm" w="100%" maw={360}>
+                      <Skeleton height={36} radius="md" />
+                      <Skeleton height={36} radius="md" />
+                    </Stack>
+                  </Stack>
+                </Paper>
+              </Center>
+            </Box>
+          )}
 
         {error && (
           <Center h="70vh">

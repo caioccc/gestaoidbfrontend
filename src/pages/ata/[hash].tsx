@@ -4,8 +4,8 @@ import {
   Container,
   Divider,
   Group,
-  Loader,
   Paper,
+  Skeleton,
   Stack,
   Text,
   ThemeIcon,
@@ -17,6 +17,7 @@ import { useRouter } from 'next/router';
 import { useLanguage } from '../../i18n';
 import { publicMinutesApi } from '../../api/accounts';
 import { sanitizeHtml, hasHtmlTags } from '../../utils/sanitize';
+import { SkeletonMetaCards } from '../../components/LoadingSkeleton';
 import { PublicMinutesPayload } from '../../types';
 
 function formatISODate(iso: string | null): string {
@@ -59,11 +60,41 @@ export default function PublicMinutesPage() {
 
   return (
     <Container size="md" py="xl">
-      {loading ? (
-        <Group justify="center" py="xl">
-          <Loader />
-        </Group>
-      ) : error || !minutes ? (
+        {loading ? (
+          <Stack gap="md">
+            <Paper withBorder radius="md" p="lg">
+              <Group gap="sm" wrap="nowrap">
+                <Skeleton circle radius="xl" height={40} width={40} style={{ flexShrink: 0 }} />
+                <Stack gap={6} style={{ minWidth: 0, flex: 1 }}>
+                  <Skeleton height={24} width="74%" radius="sm" />
+                  <Skeleton height={13} width="46%" radius="sm" />
+                </Stack>
+              </Group>
+            </Paper>
+
+            <SkeletonMetaCards count={2} />
+            <SkeletonMetaCards count={2} />
+
+            <Paper withBorder radius="md" p="lg">
+              <Skeleton height={15} width="32%" mb="xs" radius="sm" />
+              <Stack gap={8}>
+                <Skeleton height={12} width="94%" radius="sm" />
+                <Skeleton height={12} width="88%" radius="sm" />
+                <Skeleton height={12} width="72%" radius="sm" />
+                <Skeleton height={12} width="60%" radius="sm" />
+              </Stack>
+            </Paper>
+
+            <Paper withBorder radius="md" p="lg">
+              <Skeleton height={15} width="26%" mb="xs" radius="sm" />
+              <Stack gap={8}>
+                <Skeleton height={12} width="92%" radius="sm" />
+                <Skeleton height={12} width="84%" radius="sm" />
+                <Skeleton height={12} width="78%" radius="sm" />
+              </Stack>
+            </Paper>
+          </Stack>
+        ) : error || !minutes ? (
         <Paper withBorder radius="md" p="xl" ta="center">
           <ThemeIcon size="xl" radius="xl" color="red" variant="light" mx="auto" mb="sm">
             <IconFileText size={26} />

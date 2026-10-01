@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Button,
-  Center,
   FileInput,
   Group,
-  Loader,
   Modal,
   Select,
   Stack,
@@ -17,6 +15,7 @@ import { IconDownload, IconTrash, IconUpload } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { Member, MemberDocument, MemberDocumentType } from '../types';
+import { SkeletonTableOnly } from './LoadingSkeleton';
 
 function fmtDateTime(iso: string, locale = 'pt-br'): string {
   const d = new Date(iso);
@@ -142,11 +141,9 @@ export default function MemberDocumentsModal({
         size="lg"
         centered
       >
-        {loading ? (
-          <Center py="xl">
-            <Loader />
-          </Center>
-        ) : docs.length === 0 ? (
+          {loading ? (
+            <SkeletonTableOnly rows={5} columns={5} rowHeight={44} />
+          ) : docs.length === 0 ? (
           <Text size="sm" c="dimmed" mb="md">
             {t.documents.empty}
           </Text>

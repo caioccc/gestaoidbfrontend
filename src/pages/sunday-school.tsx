@@ -8,7 +8,6 @@ import {
   Center,
   Group,
   Grid,
-  Loader,
   Menu,
   Modal,
   Paper,
@@ -51,6 +50,11 @@ import { MonthYearPicker } from '../components/MonthYearPicker';
 import Layout from '../components/Layout';
 import MobileListToolbar from '../components/MobileListToolbar';
 import SundaySchoolSessionModal from '../components/SundaySchoolSessionModal';
+import {
+  SkeletonAccordionRows,
+  SkeletonEntityCards,
+  SkeletonTableOnly,
+} from '../components/LoadingSkeleton';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
@@ -237,11 +241,14 @@ function ClassesTab() {
         </Group>
       )}
 
-      {loading ? (
-        <Center h={220}>
-          <Loader />
-        </Center>
-      ) : classes.length === 0 ? (
+        {loading ? (
+          <SkeletonEntityCards
+            count={6}
+            cols={{ base: 1, sm: 2, md: 3 }}
+            withIcon={false}
+            height={64}
+          />
+        ) : classes.length === 0 ? (
         <Paper withBorder p="md" radius="md">
           <Center h={160}>
             <Text c="dimmed">{t.sundaySchool.noClasses}</Text>
@@ -886,11 +893,13 @@ function StudentsTab() {
           </Paper>
         ) : null}
 
-        {loading ? (
-          <Center h={220}>
-            <Loader />
-          </Center>
-        ) : students.length === 0 ? (
+          {loading ? (
+            <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+              <Table.ScrollContainer minWidth={560}>
+                <SkeletonTableOnly rows={8} columns={3} rowHeight={44} />
+              </Table.ScrollContainer>
+            </Paper>
+          ) : students.length === 0 ? (
           <Paper withBorder p="md" radius="md">
             <Center h={160}>
               <Text c="dimmed">{t.sundaySchool.noStudents}</Text>
@@ -1208,11 +1217,9 @@ function ReportTab() {
           </Paper>
         )}
 
-      {loading ? (
-        <Center h={220}>
-          <Loader />
-        </Center>
-      ) : !report || report.classes.length === 0 ? (
+        {loading ? (
+          <SkeletonAccordionRows items={3} panelRows={4} panelColumns={5} />
+        ) : !report || report.classes.length === 0 ? (
         <Paper withBorder p="md" radius="md">
           <Center h={160}>
             <Stack gap={4} align="center">

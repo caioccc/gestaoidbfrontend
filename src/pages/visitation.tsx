@@ -58,6 +58,7 @@ import MaskedTextInput from '../components/MaskedTextInput';
 import { MonthYearPicker } from '../components/MonthYearPicker';
 import MobileListToolbar from '../components/MobileListToolbar';
 import VisitationMap, { type VisitationAction } from '../components/VisitationMap';
+import { SkeletonPanel, SkeletonVisitCards } from '../components/LoadingSkeleton';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { useLanguage } from '../i18n';
 import type {
@@ -1188,12 +1189,10 @@ export default function VisitationPage() {
               mb="md"
             />
 
-            {view === "map" ? (
-              loading ? (
-                <Group p="xl" justify="center">
-                  <Loader />
-                </Group>
-              ) : (
+              {view === "map" ? (
+                loading ? (
+                  <SkeletonPanel height="calc(100vh - 280px)" />
+                ) : (
                 <VisitationMap
                   visits={filteredVisits}
                   focusedId={focusedId}
@@ -1213,12 +1212,10 @@ export default function VisitationPage() {
                 style={{ height: "calc(100vh - 260px)", minHeight: 400 }}
                 scrollbarSize={6}
               >
-                <Stack gap="xs" px={2} pb="xl">
-                  {loading ? (
-                    <Group p="xl" justify="center">
-                      <Loader />
-                    </Group>
-                  ) : visits.length === 0 ? (
+                  <Stack gap="xs" px={2} pb="xl">
+                    {loading ? (
+                      <SkeletonVisitCards count={7} />
+                    ) : visits.length === 0 ? (
                     <Stack p="xl" align="center" gap={4}>
                       <Text c="dimmed">{t.visitationPage.empty}</Text>
                       <Text c="dimmed" size="xs">
@@ -1253,11 +1250,11 @@ export default function VisitationPage() {
                   style={{ height: "100%" }}
                   scrollbarSize={6}
                 >
-                  {loading ? (
-                    <Group p="xl" justify="center">
-                      <Loader />
-                    </Group>
-                  ) : visits.length === 0 ? (
+                    {loading ? (
+                      <Stack gap="xs" px={2} pt="xs">
+                        <SkeletonVisitCards count={7} />
+                      </Stack>
+                    ) : visits.length === 0 ? (
                     <Stack p="xl" align="center" gap={4}>
                       <Text c="dimmed">{t.visitationPage.empty}</Text>
                       <Text c="dimmed" size="xs">

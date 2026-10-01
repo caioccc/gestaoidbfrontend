@@ -6,12 +6,10 @@ import {
   Box,
   Button,
   Card,
-  Center,
   FileInput,
   Grid,
   Group,
   Image,
-  Loader,
   Modal,
   Select,
   Stack,
@@ -45,6 +43,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { SkeletonResponsiveTable } from '../components/LoadingSkeleton';
 import { ListPagination, useServerPagination } from '../components/ListPagination';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -378,11 +377,9 @@ function ItemsTab() {
         </Group>
       </Group>
       <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : items.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={7} columns={5} inCard={false} />
+          ) : items.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light">
               <IconBuildingWarehouse size={24} />
@@ -761,11 +758,9 @@ function LocationsTab() {
         </Button>
       </Group>
       <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : locations.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={6} columns={2} inCard={false} />
+          ) : locations.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light">
               <IconBuildingWarehouse size={24} />
@@ -1323,11 +1318,9 @@ function LoansTab() {
       </Stack>
 
       <Card withBorder shadow="sm" p={0}>
-        {loading ? (
-          <Center h={200}>
-            <Loader />
-          </Center>
-        ) : loanRows.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={7} columns={6} inCard={false} />
+          ) : loanRows.length === 0 ? (
           <Stack align="center" py="xl" gap="sm">
             <ThemeIcon size={48} radius="xl" color="teal" variant="light">
               <IconTruckReturn size={24} />

@@ -4,10 +4,8 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Group,
   Indicator,
-  Loader,
   Modal,
   NumberInput,
   Select,
@@ -35,6 +33,7 @@ import PageHeader from '../components/PageHeader';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
+import { SkeletonResponsiveTable } from '../components/LoadingSkeleton';
 import { ListPagination, PAGE_SIZE_OPTIONS } from '../components/ListPagination';
 import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
@@ -365,11 +364,9 @@ export default function CultosPage() {
           </Group>
         )}
 
-        {loading ? (
-          <Center h="40vh">
-            <Loader />
-          </Center>
-        ) : services.length === 0 ? (
+          {loading ? (
+            <SkeletonResponsiveTable rows={8} columns={7} />
+          ) : services.length === 0 ? (
           <Card withBorder p="xl" ta="center" c="dimmed">
             <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
               <IconBuildingChurch size={24} />

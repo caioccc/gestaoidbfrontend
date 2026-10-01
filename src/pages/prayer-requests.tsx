@@ -11,7 +11,6 @@ import {
   Drawer,
   Group,
   Indicator,
-  Loader,
   Menu,
   Modal,
   Paper,
@@ -53,6 +52,7 @@ import FilterDrawer from '../components/FilterDrawer';
 import { ListPagination } from '../components/ListPagination';
 import MobileListToolbar from '../components/MobileListToolbar';
 import PageHeader from '../components/PageHeader';
+import { SkeletonPrayerKanban, SkeletonPrayerList } from '../components/LoadingSkeleton';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
@@ -600,9 +600,13 @@ export default function PrayerRequestsPage() {
           </Paper>
         )}
 
-        {loading ? (
-          <Loader mt="xl" />
-        ) : requests.length === 0 ? (
+          {loading ? (
+            viewMode === 'list' ? (
+              <SkeletonPrayerList count={6} />
+            ) : (
+              <SkeletonPrayerKanban columns={KANBAN_STATUSES.length} cardsPerColumn={3} />
+            )
+          ) : requests.length === 0 ? (
           <Stack align="center" gap="xs" mt="xl">
             <Text fw={600}>{t.prayerRequestsPage.empty}</Text>
             <Text size="sm" c="dimmed">

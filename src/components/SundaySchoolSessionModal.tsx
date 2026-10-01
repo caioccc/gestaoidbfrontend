@@ -7,7 +7,6 @@ import {
   Card,
   Grid,
   Group,
-  Loader,
   Modal,
   NumberInput,
   ScrollArea,
@@ -24,6 +23,7 @@ import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import type { SundaySchoolAttendance, SundaySchoolSession } from '../types';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
+import { SkeletonActionRows, SkeletonFormFields } from './LoadingSkeleton';
 
 interface SundaySchoolSessionModalProps {
   opened: boolean;
@@ -145,9 +145,24 @@ export default function SundaySchoolSessionModal({
         </Stack>
       }
     >
-      {loading ? (
-        <Loader mt="xl" />
-      ) : (
+        {loading ? (
+          <Stack gap="md" mt="xs">
+            <SkeletonFormFields count={1} cols={{ base: 1 }} />
+            <SkeletonFormFields count={4} cols={{ base: 2, md: 4 }} labelWidth="55%" />
+            <Stack gap="xs">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SkeletonActionRows
+                  key={i}
+                  count={1}
+                  titleWidth={`${40 + ((i * 19) % 35)}%`}
+                  badges={0}
+                  actions={1}
+                  bordered
+                />
+              ))}
+            </Stack>
+          </Stack>
+        ) : (
         <Stack gap="md">
           {session && (
             <Group gap="xs" wrap="wrap">
