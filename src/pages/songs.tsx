@@ -19,7 +19,6 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconBrandYoutube,
   IconDotsVertical,
@@ -41,6 +40,7 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import SongModal from '../components/SongModal';
@@ -55,6 +55,7 @@ import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { formatDuration, formatMusicalKey } from '../utils/format';
 import galleryStyles from '../styles/songGallery.module.css';
+import { useFeedback } from '../hooks/useFeedback';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import type { Band, ChordStatus, Song, SongBandStat } from '../types';
 import type { VisibilityFilter } from '../api/music';
@@ -606,7 +607,8 @@ function SongTableView({
                         height: 40,
                         borderRadius: 6,
                         overflow: 'hidden',
-                        backgroundColor: 'var(--mantine-color-gray-2)',
+                        backgroundColor:
+                          'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
                       }}
                     >
                       <img
@@ -693,6 +695,7 @@ function SongTableView({
 
 export default function SongsPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const { user } = useAuth();
   const { canManageMusic, canViewMusic, isAdmin } = useRoleHelpers(user);
@@ -777,8 +780,8 @@ export default function SongsPage() {
       });
       setSongs(res.results);
       setTotal(res.count);
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao carregar repertório.' });
+    } catch (err) {
+      fb.fromError(err, t.music.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -813,7 +816,7 @@ export default function SongsPage() {
 
   const openEdit = (song: Song) => {
     if (!song.can_edit) {
-      notifications.show({ color: 'red', message: t.music.editForbidden });
+      fb.error(t.music.editForbidden);
       return;
     }
     setEditingSong(song);
@@ -833,16 +836,16 @@ export default function SongsPage() {
 
   const removeSong = async (song: Song) => {
     if (!song.can_edit) {
-      notifications.show({ color: 'red', message: t.music.editForbidden });
+      fb.error(t.music.editForbidden);
       return;
     }
-    if (!window.confirm(`Excluir "${song.title}"?`)) return;
+    if (!window.confirm(t.music.deleteConfirm.replace('{title}', song.title))) return;
     try {
       await musicApi.deleteSong(song.id);
-      notifications.show({ color: 'green', message: 'Música excluída.' });
+      fb.success(t.music.songDeleted);
       void load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir música.' });
+    } catch (err) {
+      fb.fromError(err, t.music.songDeleteFailed);
     }
   };
 
@@ -1084,7 +1087,12 @@ export default function SongsPage() {
           )
         ) : songs.length === 0 ? (
           <Card withBorder p="xl">
-            <Text c="dimmed">{t.music.noSongs}</Text>
+            <EmptyState
+              variant="center"
+              icon={<IconMusic size={24} />}
+              title={t.music.noSongs}
+              hint={t.music.noSongsHint}
+            />
           </Card>
         ) : (
           <>

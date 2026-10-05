@@ -19,6 +19,7 @@ import {
   IconClock,
   IconHandStop,
   IconHeartHandshake,
+  IconMapPin,
   IconNotes,
   IconTrendingUp,
   IconUserHeart,
@@ -136,17 +137,17 @@ export default function PastorView({ year, month }: { year: number; month: numbe
 
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === 'ACTIVE'),
-    [members],
+    [members]
   );
 
   const absentMembers = useMemo(
     () => members.filter((member) => member.lifecycle_stage === 'ABSENT_CARE'),
-    [members],
+    [members]
   );
 
   const monthServices = useMemo(
     () => services.filter((service) => service.date.startsWith(currentMonthKey)),
-    [services, currentMonthKey],
+    [services, currentMonthKey]
   );
 
   const upcomingCultos = useMemo(() => {
@@ -154,7 +155,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
     const occurrences = expandEvents(
       events.filter((event) => event.category === 'culto'),
       today,
-      6,
+      6
     );
     return occurrences.sort((a, b) => {
       const dateOrder = (dateToApi(a.date) ?? '').localeCompare(dateToApi(b.date) ?? '');
@@ -165,12 +166,12 @@ export default function PastorView({ year, month }: { year: number; month: numbe
 
   const pendingPrayers = useMemo(
     () => prayers.filter((prayer) => prayer.status === 'PENDING' || prayer.status === 'PRAYING'),
-    [prayers],
+    [prayers]
   );
 
   const recentPrayers = useMemo(
     () => [...prayers].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5),
-    [prayers],
+    [prayers]
   );
 
   const upcomingVisits = useMemo(
@@ -179,7 +180,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
         .filter((visit) => visit.status === 'PLANNED' && visit.scheduled_date >= todayISO)
         .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
         .slice(0, 5),
-    [visits, todayISO],
+    [visits, todayISO]
   );
 
   const activeGroups = useMemo(() => groups.filter((group) => group.is_active), [groups]);
@@ -192,7 +193,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
 
   const monthPoint = useMemo(
     () => summary?.series.find((point) => point.month === currentMonth) ?? null,
-    [summary, currentMonth],
+    [summary, currentMonth]
   );
 
   const monthTotals = useMemo(
@@ -205,7 +206,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
         }),
         { attendees: 0, visitors: 0, conversions: 0 },
       ),
-    [monthServices],
+    [monthServices]
   );
 
   const upcomingEvents = useMemo(
@@ -214,7 +215,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
         .filter((event) => (event.date ? event.date >= todayISO : true))
         .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'))
         .slice(0, 5),
-    [events, todayISO],
+    [events, todayISO]
   );
 
   const contactHint = (member: Member) => {
@@ -256,7 +257,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
         disabled: !canSeeSetlists,
       },
     ],
-    [dv, router, canSeeSetlists],
+    [dv, router, canSeeSetlists]
   );
 
   return (
@@ -358,7 +359,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
           }
         >
           {recentPrayers.length === 0 ? (
-            <EmptyState label={dv.psNoPrayers} />
+              <EmptyState variant="compact" icon={<IconHandStop size={24} />} title={dv.psNoPrayers} />
           ) : (
             <Stack gap={2}>
               {recentPrayers.map((prayer) => (
@@ -412,9 +413,12 @@ export default function PastorView({ year, month }: { year: number; month: numbe
               </Badge>
             </Group>
             {upcomingVisits.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {dv.psNoUpcomingVisits}
-              </Text>
+              <EmptyState
+                variant="compact"
+                color="violet"
+                icon={<IconMapPin size={24} />}
+                title={dv.psNoUpcomingVisits}
+              />
             ) : (
               <Stack gap={2}>
                 {upcomingVisits.map((visit) => (
@@ -439,9 +443,12 @@ export default function PastorView({ year, month }: { year: number; month: numbe
               </Badge>
             </Group>
             {absentMembers.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {dv.psNoAbsent}
-              </Text>
+              <EmptyState
+                variant="compact"
+                color="orange"
+                icon={<IconUserHeart size={24} />}
+                title={dv.psNoAbsent}
+              />
             ) : (
               <Stack gap={2}>
                 {absentMembers.slice(0, 3).map((member) => (

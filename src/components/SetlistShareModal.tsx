@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Group, Modal, Stack, Text, Textarea, TextInput } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconBrandWhatsapp, IconCopy } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { buildWhatsAppUrl, normalizeWhatsAppPhone } from '../utils/whatsapp';
 import { maskPhone, onlyDigits, formatMusicalKey } from '../utils/format';
 import type { BandSetlist } from '../types';
 
 const MONTHS_PT = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'MarÃ§o', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
@@ -25,6 +25,7 @@ interface SetlistShareModalProps {
 
 export default function SetlistShareModal({ setlist, onClose }: SetlistShareModalProps) {
   const { t } = useLanguage();
+const fb = useFeedback();
 
   const [phone, setPhone] = useState('');
   const [custom, setCustom] = useState<string | null>(null);
@@ -39,18 +40,18 @@ export default function SetlistShareModal({ setlist, onClose }: SetlistShareModa
   const message = useMemo(() => {
     if (!setlist) return '';
     const lines: string[] = [];
-    lines.push(`🎶 SETLIST — ${setlist.band_name || t.music.noBand}`);
-    lines.push(`📅 ${dateLabel(setlist.date)}`);
-    if (setlist.theme) lines.push(`🏷️ ${t.music.setlistTheme}: ${setlist.theme}`);
-    if (setlist.description) lines.push(`📝 ${setlist.description}`);
+    lines.push(`ðŸŽ¶ SETLIST â€” ${setlist.band_name || t.music.noBand}`);
+    lines.push(`ðŸ“… ${dateLabel(setlist.date)}`);
+    if (setlist.theme) lines.push(`ðŸ·ï¸ ${t.music.setlistTheme}: ${setlist.theme}`);
+    if (setlist.description) lines.push(`ðŸ“ ${setlist.description}`);
     lines.push('');
     [...setlist.items]
       .sort((a, b) => a.order - b.order)
       .forEach((it, idx) => {
         const tom = formatMusicalKey(it.custom_key || it.song_church_key);
-        const title = it.song_artist ? `${it.song_title} — ${it.song_artist}` : it.song_title;
+        const title = it.song_artist ? `${it.song_title} â€” ${it.song_artist}` : it.song_title;
         lines.push(
-          `${idx + 1}. ${title} — ${t.music.setlistSongCustomKey}: ${tom || '—'} | ${t.music.bpmLabel}: ${it.song_bpm ?? '—'}`,
+          `${idx + 1}. ${title} â€” ${t.music.setlistSongCustomKey}: ${tom || 'â€”'} | ${t.music.bpmLabel}: ${it.song_bpm ?? 'â€”'}`
         );
       });
     return lines.join('\n');
@@ -61,7 +62,7 @@ export default function SetlistShareModal({ setlist, onClose }: SetlistShareModa
   const send = () => {
     const url = buildWhatsAppUrl(phone, message);
     if (!url) {
-      notifications.show({ color: 'red', message: t.music.waPhoneInvalid });
+      fb.error(t.music.waPhoneInvalid);
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -70,9 +71,9 @@ export default function SetlistShareModal({ setlist, onClose }: SetlistShareModa
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(message);
-      notifications.show({ color: 'green', message: t.music.copyDone });
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao copiar.' });
+      fb.success(t.music.copyDone);
+    } catch (err) {
+      fb.fromError(err, t.music.copyFailed);
     }
   };
 

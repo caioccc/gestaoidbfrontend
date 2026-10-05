@@ -16,8 +16,7 @@ import {
   ActionIcon,
   Modal,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconLock, IconLockOpen, IconAlertTriangle, IconDownload } from '@tabler/icons-react';
+import { IconLock, IconLockOpen, IconDownload } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import { YearPicker } from '../components/MonthYearPicker';
 import ExportModal from '../components/ExportModal';
@@ -26,6 +25,7 @@ import { useLanguage } from '../i18n';
 import { MonthlyClosingsResponse, MonthlyClosing } from '../types';
 import { financeApi, saveBlob } from '../api/finance';
 import { formatBRL } from '../utils/format';
+import { useFeedback } from '../hooks/useFeedback';
 
 function buildYearOptions(existingYears: Array<number | string> = []) {
   const current = new Date().getFullYear();
@@ -50,6 +50,7 @@ function buildYearOptions(existingYears: Array<number | string> = []) {
 
 export default function ClosingsPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const yearOptions = buildYearOptions();
   const [data, setData] = useState<MonthlyClosingsResponse | null>(null);
@@ -77,18 +78,11 @@ export default function ClosingsPage() {
     setBusy(true);
     try {
       await financeApi.closeMonth(year, month, close);
-      notifications.show({
-        color: 'green',
-        message: close ? t.closingsPage.closedMsg : t.closingsPage.reopenedMsg,
-      });
+      fb.success(close ? t.closingsPage.closedMsg : t.closingsPage.reopenedMsg);
       setConfirmTarget(null);
       reload();
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível alterar o fechamento.',
-      });
+      fb.error(err?.response?.data?.detail || 'Não foi possível alterar o fechamento.');
     } finally {
       setBusy(false);
     }
@@ -100,11 +94,7 @@ export default function ClosingsPage() {
       const blob = await financeApi.caixaDownload(year, month);
       saveBlob(blob, `caixa-idb-${year}-${String(month).padStart(2, '0')}.xls`);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível baixar o caixa.',
-      });
+      fb.error(err?.response?.data?.detail || 'Não foi possível baixar o caixa.');
     } finally {
       setCaixaBusy(null);
     }
@@ -350,3 +340,5 @@ export default function ClosingsPage() {
     </>
   );
 }
+
+

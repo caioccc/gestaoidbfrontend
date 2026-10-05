@@ -179,7 +179,8 @@ export default function ChordTimeline({
                   height: isActive ? (compact ? 44 : 54) : compact ? 36 : 42,
                   borderRadius: 6,
                   overflow: 'hidden',
-                  backgroundColor: 'var(--mantine-color-gray-2)',
+                  backgroundColor:
+                    'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
                 }}
               >
                 <img

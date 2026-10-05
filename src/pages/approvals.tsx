@@ -16,24 +16,27 @@ import {
   Title,
   TextInput,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconBuildingChurch,
   IconMapPin,
   IconUser,
   IconCheck,
+  IconCircleCheck,
   IconX,
   IconRefresh,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import { AccountingCategoryOption, PendingChurch } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 export default function ApprovalsPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [congregations, setCongregations] = useState<PendingChurch[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<PendingChurch | null>(null);
@@ -94,23 +97,20 @@ export default function ApprovalsPage() {
           ? customCategory.trim()
           : (category ?? undefined);
       if (!effectiveCategory) {
-        notifications.show({ color: 'red', message: t.approvalsPage.selectCategory });
+        fb.error(t.approvalsPage.selectCategory);
         return;
       }
       setBusyId(id);
       try {
         await accountsApi.approveCongregation(id, effectiveCategory);
-        notifications.show({ color: 'green', message: t.approvalsPage.approvedMsg });
+        fb.success(t.approvalsPage.approvedMsg);
         setSelected(null);
         load();
         // Categoria personalizada criada passa a existir como opção futura.
         loadCategories();
       } catch (err: any) {
         const msg = err?.response?.data?.detail || err?.response?.data?.accounting_category?.[0];
-        notifications.show({
-          color: 'red',
-          message: msg || t.approvalsPage.approveError,
-        });
+        fb.error(msg || t.approvalsPage.approveError);
       } finally {
         setBusyId(null);
       }
@@ -120,11 +120,11 @@ export default function ApprovalsPage() {
     setBusyId(id);
     try {
       await accountsApi.rejectCongregation(id);
-      notifications.show({ color: 'red', message: t.approvalsPage.rejectedMsg });
+      fb.error(t.approvalsPage.rejectedMsg);
       setSelected(null);
       load();
     } catch {
-      notifications.show({ color: 'red', message: t.approvalsPage.rejectError });
+      fb.error(t.approvalsPage.rejectError);
     } finally {
       setBusyId(null);
     }
@@ -151,12 +151,12 @@ export default function ApprovalsPage() {
             ))}
           </SimpleGrid>
         ) : congregations.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="green" variant="light">
-              <IconCheck size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.approvalsPage.empty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="green"
+            icon={<IconCircleCheck size={24} />}
+            title={t.approvalsPage.empty}
+          />
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
             {congregations.map((c) => (
@@ -314,3 +314,4 @@ export default function ApprovalsPage() {
     </AuthGuard>
   );
 }
+

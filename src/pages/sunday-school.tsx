@@ -5,7 +5,6 @@ import {
   Badge,
   Box,
   Button,
-  Center,
   Group,
   Grid,
   Menu,
@@ -25,7 +24,6 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import {
   IconBrandWhatsapp,
   IconCalendarEvent,
@@ -39,11 +37,13 @@ import {
   IconPlus,
   IconReportAnalytics,
   IconSearch,
+  IconSchool,
   IconTrash,
   IconUser,
   IconUsers,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import FilterDrawer from '../components/FilterDrawer';
 import { MonthYearPicker } from '../components/MonthYearPicker';
@@ -69,6 +69,7 @@ import type {
   SundaySchoolMonthlyReport,
   SundaySchoolWhatsAppRow,
 } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 function nextSundayKey(): string {
   const d = new Date();
@@ -128,6 +129,7 @@ export default function SundaySchoolPage() {
 
 function ClassesTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
   const [classes, setClasses] = useState<SundaySchoolClass[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +152,7 @@ function ClassesTab() {
     accountsApi
       .sundaySchoolClasses()
       .then(setClasses)
-      .catch(() => notifications.show({ color: 'red', message: t.sundaySchool.noReportData }))
+      .catch(() => fb.error(t.sundaySchool.noReportData))
       .finally(() => setLoading(false));
   }, [t.sundaySchool.noReportData]);
 
@@ -222,10 +224,7 @@ function ClassesTab() {
           testId="ebd-classes-toolbar"
         />
       ) : (
-        <Group justify="space-between" mb="md">
-          <Text size="sm" c="dimmed">
-            {t.sundaySchool.noClassesHint}
-          </Text>
+        <Group justify="flex-end" mb="md">
           <Button
             leftSection={<IconPlus size={16} />}
             variant="filled"
@@ -249,30 +248,31 @@ function ClassesTab() {
             height={64}
           />
         ) : classes.length === 0 ? (
-        <Paper withBorder p="md" radius="md">
-          <Center h={160}>
-            <Text c="dimmed">{t.sundaySchool.noClasses}</Text>
-          </Center>
-        </Paper>
+        <EmptyState
+          variant="panel"
+          icon={<IconSchool size={24} />}
+          title={t.sundaySchool.noClasses}
+          hint={t.sundaySchool.noClassesHint}
+        />
       ) : filteredClasses.length === 0 ? (
-        <Paper withBorder p="md" radius="md">
-          <Center h={160}>
-            <Stack align="center" gap={6}>
-              <Text c="dimmed">{t.sundaySchool.noResultsForFilters}</Text>
-              <Button
-                size="xs"
-                variant="subtle"
-                onClick={() => {
-                  setClassSearch('');
-                  setClassCategoryFilter('ALL');
-                  setActiveOnly(false);
-                }}
-              >
-                {t.common.clearFilters}
-              </Button>
-            </Stack>
-          </Center>
-        </Paper>
+        <EmptyState
+          variant="panel"
+          icon={<IconSearch size={24} />}
+          title={t.sundaySchool.noResultsForFilters}
+          action={
+            <Button
+              size="xs"
+              variant="subtle"
+              onClick={() => {
+                setClassSearch('');
+                setClassCategoryFilter('ALL');
+                setActiveOnly(false);
+              }}
+            >
+              {t.common.clearFilters}
+            </Button>
+          }
+        />
       ) : (
         <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
           {filteredClasses.map((c) => (
@@ -472,14 +472,11 @@ function ClassesTab() {
                 setDeletingBusy(true);
                 try {
                   await accountsApi.deleteSundaySchoolClass(deleting.id);
-                  notifications.show({
-                    color: 'green',
-                    message: t.sundaySchool.classDeleted,
-                  });
+                  fb.success(t.sundaySchool.classDeleted);
                   setDeleting(null);
                   load();
                 } catch {
-                  notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+                  fb.error(t.sundaySchool.noReportData);
                 } finally {
                   setDeletingBusy(false);
                 }
@@ -538,6 +535,7 @@ function ClassFormModal({
   editing: SundaySchoolClass | null;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<SundaySchoolCategory | null>('ADULTS');
   const [teacherName, setTeacherName] = useState('');
@@ -573,10 +571,10 @@ function ClassFormModal({
       } else {
         await accountsApi.createSundaySchoolClass(payload);
       }
-      notifications.show({ color: 'green', message: t.sundaySchool.classSaved });
+      fb.success(t.sundaySchool.classSaved);
       onSaved();
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setSaving(false);
     }
@@ -654,6 +652,7 @@ function AnnounceModal({
   onClose: () => void;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [topic, setTopic] = useState('');
   const [rows, setRows] = useState<SundaySchoolWhatsAppRow[]>([]);
   const [preparing, setPreparing] = useState(false);
@@ -677,7 +676,7 @@ function AnnounceModal({
       setRows(data.rows);
       setPreparedName(data.class_name);
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setPreparing(false);
     }
@@ -754,6 +753,7 @@ function AnnounceModal({
 
 function StudentsTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
   const [classes, setClasses] = useState<SundaySchoolClass[]>([]);
   const [classId, setClassId] = useState<string | null>(null);
@@ -783,7 +783,7 @@ function StudentsTab() {
     accountsApi
       .sundaySchoolStudents(Number(classId), search.trim() || undefined)
       .then(setStudents)
-      .catch(() => notifications.show({ color: 'red', message: t.sundaySchool.noReportData }))
+      .catch(() => fb.error(t.sundaySchool.noReportData))
       .finally(() => setLoading(false));
   }, [classId, search, t.sundaySchool.noReportData]);
 
@@ -805,12 +805,12 @@ function StudentsTab() {
         student_name: toUpperCamelWords(newName),
         phone: newPhone.trim() || undefined,
       });
-      notifications.show({ color: 'green', message: t.sundaySchool.studentAdded });
+      fb.success(t.sundaySchool.studentAdded);
       setNewName('');
       setNewPhone('');
       load();
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setAdding(false);
     }
@@ -900,11 +900,11 @@ function StudentsTab() {
               </Table.ScrollContainer>
             </Paper>
           ) : students.length === 0 ? (
-          <Paper withBorder p="md" radius="md">
-            <Center h={160}>
-              <Text c="dimmed">{t.sundaySchool.noStudents}</Text>
-            </Center>
-          </Paper>
+          <EmptyState
+            variant="center"
+            icon={<IconUsers size={24} />}
+            title={t.sundaySchool.noStudents}
+          />
         ) : (
           <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
             <Table.ScrollContainer minWidth={560}>
@@ -971,10 +971,7 @@ function StudentsTab() {
                                 s.sunday_school_class,
                                 s.id
                               );
-                              notifications.show({
-                                color: 'green',
-                                message: t.sundaySchool.studentRemoved,
-                              });
+                              fb.success(t.sundaySchool.studentRemoved);
                               load();
                             }}
                             data-testid={`remove-student-${s.id}`}
@@ -1028,6 +1025,7 @@ interface EditStudentModalProps {
 
 function EditStudentModal({ opened, onClose, classId, enrollment, onSaved }: EditStudentModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [studentName, setStudentName] = useState('');
   const [studentPhone, setStudentPhone] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1046,11 +1044,11 @@ function EditStudentModal({ opened, onClose, classId, enrollment, onSaved }: Edi
         student_name: toUpperCamelWords(studentName),
         phone: studentPhone.trim() || undefined,
       });
-      notifications.show({ color: 'green', message: t.sundaySchool.studentUpdated });
+      fb.success(t.sundaySchool.studentUpdated);
       onSaved();
       onClose();
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setSaving(false);
     }
@@ -1091,6 +1089,7 @@ function EditStudentModal({ opened, onClose, classId, enrollment, onSaved }: Edi
 
 function ReportTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const now = new Date();
   const isCompact = useIsCompactList();
   const initialYear = String(now.getFullYear());
@@ -1144,10 +1143,10 @@ function ReportTab() {
       });
       saveBlob(
         blob,
-        `relatorio-ebd-${year}-${String(month).padStart(2, '0')}.pdf`,
+        `relatorio-ebd-${year}-${String(month).padStart(2, '0')}.pdf`
       );
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setExporting(false);
     }
@@ -1220,17 +1219,12 @@ function ReportTab() {
         {loading ? (
           <SkeletonAccordionRows items={3} panelRows={4} panelColumns={5} />
         ) : !report || report.classes.length === 0 ? (
-        <Paper withBorder p="md" radius="md">
-          <Center h={160}>
-            <Stack gap={4} align="center">
-              <IconCalendarEvent size={28} />
-              <Text c="dimmed">{t.sundaySchool.noReportData}</Text>
-              <Text size="xs" c="dimmed">
-                {t.sundaySchool.noReportDataHint}
-              </Text>
-            </Stack>
-          </Center>
-        </Paper>
+        <EmptyState
+          variant="panel"
+          icon={<IconCalendarEvent size={24} />}
+          title={t.sundaySchool.noReportData}
+          hint={t.sundaySchool.noReportDataHint}
+        />
       ) : (
         <Accordion variant="separated">
           {report.classes.map((c) => {
@@ -1503,3 +1497,5 @@ function retentionCount(c: SundaySchoolClassReport): number {
       s.total_sessions > 0 && s.present_count >= s.total_sessions,
   ).length;
 }
+
+

@@ -24,6 +24,7 @@ import {
   IconBrandGoogle,
   IconBrandWhatsapp,
   IconCalendar,
+  IconCalendarEvent,
   IconCalendarPlus,
   IconChevronLeft,
   IconChevronRight,
@@ -32,6 +33,7 @@ import {
   IconMapPin,
   IconSparkles,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import {
   addDays,
   dateToApi,
@@ -366,9 +368,7 @@ export default function PublicCalendarAgenda({
         </Text>
       </Group>
       {items.length === 0 ? (
-        <Text size="sm" c="dimmed" pl={28}>
-          {pc.nothingHere}
-        </Text>
+        <EmptyState variant="compact" title={pc.nothingHere} />
       ) : (
         <Stack gap="sm" pl={28}>
           {items.map((item) => (
@@ -647,11 +647,11 @@ export default function PublicCalendarAgenda({
           ) : (
             <Stack gap="sm" maw={800} mx="auto" w="100%">
               {listItems.length === 0 ? (
-                <Center py="xl">
-                  <Text size="sm" c="dimmed">
-                    {pc.empty}
-                  </Text>
-                </Center>
+                <EmptyState
+                  variant="center"
+                  icon={<IconCalendarEvent size={24} />}
+                  title={pc.empty}
+                />
               ) : (
                 listItems.map((item) => (
                   <EventCard

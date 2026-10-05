@@ -12,7 +12,6 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconHeartHandshake, IconPray } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -21,6 +20,7 @@ import type {
   PrayerRequestCategory,
   PrayerRequestPreferredPeriod,
 } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const PRAYER_CATEGORY_KEYS: PrayerRequestCategory[] = [
   'HEALTH',
@@ -47,6 +47,7 @@ interface Props {
 
 export default function CreatePrayerRequestModal({ opened, onClose, onCreated }: Props) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const categoryData = PRAYER_CATEGORY_KEYS.map((k) => ({
     value: k,
     label: t.prayerRequestsPage.categoryLabel[k],
@@ -97,7 +98,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
   const buscarCep = async () => {
     const clean = cep.replace(/\D/g, '');
     if (clean.length !== 8) {
-      notifications.show({ color: 'red', message: t.registerPage.cepInvalid });
+      fb.error(t.registerPage.cepInvalid);
       return;
     }
     setCepLoading(true);
@@ -105,7 +106,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const data = await res.json();
       if (data.erro) {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else {
         if (data.logradouro) setStreet(data.logradouro);
         if (data.bairro) setNeighborhood(data.bairro);
@@ -113,7 +114,7 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
         if (data.uf) setState(data.uf);
       }
     } catch {
-      notifications.show({ color: 'red', message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -121,15 +122,15 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
 
   const submit = async () => {
     if (!category) {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.categoryPlaceholder });
+      fb.error(t.prayerPublicModal.categoryPlaceholder);
       return;
     }
     if (!description.trim()) {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.requiredDescription });
+      fb.error(t.prayerPublicModal.requiredDescription);
       return;
     }
     if (!anonymous && name.trim().length < 2) {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.requiredName });
+      fb.error(t.prayerPublicModal.requiredName);
       return;
     }
     setSubmitting(true);
@@ -150,11 +151,11 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
         state: wantsVisit ? state.trim().toUpperCase() : '',
         preferred_period: wantsVisit ? preferredPeriod ?? 'ANY' : 'ANY',
       });
-      notifications.show({ color: 'green', message: t.prayerRequestsPage.drawer.notesSaved });
+      fb.success(t.prayerRequestsPage.drawer.notesSaved);
       onCreated();
       onClose();
     } catch {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.submitError });
+      fb.error(t.prayerPublicModal.submitError);
     } finally {
       setSubmitting(false);
     }
@@ -333,3 +334,5 @@ export default function CreatePrayerRequestModal({ opened, onClose, onCreated }:
     </Modal>
   );
 }
+
+

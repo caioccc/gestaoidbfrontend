@@ -18,7 +18,6 @@ import {
 } from '@mantine/core';
 import { DateInput, DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconAdjustmentsHorizontal,
   IconBuildingChurch,
@@ -30,6 +29,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
@@ -39,6 +39,7 @@ import MoneyInput from '../components/MoneyInput';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
+import { useFeedback } from '../hooks/useFeedback';
 import { formatBRL, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { WorshipService, WorshipServiceType } from '../types';
 
@@ -70,6 +71,7 @@ interface ServiceFormValues {
 
 export default function CultosPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
   const [services, setServices] = useState<WorshipService[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,13 +242,13 @@ export default function CultosPage() {
 
     request
       .then(() => {
-        notifications.show({ message: t.cultosPage.saved, color: 'green' });
-        setOpened(false);
-        load();
-      })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
-      })
+            fb.success(t.cultosPage.saved);
+            setOpened(false);
+            load();
+          })
+          .catch((err) => {
+            fb.fromError(err, t.common.toast.saveFailed);
+          })
       .finally(() => setSaving(false));
   });
 
@@ -256,13 +258,13 @@ export default function CultosPage() {
     accountsApi
       .deleteWorshipService(toDelete.id)
       .then(() => {
-        notifications.show({ message: t.cultosPage.deleted, color: 'green' });
-        setToDelete(null);
-        load();
-      })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
-      })
+            fb.success(t.cultosPage.deleted);
+            setToDelete(null);
+            load();
+          })
+          .catch((err) => {
+            fb.fromError(err, t.common.toast.deleteFailed);
+          })
       .finally(() => setDeleting(false));
   };
 
@@ -367,24 +369,26 @@ export default function CultosPage() {
           {loading ? (
             <SkeletonResponsiveTable rows={8} columns={7} />
           ) : services.length === 0 ? (
-          <Card withBorder p="xl" ta="center" c="dimmed">
-            <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
-              <IconBuildingChurch size={24} />
-            </ThemeIcon>
-            <Text data-testid="cultos-empty">
-              {hasFilters ? t.cultosPage.filterEmpty : t.cultosPage.empty}
-            </Text>
-            {hasFilters && (
-              <Button
-                variant="light"
-                size="xs"
-                mt="sm"
-                onClick={clearFilters}
-                data-testid="cultos-empty-clear-filters"
-              >
-                {t.common.clearFilters}
-              </Button>
-            )}
+          <Card withBorder p="xl">
+            <div data-testid="cultos-empty">
+              <EmptyState
+                variant="center"
+                icon={<IconBuildingChurch size={24} />}
+                title={hasFilters ? t.cultosPage.filterEmpty : t.cultosPage.empty}
+                action={
+                  hasFilters ? (
+                    <Button
+                      variant="light"
+                      size="xs"
+                      onClick={clearFilters}
+                      data-testid="cultos-empty-clear-filters"
+                    >
+                      {t.common.clearFilters}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
           </Card>
         ) : (
           <Card withBorder p={0}>

@@ -1,3 +1,4 @@
+import { useFeedback } from '../hooks/useFeedback';
 import {
   ActionIcon,
   Badge,
@@ -23,12 +24,10 @@ import {
   Textarea,
   TextInput,
   Title,
-  useMantineColorScheme,
 } from '@mantine/core';
 import { DateInput, DateTimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
 import {
   IconBrandWhatsapp,
   IconCheck,
@@ -48,6 +47,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useRouter } from 'next/router';
+import EmptyState from '../components/EmptyState';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { accountsApi } from '../api/accounts';
 import { saveBlob } from '../api/finance';
@@ -97,10 +97,10 @@ interface AddressParts {
 
 export default function VisitationPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const isCompact = useIsCompactList();
-  const { colorScheme } = useMantineColorScheme();
-
+  
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
@@ -130,7 +130,7 @@ export default function VisitationPage() {
   const [cepLoading, setCepLoading] = useState(false);
 
   const [completeTarget, setCompleteTarget] = useState<PastoralVisit | null>(
-    null,
+    null
   );
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -145,7 +145,7 @@ export default function VisitationPage() {
   const monthName = (m: number) => {
     const label = new Date(2000, m - 1, 1).toLocaleDateString(
       LOCALE_MAP[locale],
-      { month: "long" },
+      { month: "long" }
     );
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
@@ -155,7 +155,7 @@ export default function VisitationPage() {
     label: monthName(i + 1),
   }));
   const yearOptions = Array.from({ length: 5 }, (_, i) =>
-    String(today.getFullYear() - i),
+    String(today.getFullYear() - i)
   );
 
   const focusVisit = (id: number) => {
@@ -215,10 +215,7 @@ export default function VisitationPage() {
         reload();
       })
       .catch(() => {
-        notifications.show({
-          color: "red",
-          message: "Não foi possível abrir o pedido de oração.",
-        });
+        fb.error("Não foi possível abrir o pedido de oração.");
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router.isReady, router.query.fromPrayer]);
@@ -339,22 +336,16 @@ export default function VisitationPage() {
         esc(v.scheduled_date),
         esc([v.street, v.number, v.neighborhood, v.city].filter(Boolean).join(" ")),
         esc(v.visited_by),
-      ].join(";"),
+      ].join(";")
     );
     try {
       const blob = new Blob(["\uFEFF" + [header.join(";"), ...lines].join("\r\n")], {
         type: "text/csv;charset=utf-8;",
       });
       saveBlob(blob, `visitas-${year}-${String(month).padStart(2, "0")}.csv`);
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.actions.exportedCsv,
-      });
+      fb.success(t.visitationPage.actions.exportedCsv);
     } catch {
-      notifications.show({
-        color: "red",
-        message: t.visitationPage.actions.exportCsvError,
-      });
+      fb.error(t.visitationPage.actions.exportCsvError);
     }
   };
 
@@ -392,7 +383,7 @@ export default function VisitationPage() {
     setGeoLoading(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=br&limit=1`,
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=br&limit=1`
       );
       loaded = res.ok;
       if (!res.ok) return null;
@@ -497,15 +488,9 @@ export default function VisitationPage() {
     if (coords) {
       form.setFieldValue("latitude", coords.lat);
       form.setFieldValue("longitude", coords.lng);
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.form.geocode,
-      });
+      fb.success(t.visitationPage.form.geocode);
     } else {
-      notifications.show({
-        color: "red",
-        message: t.visitationPage.form.geocodeError,
-      });
+      fb.error(t.visitationPage.form.geocodeError);
     }
   };
 
@@ -518,7 +503,7 @@ export default function VisitationPage() {
       if (!res.ok) throw new Error("viacep");
       const data = await res.json();
       if (data.erro || !data.uf) {
-        notifications.show({ color: "red", message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else {
         form.setValues((prev) => ({
           ...prev,
@@ -529,7 +514,7 @@ export default function VisitationPage() {
         }));
       }
     } catch {
-      notifications.show({ color: "red", message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -537,7 +522,7 @@ export default function VisitationPage() {
 
   const [debouncedFill] = useDebouncedValue(
     `${form.values.street}|${form.values.number}|${form.values.neighborhood}|${form.values.city}|${form.values.state}`,
-    600,
+    600
   );
 
   useEffect(() => {
@@ -581,7 +566,7 @@ export default function VisitationPage() {
     setGeoLoading(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=pt-BR`,
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=pt-BR`
       );
       if (!res.ok) throw new Error("nominatim");
       const data = await res.json();
@@ -598,7 +583,7 @@ export default function VisitationPage() {
       setIf("neighborhood", a.neighbourhood ?? a.suburb ?? a.city_district);
       setIf(
         "city",
-        a.city ?? a.town ?? a.village ?? a.municipality ?? a.county,
+        a.city ?? a.town ?? a.village ?? a.municipality ?? a.county
       );
       const ufFromStateName = (name: string): string => {
         const key = name
@@ -653,7 +638,7 @@ export default function VisitationPage() {
       if (postcode.length === 8) {
         form.setFieldValue(
           "cep",
-          `${postcode.slice(0, 5)}-${postcode.slice(5)}`,
+          `${postcode.slice(0, 5)}-${postcode.slice(5)}`
         );
       }
     } catch {
@@ -698,18 +683,12 @@ export default function VisitationPage() {
         longitude: lng,
         prayer_request: fromPrayerId,
       });
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.form.created,
-      });
+      fb.success(t.visitationPage.form.created);
       setCreateOpen(false);
       resetForm();
       reload();
     } catch {
-      notifications.show({
-        color: "red",
-        message: "Erro ao agendar a visita.",
-      });
+      fb.error("Erro ao agendar a visita.");
     } finally {
       setSaving(false);
     }
@@ -745,19 +724,13 @@ export default function VisitationPage() {
         needs_followup: values.needs_followup,
         completed_at: values.completed_at.toISOString(),
       });
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.complete.saved,
-      });
+      fb.success(t.visitationPage.complete.saved);
       setCompleteOpen(false);
       setCompleteTarget(null);
       setDrawerVisit(null);
       reload();
     } catch {
-      notifications.show({
-        color: "red",
-        message: "Erro ao registrar a visita.",
-      });
+      fb.error("Erro ao registrar a visita.");
     } finally {
       setCompleting(false);
     }
@@ -768,15 +741,12 @@ export default function VisitationPage() {
     setConfirming(true);
     try {
       await accountsApi.cancelPastoralVisit(cancelTarget.id);
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.actions.cancelDone,
-      });
+      fb.success(t.visitationPage.actions.cancelDone);
       setCancelTarget(null);
       setDrawerVisit(null);
       reload();
-    } catch {
-      notifications.show({ color: "red", message: "Erro ao cancelar." });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setConfirming(false);
     }
@@ -787,15 +757,12 @@ export default function VisitationPage() {
     setConfirming(true);
     try {
       await accountsApi.deletePastoralVisit(deleteTarget.id);
-      notifications.show({
-        color: "green",
-        message: t.visitationPage.actions.deleteDone,
-      });
+      fb.success(t.visitationPage.actions.deleteDone);
       setDeleteTarget(null);
       setDrawerVisit(null);
       reload();
-    } catch {
-      notifications.show({ color: "red", message: "Erro ao excluir." });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setConfirming(false);
     }
@@ -858,7 +825,7 @@ export default function VisitationPage() {
       complete: t.visitationPage.actions.complete,
       cancel: t.visitationPage.actions.cancel,
     }),
-    [t],
+    [t]
   );
   const mapLegend = useMemo(
     () => ({
@@ -866,21 +833,12 @@ export default function VisitationPage() {
       completed: t.visitationPage.completed,
       cancelled: t.visitationPage.cancelled,
     }),
-    [t],
+    [t]
   );
 
-  // Visita planejada é a que ainda exige ação da equipe, então recebe o mesmo
-  // tratamento do pedido de oração novo: borda colorida + pulso.
   const plannedCardClass = (v: PastoralVisit) =>
-    v.status === "PLANNED"
-      ? `${attentionStyles.attentionCard} ${
-          colorScheme === "dark" ? attentionStyles.attentionCardDark : ""
-        }`
-      : undefined;
-  const attentionDotClass = () =>
-    `${attentionStyles.attentionDot} ${
-      colorScheme === "dark" ? attentionStyles.attentionDotDark : ""
-    }`;
+    v.status === "PLANNED" ? attentionStyles.attentionCard : undefined;
+  const attentionDotClass = () => attentionStyles.attentionDot;
 
   const visitCard = (v: PastoralVisit) => (
     <Paper
@@ -1216,16 +1174,18 @@ export default function VisitationPage() {
                     {loading ? (
                       <SkeletonVisitCards count={7} />
                     ) : visits.length === 0 ? (
-                    <Stack p="xl" align="center" gap={4}>
-                      <Text c="dimmed">{t.visitationPage.empty}</Text>
-                      <Text c="dimmed" size="xs">
-                        {t.visitationPage.emptyHint}
-                      </Text>
-                    </Stack>
+                    <EmptyState
+                      variant="panel"
+                      icon={<IconMapPin size={24} />}
+                      title={t.visitationPage.empty}
+                      hint={t.visitationPage.emptyHint}
+                    />
                   ) : filteredVisits.length === 0 ? (
-                    <Stack p="xl" align="center">
-                      <Text c="dimmed">{t.visitationPage.searchEmpty}</Text>
-                    </Stack>
+                    <EmptyState
+                      variant="panel"
+                      icon={<IconSearch size={24} />}
+                      title={t.visitationPage.searchEmpty}
+                    />
                   ) : (
                     filteredVisits.map(visitCard)
                   )}
@@ -1255,16 +1215,18 @@ export default function VisitationPage() {
                         <SkeletonVisitCards count={7} />
                       </Stack>
                     ) : visits.length === 0 ? (
-                    <Stack p="xl" align="center" gap={4}>
-                      <Text c="dimmed">{t.visitationPage.empty}</Text>
-                      <Text c="dimmed" size="xs">
-                        {t.visitationPage.emptyHint}
-                      </Text>
-                    </Stack>
+                    <EmptyState
+                      variant="panel"
+                      icon={<IconMapPin size={24} />}
+                      title={t.visitationPage.empty}
+                      hint={t.visitationPage.emptyHint}
+                    />
                   ) : filteredVisits.length === 0 ? (
-                    <Stack p="xl" align="center">
-                      <Text c="dimmed">{t.visitationPage.searchEmpty}</Text>
-                    </Stack>
+                    <EmptyState
+                      variant="panel"
+                      icon={<IconSearch size={24} />}
+                      title={t.visitationPage.searchEmpty}
+                    />
                   ) : (
                     <Stack gap={0} px={2} pb="xs">
                       {filteredVisits.map(visitCard)}
@@ -1845,3 +1807,5 @@ function BadgeView({
     </Paper>
   );
 }
+
+

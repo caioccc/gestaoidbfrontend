@@ -1,6 +1,7 @@
 import { ActionIcon, Button, Grid, Group, Paper, Select, Stack, Text, TextInput } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import MaskedTextInput from './MaskedTextInput';
 import { useLanguage } from '../i18n';
 import type { Kinship } from '../types';
@@ -80,11 +81,7 @@ export default function RelativesFormSection({
 
       {relatives.length === 0 ? (
         // Borda pontilhada para o estado vazio não competir com os cards reais.
-        <Paper withBorder p="md" radius="md" style={{ borderStyle: 'dashed' }}>
-          <Text size="sm" c="dimmed">
-            {t.membersPage.relativesEmpty}
-          </Text>
-        </Paper>
+        <EmptyState variant="inline" title={t.membersPage.relativesEmpty} />
       ) : (
         <Stack gap="sm">
           {relatives.map((r, i) => (

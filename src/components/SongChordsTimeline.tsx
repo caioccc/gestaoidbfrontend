@@ -182,7 +182,7 @@ export default function SongChordsTimeline({
 }: SongChordsTimelineProps) {
   const cells = useMemo(
     () => buildBeatCells(chords, beatsPerBar ?? FALLBACK_BEATS_PER_BAR, resolveBeatDuration(chords, bpm)),
-    [chords, beatsPerBar, bpm],
+    [chords, beatsPerBar, bpm]
   );
   const activeBeatIndex = useMemo(() => findActiveBeat(cells, currentTime), [cells, currentTime]);
 

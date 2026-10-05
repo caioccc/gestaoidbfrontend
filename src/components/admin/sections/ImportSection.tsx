@@ -27,12 +27,13 @@ import {
   IconArrowRight,
 } from '@tabler/icons-react';
 import { Dropzone, MS_EXCEL_MIME_TYPE } from '@mantine/dropzone';
-import { notifications } from '@mantine/notifications';
 import PageHeader from '../../../components/PageHeader';
 import ImportErrorsPanel from '../../../components/ImportErrorsPanel';
 import ColumnMatchStep from '../../../components/ColumnMatchStep';
 import ColumnPreview from '../../../components/ColumnPreview';
 import { useLanguage } from '../../../i18n';
+import { useFeedback } from '../../../hooks/useFeedback';
+import { firstFieldError } from '../../../utils/apiError';
 import { ImportResult, ExistingMonthData, SpreadsheetInspection } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { TEMPLATE_FILES } from '../../../api/finance';
@@ -64,6 +65,7 @@ function downloadTemplate(type: 'entries' | 'exits' | 'tithers') {
 
 export default function ImportSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const [active, setActive] = useState(0);
   const [files, setFiles] = useState<Record<'entries' | 'exits' | 'tithers', File | null>>({
@@ -126,6 +128,9 @@ export default function ImportSection({ api, churchLabel }: { api: AdminFinanceA
     setError(null);
     setResult(null);
     setProcessing(true);
+    // Um toast so, atualizado no lugar: evita o piscar de "processando" ->
+    // "sucesso" e mantem o progresso visivel durante o upload das planilhas.
+    fb.task(dryRun ? 'import-dry-run' : 'import-commit', t.importPage.processingSpreadsheets);
     try {
       const fd = new FormData();
       if (files.entries) fd.append('entries', files.entries);
@@ -139,21 +144,22 @@ export default function ImportSection({ api, churchLabel }: { api: AdminFinanceA
       setResult(res);
       setActive(processIdx);
       if (dryRun) {
-        notifications.show({ color: 'blue', message: t.importPage.dryRunDone });
+        fb.taskSuccess('import-dry-run', t.importPage.dryRunDone);
       } else {
-        notifications.show({
-          color: 'green',
-          title: t.importPage.successTitle,
-          message: t.importPage.entriesImported,
-        });
+        fb.taskSuccess('import-commit', t.importPage.entriesImported);
         const churchId = router.query.churchId;
         if (churchId) {
           router.push(`/admin/churches/${churchId}/dashboard`);
         }
       }
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Falha ao processar as planilhas.');
-      notifications.show({ color: 'red', title: 'Erro', message: err?.response?.data?.detail || 'Falha ao processar.' });
+      const detail = firstFieldError(err?.response?.data);
+      setError(detail || t.importPage.processFailed);
+      fb.taskError(
+        dryRun ? 'import-dry-run' : 'import-commit',
+        err,
+        detail || t.importPage.processFailed
+      );
     } finally {
       setProcessing(false);
       setCommitOpen(false);

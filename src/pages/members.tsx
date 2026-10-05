@@ -28,7 +28,6 @@ import {
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { useMediaQuery } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
 import {
   IconUsersGroup,
   IconPlus,
@@ -55,6 +54,7 @@ import {
   IconEye,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MemberFormModal from '../components/MemberFormModal';
@@ -76,6 +76,7 @@ import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
+import { useFeedback } from '../hooks/useFeedback';
 import { accountsApi } from '../api/accounts';
 import { toUpperCamelWords } from '../utils/format';
 import { firstFieldError } from '../utils/apiError';
@@ -97,6 +98,7 @@ function MembersTab({
   onGoToImport?: () => void;
 }) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -296,12 +298,12 @@ function MembersTab({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'rol_membros.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    }
+          a.download = 'rol_membros.csv';
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          fb.fromError(err);
+        }
   };
 
   const downloadDeclaration = async (m: Member) => {
@@ -314,12 +316,12 @@ function MembersTab({
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, '-')
-        .toLowerCase()}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    }
+            .toLowerCase()}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          fb.fromError(err);
+        }
   };
 
   const downloadReport = async () => {
@@ -330,12 +332,12 @@ function MembersTab({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'rol-membros.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    }
+          a.download = 'rol-membros.pdf';
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          fb.fromError(err);
+        }
   };
 
   const validityDate = cardValidityDate(cardConfig);
@@ -413,15 +415,15 @@ function MembersTab({
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await accountsApi.deleteMember(toDelete.id);
-      notifications.show({ color: 'green', message: t.membersPage.deleted });
-      setToDelete(null);
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
-      setDeleting(false);
-    }
+          await accountsApi.deleteMember(toDelete.id);
+          fb.success(t.membersPage.deleted);
+          setToDelete(null);
+          load();
+        } catch (err) {
+          fb.fromError(err, t.common.toast.deleteFailed);
+        } finally {
+          setDeleting(false);
+        }
   };
 
   const isoToDateLocal = (iso: string): Date | null => {
@@ -455,13 +457,10 @@ function MembersTab({
     setRenewing(true);
     try {
       await onRenewValidity?.(toISODate(renewDate));
-      notifications.show({ color: 'green', message: t.membersPage.renewSaved });
+      fb.success(t.membersPage.renewSaved);
       setRenewOpen(false);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        message: firstFieldError(err?.response?.data, ['card_valid_until']) || t.membersPage.renewError,
-      });
+      fb.error(firstFieldError(err?.response?.data, ['card_valid_until']) || t.membersPage.renewError);
     } finally {
       setRenewing(false);
     }
@@ -1051,16 +1050,25 @@ function MembersTab({
             </Box>
           </>
         ) : total === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-              <IconUsersGroup size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.membersPage.empty}</Text>
-          </Stack>
+          <EmptyState
+            variant="panel"
+            icon={<IconUsersGroup size={24} />}
+            title={t.membersPage.empty}
+            hint={t.membersPage.emptyHint}
+          />
         ) : members.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <Text c="dimmed">{t.membersPage.noResults}</Text>
-          </Stack>
+          <EmptyState
+            variant="panel"
+            icon={<IconSearch size={24} />}
+            title={t.membersPage.noResults}
+            action={
+              hasFilters ? (
+                <Button variant="light" size="xs" onClick={clearFilters}>
+                  {t.common.clearFilters}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : (
           <>
             <Box visibleFrom="lg">
@@ -1331,6 +1339,7 @@ function MembersTab({
 
 function AreasTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [areas, setAreas] = useState<MinistryArea[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -1396,13 +1405,13 @@ function AreasTab() {
       } else {
         await accountsApi.createMinistryArea(payload);
       }
-      notifications.show({ color: 'green', message: t.membersPage.areaSaved });
+      fb.success(t.membersPage.areaSaved);
       setOpened(false);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg = data?.name?.[0] || data?.detail;
-      notifications.show({ color: 'red', message: msg || t.overview });
+      fb.error(msg || t.overview);
     } finally {
       setSaving(false);
     }
@@ -1412,15 +1421,15 @@ function AreasTab() {
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await accountsApi.deleteMinistryArea(toDelete.id);
-      notifications.show({ color: 'green', message: t.membersPage.areaDeleted });
-      setToDelete(null);
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
-      setDeleting(false);
-    }
+          await accountsApi.deleteMinistryArea(toDelete.id);
+          fb.success(t.membersPage.areaDeleted);
+          setToDelete(null);
+          load();
+        } catch (err) {
+          fb.fromError(err, t.common.toast.deleteFailed);
+        } finally {
+          setDeleting(false);
+        }
   };
 
   const cards = areas.map((a) => (
@@ -1488,12 +1497,12 @@ function AreasTab() {
           {loading ? (
             <SkeletonEntityCards count={6} cols={{ base: 1, sm: 2, md: 3 }} />
           ) : areas.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="teal" variant="light">
-              <IconBuildingChurch size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.membersPage.areasEmpty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="teal"
+            icon={<IconBuildingChurch size={24} />}
+            title={t.membersPage.areasEmpty}
+          />
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>{cards}</SimpleGrid>
         )}

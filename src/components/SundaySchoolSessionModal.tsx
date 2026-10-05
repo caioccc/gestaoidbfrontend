@@ -17,13 +17,13 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconBrandWhatsapp, IconDeviceFloppy } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import type { SundaySchoolAttendance, SundaySchoolSession } from '../types';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
 import { SkeletonActionRows, SkeletonFormFields } from './LoadingSkeleton';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SundaySchoolSessionModalProps {
   opened: boolean;
@@ -50,6 +50,7 @@ export default function SundaySchoolSessionModal({
   onSaved,
 }: SundaySchoolSessionModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [session, setSession] = useState<SundaySchoolSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,19 +86,19 @@ export default function SundaySchoolSessionModal({
         setAttendance(data.attendances);
       })
       .catch(() => {
-        notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+        fb.error(t.sundaySchool.noReportData);
       })
       .finally(() => setLoading(false));
   }, [opened, classId, date, t.sundaySchool.noReportData]);
 
   const presentCount = useMemo(
     () => attendance.filter((a) => a.is_present).length,
-    [attendance],
+    [attendance]
   );
 
   const toggle = (id: number, field: 'is_present' | 'brought_bible' | 'brought_magazine') => {
     setAttendance((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, [field]: !a[field] } : a)),
+      prev.map((a) => (a.id === id ? { ...a, [field]: !a[field] } : a))
     );
   };
 
@@ -120,11 +121,11 @@ export default function SundaySchoolSessionModal({
           brought_magazine: a.brought_magazine,
         })),
       });
-      notifications.show({ color: 'green', message: t.sundaySchool.attendanceSaved });
+      fb.success(t.sundaySchool.attendanceSaved);
       onSaved();
       onClose();
     } catch {
-      notifications.show({ color: 'red', message: t.sundaySchool.noReportData });
+      fb.error(t.sundaySchool.noReportData);
     } finally {
       setSaving(false);
     }
@@ -312,3 +313,4 @@ export default function SundaySchoolSessionModal({
     </Modal>
   );
 }
+

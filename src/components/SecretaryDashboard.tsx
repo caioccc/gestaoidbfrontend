@@ -17,9 +17,9 @@ import {
   Title,
   UnstyledButton,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/router';
 import {
+  IconAlertTriangle,
   IconBox,
   IconBrandWhatsapp,
   IconBuildingChurch,
@@ -43,8 +43,10 @@ import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import { calendarEventsApi, saveBlob } from '../api/finance';
 import { addDays, dateFromApi, dateToApi, eventOccursOn } from '../utils/calendarRecurrence';
+import { useFeedback } from '../hooks/useFeedback';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { HORIZONTAL_SCROLL } from './dashboard/primitives';
+import EmptyState from './EmptyState';
 import type {
   AppAlert,
   CalendarEvent,
@@ -138,6 +140,7 @@ function Rows({ children }: { children: React.ReactNode }) {
 export default function SecretaryDashboard() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const isIntercessao = user?.role === 'INTERCESSAO';
   const sd = t.secretaryDashboard;
@@ -200,7 +203,7 @@ export default function SecretaryDashboard() {
               theme: c.theme,
               attendees: c.attendees,
               visitors: c.visitors,
-            })),
+            }))
         );
 
         setRecentMinutes(
@@ -213,7 +216,7 @@ export default function SecretaryDashboard() {
               title: m.title,
               pdf: m.pdf,
               pdfName: m.pdf_name,
-            })),
+            }))
         );
 
         const groups: EventGroup[] = [];
@@ -261,7 +264,7 @@ export default function SecretaryDashboard() {
         (a) =>
           a.type === 'loan_return_today' ||
           a.type === 'loan_return_soon' ||
-          a.type === 'loan_return_overdue',
+          a.type === 'loan_return_overdue'
       );
 
   const openLoans = loans.filter((l) => l.returned_at === null).length;
@@ -294,7 +297,7 @@ export default function SecretaryDashboard() {
         value: birthdayToday.length + birthdayUpcoming.length,
         color: 'pink',
         icon: <IconCake size={20} />,
-      },
+      }
     );
     return list;
   }, [
@@ -327,7 +330,7 @@ export default function SecretaryDashboard() {
     accountsApi
       .minutesPdfDownload(item.id)
       .then((blob) => saveBlob(blob, item.pdfName || 'ata.pdf'))
-      .catch(() => notifications.show({ message: sd.loadError, color: 'red' }));
+      .catch((err) => fb.fromError(err, t.common.toast.downloadFailed));
   };
 
   const go = (href: string) => router.push(href);
@@ -634,11 +637,11 @@ export default function SecretaryDashboard() {
                   }
                 >
                   {visitors.length === 0 ? (
-                    <Center py="md">
-                      <Text size="sm" c="dimmed">
-                        {sd.welcomeEmpty}
-                      </Text>
-                    </Center>
+                    <EmptyState
+                      variant="compact"
+                      icon={<IconUserPlus size={24} />}
+                      title={sd.welcomeEmpty}
+                    />
                   ) : (
                     <Rows>
                       {visitors.map((item) => renderContactRow(item, 'visitors'))}
@@ -661,11 +664,12 @@ export default function SecretaryDashboard() {
                   }
                 >
                   {alertGroups.length === 0 ? (
-                    <Center py="md">
-                      <Text size="sm" c="dimmed">
-                        {sd.alertsEmpty}
-                      </Text>
-                    </Center>
+                    <EmptyState
+                      variant="compact"
+                      color="orange"
+                      icon={<IconAlertTriangle size={24} />}
+                      title={sd.alertsEmpty}
+                    />
                   ) : (
                     <Stack gap="md">
                       {alertGroups.map((group) => (
@@ -707,9 +711,12 @@ export default function SecretaryDashboard() {
                   }
                 >
                   {recentCultos.length === 0 ? (
-                    <Text size="sm" c="dimmed">
-                      {sd.emptyCultos}
-                    </Text>
+                    <EmptyState
+                      variant="compact"
+                      color="cyan"
+                      icon={<IconBuildingChurch size={24} />}
+                      title={sd.emptyCultos}
+                    />
                   ) : (
                     <Rows>
                       {recentCultos.map((c) => (
@@ -753,9 +760,11 @@ export default function SecretaryDashboard() {
                   }
                 >
                   {recentMinutes.length === 0 ? (
-                    <Text size="sm" c="dimmed">
-                      {sd.emptyMinutes}
-                    </Text>
+                    <EmptyState
+                      variant="compact"
+                      icon={<IconFileText size={24} />}
+                      title={sd.emptyMinutes}
+                    />
                   ) : (
                     <Rows>
                       {recentMinutes.map((m) => (
@@ -807,11 +816,11 @@ export default function SecretaryDashboard() {
             }
           >
             {upcoming.length === 0 ? (
-              <Center py="md">
-                <Text size="sm" c="dimmed">
-                  {sd.upcomingEmpty}
-                </Text>
-              </Center>
+              <EmptyState
+                variant="compact"
+                icon={<IconCalendarEvent size={24} />}
+                title={sd.upcomingEmpty}
+              />
             ) : (
               <Stack gap="md">
                 {upcoming.map((group) => (

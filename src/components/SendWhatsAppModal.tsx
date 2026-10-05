@@ -8,13 +8,14 @@ import {
   Text,
   Textarea,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconBrandWhatsapp, IconExternalLink, IconSettings } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
+import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
 import { normalizeWhatsAppPhone, renderWhatsAppMessage } from '../utils/whatsapp';
 import MessageTemplatesModal from './MessageTemplatesModal';
 import type { Member, MessageTemplate, MessageTemplateCategory } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SendWhatsAppModalProps {
   opened: boolean;
@@ -36,6 +37,7 @@ export default function SendWhatsAppModal({
   onSent,
 }: SendWhatsAppModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export default function SendWhatsAppModal({
       .then((list) => {
         setTemplates(list);
         const first = list.find(
-          (m) => m.is_active && (!defaultCategory || m.category === defaultCategory),
+          (m) => m.is_active && (!defaultCategory || m.category === defaultCategory)
         );
         if (first) {
           setSelectedId(String(first.id));
@@ -75,15 +77,12 @@ export default function SendWhatsAppModal({
               member?.name || '',
               churchName,
               churchCity,
-            ),
+            )
           );
         }
       })
       .catch(() => {
-        notifications.show({
-          color: 'red',
-          message: t.sender.error,
-        });
+        fb.error(t.sender.error);
       })
       .finally(() => setLoadingTemplates(false));
   };
@@ -108,7 +107,7 @@ export default function SendWhatsAppModal({
           member?.name || '',
           churchName,
           churchCity,
-        ),
+        )
       );
     }
   };
@@ -130,14 +129,14 @@ export default function SendWhatsAppModal({
       }
       const prepared = await accountsApi.prepareWhatsapp(member.id, payload);
       window.open(prepared.whatsapp_url, '_blank', 'noopener,noreferrer');
-      notifications.show({ color: 'green', message: t.sender.prepared });
+      fb.success(t.sender.prepared);
       onSent?.(member.id);
       onClose();
     } catch (e: unknown) {
       const msg =
         (e as { response?: { data?: Record<string, string[]> } })?.response?.data?.phone ||
         t.sender.error;
-      notifications.show({ color: 'red', message: Array.isArray(msg) ? msg[0] : msg });
+      fb.error(Array.isArray(msg) ? msg[0] : msg);
     } finally {
       setPreparing(false);
     }
@@ -178,9 +177,7 @@ export default function SendWhatsAppModal({
               </Text>
             ) : null}
             {!loadingTemplates && options.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {t.sender.noTemplate}
-              </Text>
+              <EmptyState variant="compact" title={t.sender.noTemplate} />
             ) : null}
             <Group justify="flex-end" mt={-6}>
               <Button
@@ -241,3 +238,4 @@ export default function SendWhatsAppModal({
     </Modal>
   );
 }
+

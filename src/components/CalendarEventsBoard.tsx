@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Paper,
   Popover,
@@ -21,14 +21,11 @@ import {
     ActionIcon,
     Divider,
   ScrollArea,
-  Code,
-  ThemeIcon,
   Drawer,
   Indicator,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconChevronLeft,
   IconChevronRight,
@@ -36,14 +33,13 @@ import {
   IconEdit,
   IconTrash,
   IconLink,
-  IconCopy,
-  IconRefresh,
-  IconQrcode,
   IconClock,
-  IconExternalLink,
   IconAdjustmentsHorizontal,
+  IconCalendarOff,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import {
@@ -51,7 +47,6 @@ import {
   dateFromApi,
   dateToApi,
   eventOccursOn,
-  isoWeekday,
 } from '../utils/calendarRecurrence';
 import ShareLinkModal from './ShareLinkModal';
 import { SkeletonCalendarBoard } from './LoadingSkeleton';
@@ -193,6 +188,7 @@ export default function CalendarEventsBoard({
   belowGrid?: React.ReactNode;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [view, setView] = useState<CalendarView>('month');
@@ -526,15 +522,11 @@ export default function CalendarEventsBoard({
       } else {
         await gateway.create(payload);
       }
-      notifications.show({ color: 'green', message: t.common.save });
+      fb.success(t.common.save);
       setModalOpen(false);
       load();
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar o evento.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -544,12 +536,12 @@ export default function CalendarEventsBoard({
     if (!deleting) return;
     try {
       await gateway.delete(deleting.id);
-      notifications.show({ color: 'green', message: t.common.delete });
+      fb.success(t.common.delete);
       setDeleting(null);
       setDetail(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir o evento.' });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     }
   };
 
@@ -754,9 +746,7 @@ export default function CalendarEventsBoard({
           </Box>
         )}
         {hours.length === 0 && untimed.length === 0 ? (
-          <Text size="sm" c="dimmed" ta="center" py="xl">
-            {t.calendarEvents.noEventsDay}
-          </Text>
+          <EmptyState variant="compact" title={t.calendarEvents.noEventsDay} />
         ) : (
           hours.map((h) => {
             const atHour = timed.filter((b) => Number((b.time || '0').slice(0, 2)) === h);
@@ -1242,9 +1232,11 @@ export default function CalendarEventsBoard({
           </Text>
         </Group>
         {visibleEvents.length === 0 ? (
-          <Text size="sm" c="dimmed">
-            {readOnly ? t.publicCalendar.empty : t.calendarEvents.noEvents}
-          </Text>
+          <EmptyState
+            variant="compact"
+            icon={<IconCalendarOff size={24} />}
+            title={readOnly ? t.publicCalendar.empty : t.calendarEvents.noEvents}
+          />
         ) : (
           <ScrollArea.Autosize mah={400} scrollbars="y">
             <Stack gap={6}>

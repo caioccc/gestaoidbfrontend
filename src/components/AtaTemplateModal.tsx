@@ -156,7 +156,7 @@ export default function AtaTemplateModal({
         value: k,
         label: t.minutesPage.meetingTypes[k],
       })),
-    [t],
+    [t]
   );
 
   const apply = (mode: 'replace' | 'append') => {

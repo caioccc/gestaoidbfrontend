@@ -21,7 +21,6 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { DataTable, DataTableColumn } from 'mantine-datatable';
 import { useRouter } from 'next/router';
 import {
@@ -41,6 +40,7 @@ import { accountsApi } from '../api/accounts';
 import { financeApi, receiptsApi, saveBlob } from '../api/finance';
 import { useCategories } from '../hooks/useCategories';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import {
   FinancialReceipt,
   FinancialReceiptPayload,
@@ -65,6 +65,7 @@ const UF_LIST = [
 
 export default function ReceiptsPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const { categories } = useCategories();
 
@@ -148,7 +149,7 @@ export default function ReceiptsPage() {
           setSourceDesc(
             src === 'entry'
               ? (mov as any).service_description || (mov as any).description || ''
-              : (mov as any).description || '',
+              : (mov as any).description || ''
           );
           setSourceAmount(toNumber(mov.amount));
         })
@@ -214,7 +215,7 @@ export default function ReceiptsPage() {
         value: String(m.id),
         label: m.name,
       })),
-    [members],
+    [members]
   );
 
   const handleMemberChange = (memberId: string | null) => {
@@ -295,10 +296,10 @@ export default function ReceiptsPage() {
       let created: FinancialReceipt;
       if (editing) {
         created = await receiptsApi.update(editing.id, payload);
-        notifications.show({ color: 'green', message: t.receiptsPage.emitSuccess });
+        fb.success(t.receiptsPage.emitSuccess);
       } else {
         created = await receiptsApi.create(payload);
-        notifications.show({ color: 'green', message: t.receiptsPage.emitSuccess });
+        fb.success(t.receiptsPage.emitSuccess);
       }
       setModalOpen(false);
       setEditing(null);
@@ -314,11 +315,7 @@ export default function ReceiptsPage() {
         }
       }
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -329,11 +326,11 @@ export default function ReceiptsPage() {
     setDeleting(true);
     try {
       await receiptsApi.delete(deleteTarget.id);
-      notifications.show({ color: 'green', message: t.receiptsPage.deleted });
+      fb.success(t.receiptsPage.deleted);
       setDeleteTarget(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir.' });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -343,8 +340,8 @@ export default function ReceiptsPage() {
     try {
       const blob = await receiptsApi.downloadPdf(r.id);
       saveBlob(blob, `recibo-${r.full_number}.pdf`);
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao baixar PDF.' });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.downloadFailed);
     }
   };
 

@@ -12,16 +12,15 @@ import {
   Center,
   Loader,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconDownload,
   IconCheck,
   IconArrowRight,
   IconFileSpreadsheet,
-  IconAlertTriangle,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { saveBlob } from '../api/finance';
+import { useFeedback } from '../hooks/useFeedback';
 
 export type ExportType = 'entries' | 'exits' | 'closings';
 
@@ -51,6 +50,7 @@ const YEARS = (() => {
 
 export default function ExportModal({ opened, onClose, type, api }: ExportModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [active, setActive] = useState(0);
   const [mode, setMode] = useState<'annual' | 'period'>('annual');
   const [year, setYear] = useState<number | null>(null);
@@ -103,13 +103,9 @@ export default function ExportModal({ opened, onClose, type, api }: ExportModalP
             : `fechamento-${year}-${String(monthArg).padStart(2, '0')}.xlsx`;
         saveBlob(blob, name);
         setDone(true);
-        notifications.show({ color: 'green', message: t.exportPage.success });
+        fb.success(t.exportPage.success);
       } catch (err: any) {
-        notifications.show({
-          color: 'red',
-          title: 'Erro',
-          message: err?.response?.data?.detail || t.exportPage.error,
-        });
+        fb.error(err?.response?.data?.detail || t.exportPage.error);
       } finally {
         setDownloading(false);
       }
@@ -125,13 +121,9 @@ export default function ExportModal({ opened, onClose, type, api }: ExportModalP
       const prefix = type === 'entries' ? 'entradas' : 'saidas';
       saveBlob(blob, `${prefix}-${year}-${String(month).padStart(2, '0')}.xlsx`);
       setDone(true);
-      notifications.show({ color: 'green', message: t.exportPage.success });
+      fb.success(t.exportPage.success);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || t.exportPage.error,
-      });
+      fb.error(err?.response?.data?.detail || t.exportPage.error);
     } finally {
       setDownloading(false);
     }
@@ -267,3 +259,5 @@ export default function ExportModal({ opened, onClose, type, api }: ExportModalP
     </Modal>
   );
 }
+
+

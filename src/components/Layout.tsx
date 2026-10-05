@@ -493,7 +493,7 @@ function SidebarContent({
           .filter((section) => !section.requiresChurch || showChurchSections)
           .map((section) => {
             const visibleItems = section.items.filter(
-              (item) => !item.roles || hasRole(...item.roles),
+              (item) => !item.roles || hasRole(...item.roles)
             );
             if (visibleItems.length === 0) return null;
             return (
@@ -887,13 +887,10 @@ export default function Layout({
   churchType?: ChurchType;
   expanded?: boolean;
 }) {
-  const [opened, { toggle, close }] = useDisclosure(false);
-  const isMobile = useMediaQuery("(max-width: 62em)");
-  const { t } = useLanguage();
-  const { colorScheme } = useMantineColorScheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
+    const [opened, { toggle, close }] = useDisclosure(false);
+    const isMobile = useMediaQuery("(max-width: 62em)");
+    const { t } = useLanguage();
+    const [desktopCollapsed, setDesktopCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebar-desktop-collapsed") === "1";
   });
@@ -904,9 +901,7 @@ export default function Layout({
     );
   }, [desktopCollapsed]);
   const mainBackground =
-    mounted && colorScheme === "dark"
-      ? "var(--mantine-color-dark-8)"
-      : "var(--mantine-color-gray-0)";
+    'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))';
 
   return (
     <AppShell

@@ -23,7 +23,6 @@ import {
   Divider,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
   IconAlertTriangle,
@@ -40,6 +39,7 @@ import { MonthYearPicker } from '../../../components/MonthYearPicker';
 import MoneyInput from '../../../components/MoneyInput';
 import MobileItemCard from '../../../components/MobileItemCard';
 import { useLanguage } from '../../../i18n';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { TitherMatrix, TitherMatrixMember, Reconciliation, Tither, TitherRepeatAudit } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { formatBRL } from '../../../utils/format';
@@ -67,6 +67,7 @@ function buildYearOptions(existingYears: Array<number | string> = []) {
 
 export default function TithersSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const yearOptions = buildYearOptions();
@@ -209,10 +210,10 @@ export default function TithersSection({ api, churchLabel }: { api: AdminFinance
       let saved: Tither;
       if (editing) {
         saved = await api.updateTither(editing.id, payload);
-        notifications.show({ color: 'green', message: 'Membro atualizado.' });
+        fb.updatedWithName(saved.name);
       } else {
         saved = await api.createTither(payload);
-        notifications.show({ color: 'green', message: 'Membro adicionado.' });
+        fb.addedWithName(saved.name);
       }
       const months = memberMatrixMonths.map((v) =>
         v === '' || v == null ? null : String(v)
@@ -224,11 +225,7 @@ export default function TithersSection({ api, churchLabel }: { api: AdminFinance
       setMembers(await api.listTithers());
       setMatrix(await api.tithersMatrix(year));
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -239,11 +236,11 @@ export default function TithersSection({ api, churchLabel }: { api: AdminFinance
     setDeleting(true);
     try {
       await api.deleteTither(deleteTarget.id);
-      notifications.show({ color: 'green', message: 'Membro excluído.' });
+      fb.deletedWithName(deleteTarget.name);
       setDeleteTarget(null);
       setMembers(await api.listTithers());
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir.' });
+    } catch (err: any) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -296,15 +293,11 @@ export default function TithersSection({ api, churchLabel }: { api: AdminFinance
         v === '' || v == null ? null : String(v)
       );
       await api.updateTitherTitheRecords(tithesTarget.id, year, months);
-      notifications.show({ color: 'green', message: 'Dízimos atualizados.' });
+      fb.success(t.tithersPage.tithesUpdated);
       setTithesTarget(null);
       setMatrix(await api.tithersMatrix(year));
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setTithesSaving(false);
     }

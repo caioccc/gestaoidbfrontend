@@ -32,6 +32,7 @@ import {
   IconUsersGroup,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
@@ -246,12 +247,11 @@ function AreasTab({
   if (grouped.length === 0 && noArea.length === 0) {
     return (
       <Card withBorder shadow="sm" p="xl">
-        <Stack align="center" gap="sm">
-          <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-            <IconBuildingChurch size={24} />
-          </ThemeIcon>
-          <Text c="dimmed">{t.memberReports.empty}</Text>
-        </Stack>
+        <EmptyState
+          variant="center"
+          icon={<IconBuildingChurch size={24} />}
+          title={t.memberReports.empty}
+        />
       </Card>
     );
   }
@@ -426,12 +426,11 @@ function ListingTab({
       </Paper>
       <Card withBorder shadow="sm" p={0}>
         {members.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-              <IconUsersGroup size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.memberReports.empty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            icon={<IconUsersGroup size={24} />}
+            title={t.memberReports.empty}
+          />
         ) : (
           <>
             <Box visibleFrom="sm">
@@ -709,12 +708,12 @@ function BirthdaysTab({
       </Paper>
       <Card withBorder shadow="sm" p={0}>
         {list.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="pink" variant="light">
-              <IconCake size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.birthdays.none}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="pink"
+            icon={<IconCake size={24} />}
+            title={t.birthdays.none}
+          />
         ) : (
           <>
             <Box visibleFrom="sm">

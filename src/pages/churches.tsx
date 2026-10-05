@@ -20,9 +20,9 @@ import {
   Loader,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconBuildingChurch, IconBuilding, IconMapPin, IconPlus, IconTrash, IconPencil, IconRefresh, IconExternalLink, IconUser, IconAlertTriangle } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import AccountingCategorySelect from '../components/AccountingCategorySelect';
@@ -32,6 +32,7 @@ import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
 import { Church, ChurchMembership, Role } from '../types';
 import { toUpperCamelWords } from '../utils/format';
+import { useFeedback } from '../hooks/useFeedback';
 
 const UF_LIST = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -82,6 +83,7 @@ function mergeUserOptions(...lists: { value: string; label: string }[][]) {
 
 export default function ChurchesPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const { user, switchChurch } = useAuth();
   const { hasRole, canManageChurch: canManageCongregations } = useRoleHelpers(user);
@@ -300,7 +302,7 @@ export default function ChurchesPage() {
           ...payload,
           ...(responsible ? { responsible_user: responsible } : {}),
         });
-        notifications.show({ color: 'green', message: t.churchesPage.editDone });
+        fb.success(t.churchesPage.editDone);
       } else {
         const responsible = form.values.resp_user_id
           ? {
@@ -315,7 +317,7 @@ export default function ChurchesPage() {
         await accountsApi.createChurch(
           responsible ? { ...createPayload, responsible_user: responsible } : createPayload
         );
-        notifications.show({ color: 'green', message: t.churchesPage.saveDone });
+        fb.success(t.churchesPage.saveDone);
       }
       setOpened(false);
       form.reset();
@@ -328,7 +330,7 @@ export default function ChurchesPage() {
         data?.responsible_user?.[0] ||
         data?.name?.[0] ||
         data?.detail;
-      notifications.show({ color: 'red', message: msg || t.overview });
+      fb.error(msg || t.overview);
     } finally {
       setSubmitting(false);
     }
@@ -339,14 +341,11 @@ export default function ChurchesPage() {
     setDeleting(true);
     try {
       await accountsApi.deleteChurch(toDelete.id);
-      notifications.show({ color: 'green', message: t.churchesPage.deleteDone });
+      fb.success(t.churchesPage.deleteDone);
       setToDelete(null);
       load();
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        message: err?.response?.data?.detail || t.overview,
-      });
+      fb.error(err?.response?.data?.detail || t.overview);
     } finally {
       setDeleting(false);
     }
@@ -406,12 +405,11 @@ export default function ChurchesPage() {
             ))}
           </SimpleGrid>
         ) : churches.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-              <IconBuildingChurch size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.churchesPage.noChurches}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            icon={<IconBuildingChurch size={24} />}
+            title={t.churchesPage.noChurches}
+          />
         ) : (
           <Stack gap="md">
             {sedeChurch && (
@@ -746,3 +744,4 @@ export default function ChurchesPage() {
     </AuthGuard>
   );
 }
+

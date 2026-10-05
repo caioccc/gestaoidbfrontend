@@ -23,6 +23,7 @@ import {
   IconListCheck,
   IconExternalLink,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
 import { MonthlyValidationResponse } from '../types';
 import { formatBRL, toNumber } from '../utils/format';
@@ -206,9 +207,7 @@ export default function ValidationPanel({
           <Title order={5}>{t.validationPage.nature}</Title>
         </Group>
         {nature.length === 0 ? (
-          <Text c="dimmed" ta="center" py="md">
-            {t.common.noData}
-          </Text>
+          <EmptyState variant="compact" title={t.common.noData} />
         ) : (
           <Table striped withTableBorder>
             <Table.Thead>

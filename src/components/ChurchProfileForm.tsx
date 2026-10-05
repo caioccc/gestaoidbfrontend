@@ -17,12 +17,12 @@ import {
   Alert,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
 import { SkeletonFormFields } from './LoadingSkeleton';
 import ImageUpload from './ImageUpload';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { toUpperCamelWords } from '../utils/format';
 
 const UF_LIST = [
@@ -70,6 +70,7 @@ export default function ChurchProfileForm({
   readOnly = false,
 }: ChurchProfileFormProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
@@ -215,7 +216,7 @@ export default function ChurchProfileForm({
     setResetError(null);
     try {
       await onResetPassword(newPassword);
-      notifications.show({ color: 'green', message: t.settingsPage.passwordChanged });
+      fb.success(t.settingsPage.passwordChanged);
       setConfirmOpen(false);
       setNewPassword('');
       setRepeatPassword('');
@@ -233,7 +234,7 @@ export default function ChurchProfileForm({
   const getCepGeo = async () => {
     const clean = form.values.cep.replace(/\D/g, '');
     if (clean.length !== 8) {
-      notifications.show({ color: 'yellow', message: 'Informe um CEP válido.' });
+      fb.warning(t.settingsPage.cepInvalid);
       return;
     }
     setCepLoading(true);
@@ -242,7 +243,7 @@ export default function ChurchProfileForm({
       const uf = viacepCache.uf;
       const city = viacepCache.localidade;
       if (!uf || !city) {
-        notifications.show({ color: 'yellow', message: 'CEP não localizado.' });
+        fb.warning(t.settingsPage.cepNotFound);
         return;
       }
       const geocode = await fetch(
@@ -255,10 +256,12 @@ export default function ChurchProfileForm({
           longitude: parseFloat(geocode[0].lon),
         }));
       } else {
-        notifications.show({ color: 'yellow', message: 'Não foi possível geolocalizar.' });
+        fb.warning(t.settingsPage.geoNotFound);
       }
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao buscar coordenadas.' });
+    } catch (err) {
+      // Busca em API externa (ViaCEP/Nominatim): o fallback proprio da tela
+      // e mais util que a mensagem generica de rede.
+      fb.fromError(err, t.settingsPage.geoLookupFailed);
     } finally {
       setCepLoading(false);
     }

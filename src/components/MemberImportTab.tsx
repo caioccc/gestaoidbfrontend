@@ -12,7 +12,6 @@ import {
   Divider,
   Modal,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconDownload,
   IconAnalyze,
@@ -21,6 +20,7 @@ import {
   IconAlertTriangle,
 } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { accountsApi } from '../api/accounts';
 import type {
   MemberImportInspection,
@@ -34,6 +34,7 @@ João Souza;(83) 88888-0000;joao@email.com;20/07/1985;;Ensino Médio;Solteiro;Ac
 
 export default function MemberImportTab({ onImported }: { onImported?: () => void }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [file, setFile] = useState<File | null>(null);
   const [inspecting, setInspecting] = useState(false);
   const [inspection, setInspection] = useState<MemberImportInspection | null>(null);
@@ -68,7 +69,7 @@ export default function MemberImportTab({ onImported }: { onImported?: () => voi
 
   const analyze = async () => {
     if (!file) {
-      notifications.show({ message: t.membersPage.importNoFile, color: 'red' });
+      fb.error(t.membersPage.importNoFile);
       return;
     }
     setInspecting(true);
@@ -82,7 +83,7 @@ export default function MemberImportTab({ onImported }: { onImported?: () => voi
         e?.response?.data?.file ||
         e?.response?.data?.detail ||
         'Erro ao analisar a planilha.';
-      notifications.show({ message: detail, color: 'red' });
+      fb.error(detail);
     } finally {
       setInspecting(false);
     }
@@ -96,18 +97,12 @@ export default function MemberImportTab({ onImported }: { onImported?: () => voi
       setResult(res);
       setConfirmOpen(false);
       if (!dryRun && res.imported > 0 && !res.errors.length) {
-        notifications.show({
-          message: t.membersPage.importSuccess.replace('{imported}', String(res.imported)),
-          color: 'green',
-        });
+        fb.success(t.membersPage.importSuccess.replace('{imported}', String(res.imported)));
         onImported?.();
       }
     } catch (e: any) {
       const errs = e?.response?.data?.errors;
-      notifications.show({
-        message: Array.isArray(errs) ? errs.join(' | ') : 'Erro ao importar.',
-        color: 'red',
-      });
+      fb.error(Array.isArray(errs) ? errs.join(' | ') : t.membersPage.importError);
     } finally {
       setExecuting(false);
     }

@@ -23,11 +23,12 @@ import {
   Divider,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
   IconAlertTriangle,
+  IconChartBar,
   IconUsers,
+  IconUsersGroup,
   IconPlus,
   IconPencil,
   IconTrash,
@@ -36,10 +37,12 @@ import {
   IconDotsVertical,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import { MonthYearPicker, YearPicker } from '../components/MonthYearPicker';
 import MoneyInput from '../components/MoneyInput';
 import MobileItemCard from '../components/MobileItemCard';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { TitherMatrix, TitherMatrixMember, Reconciliation, Tither, TitherRepeatAudit } from '../types';
 import { financeApi } from '../api/finance';
 import { toUpperCamelWords, formatBRL } from '../utils/format';
@@ -67,6 +70,7 @@ function buildYearOptions(existingYears: Array<number | string> = []) {
 
 export default function TithersPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const [year, setYear] = useState<number>(currentYear);
@@ -209,10 +213,10 @@ export default function TithersPage() {
       let saved: Tither;
       if (editing) {
         saved = await financeApi.updateTither(editing.id, payload);
-        notifications.show({ color: 'green', message: 'Membro atualizado.' });
+        fb.updatedWithName(saved.name);
       } else {
         saved = await financeApi.createTither(payload);
-        notifications.show({ color: 'green', message: 'Membro adicionado.' });
+        fb.addedWithName(saved.name);
       }
       const months = memberMatrixMonths.map((v) =>
         v === '' || v == null ? null : String(v)
@@ -224,11 +228,7 @@ export default function TithersPage() {
       setMembers(await financeApi.listTithers());
       setMatrix(await financeApi.tithersMatrix(year));
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -239,11 +239,11 @@ export default function TithersPage() {
     setDeleting(true);
     try {
       await financeApi.deleteTither(deleteTarget.id);
-      notifications.show({ color: 'green', message: 'Membro excluído.' });
+      fb.deletedWithName(deleteTarget.name);
       setDeleteTarget(null);
       setMembers(await financeApi.listTithers());
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir.' });
+    } catch (err: any) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -296,15 +296,11 @@ export default function TithersPage() {
         v === '' || v == null ? null : String(v)
       );
       await financeApi.updateTitherTitheRecords(tithesTarget.id, year, months);
-      notifications.show({ color: 'green', message: 'Dízimos atualizados.' });
+      fb.success(t.tithersPage.tithesUpdated);
       setTithesTarget(null);
       setMatrix(await financeApi.tithersMatrix(year));
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setTithesSaving(false);
     }
@@ -469,9 +465,11 @@ export default function TithersPage() {
         {membersLoading ? (
           <Skeleton height={120} />
         ) : members.length === 0 ? (
-          <Text c="dimmed" ta="center" py="xl">
-            {t.common.noData}
-          </Text>
+          <EmptyState
+            variant="center"
+            icon={<IconUsersGroup size={24} />}
+            title={t.common.noData}
+          />
         ) : (
           <>
             <Box visibleFrom="sm">
@@ -567,9 +565,11 @@ export default function TithersPage() {
         {matrixLoading ? (
           <Skeleton height={300} />
         ) : !matrix || matrix.members.length === 0 ? (
-          <Text c="dimmed" ta="center" py="xl">
-            {t.common.noData}
-          </Text>
+          <EmptyState
+            variant="center"
+            icon={<IconChartBar size={24} />}
+            title={t.common.noData}
+          />
         ) : (
           <>
             <Box visibleFrom="sm">

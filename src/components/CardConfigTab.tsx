@@ -15,7 +15,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import { IconInfoCircle, IconDeviceFloppy } from '@tabler/icons-react';
 import MemberCard from './MemberCard';
 import { useLanguage } from '../i18n';
@@ -24,6 +23,7 @@ import { accountsApi } from '../api/accounts';
 import { toSentenceCase } from '../utils/format';
 import { firstFieldError } from '../utils/apiError';
 import type { CardConfig, CardTheme } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
@@ -48,6 +48,7 @@ interface CardConfigTabProps {
 
 export default function CardConfigTab({ churchName, data }: CardConfigTabProps) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const { config, contact, refresh } = data;
   const [saving, setSaving] = useState(false);
   const { colorScheme } = useMantineColorScheme();
@@ -117,22 +118,18 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
         card_theme: form.values.card_theme,
       };
       await accountsApi.patchProfile(payload);
-      notifications.show({ color: 'green', message: t.cardConfig.saved });
+      fb.success(t.cardConfig.saved);
       refresh();
     } catch (err: any) {
       const body = err?.response?.data;
-      notifications.show({
-        color: 'red',
-        message:
-          firstFieldError(body, [
+      fb.error(firstFieldError(body, [
             'card_primary_color',
             'card_secondary_color',
             'card_valid_until',
             'card_front_phrase',
             'card_back_phrase',
             'card_theme',
-          ]) || t.cardConfig.saveError,
-      });
+          ]) || t.cardConfig.saveError);
     } finally {
       setSaving(false);
     }
@@ -294,3 +291,4 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
     </Grid>
   );
 }
+

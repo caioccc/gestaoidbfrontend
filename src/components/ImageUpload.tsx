@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box, Text, Group, ActionIcon, Image } from '@mantine/core';
 import { Dropzone, FileRejection, IMAGE_MIME_TYPE } from '@mantine/dropzone';
-import { notifications } from '@mantine/notifications';
 import { IconPhoto, IconUpload, IconX, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 
 const MAX_DIMENSION = 800;
 const QUALITY = 0.82;
@@ -46,6 +46,7 @@ export default function ImageUpload({
   disabled = false,
 }: ImageUploadProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const handleFile = async (files: File[]) => {
     const file = files[0];
     if (!file) return;
@@ -61,7 +62,7 @@ export default function ImageUpload({
       const dataUrl = canvas.toDataURL('image/jpeg', QUALITY);
       onChange?.(dataUrl);
     } catch {
-      notifications.show({ color: 'red', message: t.imageUpload.invalidImage });
+      fb.error(t.imageUpload.invalidImage);
       onChange?.(null);
     }
   };
@@ -75,7 +76,7 @@ export default function ImageUpload({
         : code === 'file-invalid-type'
           ? t.imageUpload.invalidFileType
           : t.imageUpload.invalidImage;
-    notifications.show({ color: 'red', message });
+    fb.error(message);
   };
 
   return (
@@ -145,3 +146,4 @@ export default function ImageUpload({
     </Box>
   );
 }
+

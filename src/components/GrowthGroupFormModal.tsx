@@ -16,12 +16,12 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconCrosshair } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import ChurchMap from './ChurchMap';
 import MaskedTextInput from './MaskedTextInput';
 import type { GrowthGroup, GrowthGroupCategory, GrowthGroupPayload, Member } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface GrowthGroupFormModalProps {
   opened: boolean;
@@ -69,6 +69,7 @@ export default function GrowthGroupFormModal({
   onSaved,
 }: GrowthGroupFormModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
 
   const categoryOptions: Array<{ value: GrowthGroupCategory; label: string }> = [
     { value: 'ADULTS', label: t.growthGroups.categoryAdults },
@@ -171,7 +172,7 @@ export default function GrowthGroupFormModal({
       if (!res.ok) throw new Error('viacep');
       const data = await res.json();
       if (data.erro || !data.uf) {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else {
         form.setValues((prev) => ({
           ...prev,
@@ -182,7 +183,7 @@ export default function GrowthGroupFormModal({
         }));
       }
     } catch {
-      notifications.show({ color: 'red', message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -216,12 +217,12 @@ export default function GrowthGroupFormModal({
         if (!res.ok) throw new Error('nominatim');
         const results: Array<{ lat: string; lon: string }> = await res.json();
         if (!results.length) {
-          notifications.show({ color: 'red', message: t.growthGroups.geocodeError });
+          fb.error(t.growthGroups.geocodeError);
           return null;
         }
         return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
       } catch {
-        notifications.show({ color: 'red', message: t.growthGroups.geocodeError });
+        fb.error(t.growthGroups.geocodeError);
         return null;
       } finally {
         setGeoCoding(false);
@@ -279,10 +280,7 @@ export default function GrowthGroupFormModal({
     if (coords) {
       form.setFieldValue('latitude', coords.lat);
       form.setFieldValue('longitude', coords.lng);
-      notifications.show({
-        color: 'green',
-        message: t.growthGroups.saved,
-      });
+      fb.success(t.growthGroups.saved);
     }
   };
 
@@ -651,3 +649,4 @@ export default function GrowthGroupFormModal({
     </Modal>
   );
 }
+

@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { notifications } from '@mantine/notifications';
 import PageHeader from '../components/PageHeader';
 import ChurchProfileForm from '../components/ChurchProfileForm';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { accountsApi } from '../api/accounts';
 import { firstFieldError } from '../utils/apiError';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 
 export default function SettingsPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const { hasRole, isAdmin } = useRoleHelpers(user);
   const [loading, setLoading] = useState(true);
@@ -26,8 +27,8 @@ export default function SettingsPage() {
     accountsApi
       .getProfile()
       .then((data) => setProfile(data))
-      .catch(() => {
-        notifications.show({ color: 'red', message: 'Não foi possível carregar o perfil.' });
+      .catch((err) => {
+        fb.fromError(err, t.common.toast.loadFailed);
       })
       .finally(() => setLoading(false));
   }, [user?.church?.id]);
@@ -36,24 +37,18 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await accountsApi.updateProfile(payload);
-      notifications.show({
-        color: 'green',
-        title: t.settingsPage.saved,
-        message: t.settingsPage.saved,
-      });
+      fb.success(t.settingsPage.saved);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message:
-          firstFieldError(err?.response?.data, [
-            'name',
-            'logo',
-            'state',
-            'card_primary_color',
-            'card_secondary_color',
-          ]) || 'Não foi possível salvar.',
-      });
+      fb.fromError(
+        err,
+        firstFieldError(err?.response?.data, [
+          'name',
+          'logo',
+          'state',
+          'card_primary_color',
+          'card_secondary_color',
+        ]) || t.common.toast.saveFailed
+      );
     } finally {
       setSaving(false);
     }

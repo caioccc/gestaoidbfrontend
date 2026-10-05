@@ -12,9 +12,10 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
+import EmptyState from './EmptyState';
 import { musicApi } from '../api/music';
 import type { Song, SetlistItem, WorshipSetlist } from '../types';
 
@@ -33,6 +34,7 @@ interface Row {
 
 export default function SetlistModal({ opened, onClose, rosterId, existingSetlist, onSaved }: SetlistModalProps) {
   const { t } = useLanguage();
+const fb = useFeedback();
   const [songs, setSongs] = useState<Song[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
           existingSetlist.items.map((s) => ({
             song: s.song,
             notes: s.notes,
-          })),
+          }))
         );
       } else {
         setRows([]);
@@ -93,7 +95,7 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
       try {
         await musicApi.deleteSetlist(rosterId);
       } catch { /* empty */ }
-      notifications.show({ color: 'green', message: t.music.setlistCleared });
+      fb.success(t.music.setlistCleared);
       onSaved();
       onClose();
       return;
@@ -106,22 +108,22 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
         notes: r.notes.trim(),
       }));
       await musicApi.upsertSetlist(rosterId, payload);
-      notifications.show({ color: 'green', message: t.music.setlistSaved });
+      fb.success(t.music.setlistSaved);
       onSaved();
       onClose();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao salvar setlist.' });
+    } catch (err) {
+      fb.fromError(err, t.music.setlistSaveFailed);
     } finally {
       setSaving(false);
     }
   };
 
-  /* Músicas privadas seguem selecionáveis aqui (o Louvor monta o próprio
-   * repertório), mas ficam marcadas com cadeado para não haver surpresa
+  /* MÃºsicas privadas seguem selecionÃ¡veis aqui (o Louvor monta o prÃ³prio
+   * repertÃ³rio), mas ficam marcadas com cadeado para nÃ£o haver surpresa
    * quando o fluxo de culto for compartilhado. */
   const songData = songs.map((s) => ({
     value: String(s.id),
-    label: `${s.is_private ? '🔒 ' : ''}${s.title}${s.artist ? ` — ${s.artist}` : ''}`,
+    label: `${s.is_private ? 'ðŸ”’ ' : ''}${s.title}${s.artist ? ` â€” ${s.artist}` : ''}`,
   }));
 
   return (
@@ -154,7 +156,7 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
           <Text size="sm" c="dimmed">{t.music.addToSetlistHint}</Text>
 
           {rows.length === 0 ? (
-            <Text size="sm" c="dimmed">{t.music.setlistEmpty}</Text>
+            <EmptyState variant="compact" title={t.music.setlistEmpty} />
           ) : (
             <Stack gap={6}>
               {rows.map((row, i) => (
@@ -165,12 +167,12 @@ export default function SetlistModal({ opened, onClose, rosterId, existingSetlis
                   <Group gap={2}>
                     <Tooltip label={t.music.ordering}>
                       <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => moveUp(i)} disabled={i === 0}>
-                        ↑
+                        â†‘
                       </ActionIcon>
                     </Tooltip>
                     <Tooltip label={t.music.ordering}>
                       <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => moveDown(i)} disabled={i === rows.length - 1}>
-                        ↓
+                        â†“
                       </ActionIcon>
                     </Tooltip>
                   </Group>

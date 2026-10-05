@@ -29,7 +29,6 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { notifications } from '@mantine/notifications';
 import {
   IconLink,
   IconCopy,
@@ -38,6 +37,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import LinkModal from '../components/LinkModal';
@@ -49,12 +49,14 @@ import {
 import { churchLinksApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { buildLinksUrl, copyToClipboard } from '../utils/share';
+import { useFeedback } from '../hooks/useFeedback';
 import type { ChurchLinksConfig, ChurchPublicLink } from '../types';
 
 const PIX_TYPES = ['CNPJ', 'CPF', 'Telefone', 'E-mail', 'Chave Aleatória'];
 
 export default function LinksPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [links, setLinks] = useState<ChurchPublicLink[]>([]);
   const [config, setConfig] = useState<ChurchLinksConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,10 +73,10 @@ export default function LinksPage() {
         setLinks(list);
         setConfig(cfg);
       })
-      .catch(() => {
+      .catch((err) => {
         setLinks([]);
         setConfig(null);
-        notifications.show({ color: 'red', message: t.linksPage.loadError });
+        fb.fromError(err, t.linksPage.loadError);
       })
       .finally(() => setLoading(false));
   }, [t.linksPage.loadError]);
@@ -112,21 +114,21 @@ export default function LinksPage() {
         .update(editing.id, payload)
         .then((updated) => {
           setLinks((items) => items.map((l) => (l.id === updated.id ? updated : l)));
-          notifications.show({ color: 'green', message: t.linksPage.saveDone });
+          fb.success(t.linksPage.saveDone);
         })
-        .catch(() =>
-          notifications.show({ color: 'red', message: t.linksPage.loadError })
-        );
+        .catch((err) => {
+          fb.fromError(err, t.common.toast.saveFailed);
+        });
     } else {
       churchLinksApi
         .create(payload)
         .then((created) => {
           setLinks((items) => [...items, created]);
-          notifications.show({ color: 'green', message: t.linksPage.saveDone });
+          fb.success(t.linksPage.saveDone);
         })
-        .catch(() =>
-          notifications.show({ color: 'red', message: t.linksPage.loadError })
-        );
+        .catch((err) => {
+          fb.fromError(err, t.common.toast.saveFailed);
+        });
     }
   };
 
@@ -136,11 +138,12 @@ export default function LinksPage() {
     );
     churchLinksApi
       .update(link.id, { is_active: active })
-      .catch(() => {
+      .catch((err) => {
+        // Volta o switch ao valor anterior: a atualizacao otimista falhou.
         setLinks((items) =>
           items.map((l) => (l.id === link.id ? { ...l, is_active: link.is_active } : l))
         );
-        notifications.show({ color: 'red', message: t.linksPage.loadError });
+        fb.fromError(err);
       });
   };
 
@@ -150,10 +153,10 @@ export default function LinksPage() {
     try {
       await churchLinksApi.remove(toDelete.id);
       setLinks((items) => items.filter((l) => l.id !== toDelete.id));
-      notifications.show({ color: 'green', message: t.linksPage.deleteDone });
+      fb.success(t.linksPage.deleteDone);
       setToDelete(null);
-    } catch {
-      notifications.show({ color: 'red', message: t.linksPage.loadError });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -171,9 +174,9 @@ export default function LinksPage() {
       };
       const updated = await churchLinksApi.updateConfig(payload);
       setConfig(updated);
-      notifications.show({ color: 'green', message: t.linksPage.configDone });
-    } catch {
-      notifications.show({ color: 'red', message: t.linksPage.configError });
+      fb.success(t.linksPage.configDone);
+    } catch (err) {
+      fb.fromError(err, t.linksPage.configError);
     } finally {
       setSavingConfig(false);
     }
@@ -182,7 +185,7 @@ export default function LinksPage() {
   const copyLink = async () => {
     if (!config) return;
     await copyToClipboard(buildLinksUrl(config.slug));
-    notifications.show({ color: 'green', message: t.linksPage.linkCopied });
+    fb.success(t.linksPage.linkCopied);
   };
 
   const openPage = () => {
@@ -266,14 +269,11 @@ export default function LinksPage() {
                             public_links_enabled: value,
                           });
                           setConfig(updated);
-                        } catch {
+                        } catch (err) {
                           setConfig((c) =>
                             c ? { ...c, public_links_enabled: !value } : c
                           );
-                          notifications.show({
-                            color: 'red',
-                            message: t.linksPage.configError,
-                          });
+                          fb.fromError(err, t.linksPage.configError);
                         }
                       }}
                     />
@@ -345,17 +345,16 @@ export default function LinksPage() {
               </Group>
 
               {links.length === 0 ? (
-                <Center py="xl">
-                  <Stack align="center" gap="sm">
-                    <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-                      <IconLink size={24} />
-                    </ThemeIcon>
-                    <Text c="dimmed">{t.linksPage.noLinks}</Text>
+                <EmptyState
+                  variant="center"
+                  icon={<IconLink size={24} />}
+                  title={t.linksPage.noLinks}
+                  action={
                     <Button variant="light" leftSection={<IconPlus size={16} />} onClick={openCreate}>
                       {t.linksPage.addFirst}
                     </Button>
-                  </Stack>
-                </Center>
+                  }
+                />
               ) : (
                 <DndContext
                   sensors={sensors}

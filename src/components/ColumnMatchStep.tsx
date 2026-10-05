@@ -1,3 +1,4 @@
+import { useFeedback } from '../hooks/useFeedback';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Stack,
@@ -11,7 +12,6 @@ import {
     Skeleton,
     ThemeIcon,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconListCheck,
   IconAlertTriangle,
@@ -44,6 +44,7 @@ export default function ColumnMatchStep({
   onInspection,
 }: ColumnMatchStepProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [inspection, setInspection] = useState<SpreadsheetInspection | null>(null);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(false);
@@ -69,12 +70,7 @@ export default function ColumnMatchStep({
       })
       .catch((err: any) => {
         if (!active) return;
-        notifications.show({
-          color: 'red',
-          title: 'Erro',
-          message:
-            err?.response?.data?.detail || 'Não foi possível ler os cabeçalhos da planilha.',
-        });
+        fb.error(err?.response?.data?.detail || 'Não foi possível ler os cabeçalhos da planilha.');
       })
       .finally(() => {
         if (active) {
@@ -219,3 +215,5 @@ export default function ColumnMatchStep({
     </Stack>
   );
 }
+
+

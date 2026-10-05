@@ -11,9 +11,9 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconSignature, IconCopy, IconCheck } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SignatureViewerModalProps {
   opened: boolean;
@@ -37,6 +37,7 @@ export default function SignatureViewerModal({
   approved,
 }: SignatureViewerModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [copied, setCopied] = useState(false);
 
   const hasContent = !!photoUrl || !!signatureUrl;
@@ -48,7 +49,7 @@ export default function SignatureViewerModal({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      notifications.show({ color: 'red', message: t.validationPage.confirmError });
+      fb.error(t.validationPage.confirmError);
     }
   };
 
@@ -157,3 +158,5 @@ export default function SignatureViewerModal({
     </Modal>
   );
 }
+
+

@@ -51,7 +51,7 @@ export default function VisitorFormModal({ opened, onClose, visitor, onSave }: V
         name: toUpperCamelWords(values.name),
         notes: values.notes ? toSentenceCase(values.notes) : '',
       },
-      !!visitor,
+      !!visitor
     );
     onClose();
   });

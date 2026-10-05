@@ -19,8 +19,8 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import {
+  IconCalendarTime,
   IconClipboardCheck,
   IconCopy,
   IconDeviceFloppy,
@@ -30,12 +30,14 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MinistriesModal from '../components/MinistriesModal';
 import SetlistModal from '../components/SetlistModal';
 import { SkeletonRosterCards } from '../components/LoadingSkeleton';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
@@ -51,7 +53,7 @@ import type {
 type Volunteer = { id: number; name: string; email: string };
 
 const MONTHS_PT = [
-  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+  'Janeiro','Fevereiro','MarÃ§o','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
 ];
 
@@ -75,6 +77,7 @@ const STATUS_COLORS: Record<RosterAssignmentStatus, string> = {
 
 export default function RostersPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const { canManageMusic, canManageSetlists } = useRoleHelpers(user);
   const [month, setMonth] = useState(() => monthKey(new Date()));
@@ -95,8 +98,8 @@ export default function RostersPage() {
       } else {
         setRosters(await musicApi.rosters({ month }));
       }
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao carregar escalas.' });
+    } catch (err) {
+      fb.fromError(err, t.music.rostersLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -175,7 +178,11 @@ export default function RostersPage() {
             <SkeletonRosterCards count={6} />
           ) : rosters.length === 0 ? (
           <Card withBorder p="xl">
-            <Text c="dimmed">{!canManageMusic || onlyMine ? t.music.myRostersEmpty : t.music.rosterEmpty}</Text>
+            <EmptyState
+              variant="center"
+              icon={<IconCalendarTime size={24} />}
+              title={!canManageMusic || onlyMine ? t.music.myRostersEmpty : t.music.rosterEmpty}
+            />
           </Card>
         ) : (
           <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }}>
@@ -234,19 +241,20 @@ function RosterCard({
   onRefresh: () => void;
 }) {
   const { t } = useLanguage();
+    const fb = useFeedback();
 
   const myAssignments = useMemo(
     () => roster.assignments.filter((a) => a.user === currentUserId),
-    [roster.assignments, currentUserId],
+    [roster.assignments, currentUserId]
   );
 
   const copyText = async () => {
     try {
       const { text } = await musicApi.exportRosterText(roster.id);
       await navigator.clipboard.writeText(text);
-      notifications.show({ color: 'green', message: t.music.copyDone });
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao copiar.' });
+      fb.success(t.music.copyDone);
+    } catch (err) {
+      fb.fromError(err, t.music.copyFailed);
     }
   };
 
@@ -281,7 +289,7 @@ function RosterCard({
       {myAssignments.length > 0 ? (
         <Group gap={6} mt="xs">
           <Badge color="teal" variant="filled" size="sm">
-            {t.music.youScaleNote} — {myAssignments.map((a) => a.role_name).join(', ')}
+            {t.music.youScaleNote} â€” {myAssignments.map((a) => a.role_name).join(', ')}
           </Badge>
         </Group>
       ) : null}
@@ -294,7 +302,10 @@ function RosterCard({
                 key={a.id}
                 style={
                   a.user === currentUserId
-                    ? { backgroundColor: 'var(--mantine-color-teal-0)' }
+                    ? {
+                        backgroundColor:
+                          'light-dark(var(--mantine-color-teal-0), var(--mantine-color-dark-6))',
+                      }
                     : undefined
                 }
               >
@@ -333,7 +344,7 @@ function RosterCard({
             ) : null}
           </Group>
           {roster.setlist.items.map((s) => (
-            <Text key={s.id} size="xs">{s.order}. {s.song_title} — {s.song_artist}</Text>
+            <Text key={s.id} size="xs">{s.order}. {s.song_title} â€” {s.song_artist}</Text>
           ))}
         </Stack>
       ) : onSetlist ? (
@@ -362,6 +373,7 @@ function RosterModal({
   onSaved: () => void;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const [date, setDate] = useState<string | null>(() => {
     return editing?.date ?? new Date().toISOString().slice(0, 10);
@@ -394,7 +406,7 @@ function RosterModal({
         role: a.role,
         user: a.user,
         status: a.status,
-      })),
+      }))
     );
     setError('');
     void musicApi.ministries().then(setMinistries).catch(() => setMinistries([]));
@@ -410,7 +422,7 @@ function RosterModal({
 
   const updateRow = (i: number, patch: Partial<typeof assignments[0]>) => {
     setAssignments((prev) =>
-      prev.map((row, idx) => (idx === i ? { ...row, ...patch } : row)),
+      prev.map((row, idx) => (idx === i ? { ...row, ...patch } : row))
     );
   };
 
@@ -460,14 +472,14 @@ function RosterModal({
       } else {
         await musicApi.createRoster(payload);
       }
-      notifications.show({ color: 'green', message: editing ? 'Escala atualizada!' : 'Escala criada!' });
+      fb.success(editing ? t.music.rosterUpdated : t.music.rosterCreated);
       onSaved();
     } catch (err: any) {
       const msg =
         err?.response?.data?.detail
         ?? err?.response?.data?.assignments?.[0]
         ?? err?.response?.data?.user
-        ?? 'Erro ao salvar escala.';
+        ?? t.music.rosterSaveError;
       setError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     } finally {
       setSaving(false);
@@ -606,3 +618,4 @@ function RosterModal({
     </Modal>
   );
 }
+

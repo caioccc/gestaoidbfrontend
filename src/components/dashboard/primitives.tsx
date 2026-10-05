@@ -4,7 +4,6 @@ import {
   Badge,
   Box,
   Button,
-  Center,
   Group,
   Paper,
   SimpleGrid,
@@ -21,6 +20,8 @@ import {
   IconMinus,
 } from '@tabler/icons-react';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import EmptyStateBase from '../EmptyState';
+import type { EmptyStateVariant } from '../EmptyState';
 
 /**
  * Rolagem horizontal sem barra visivel, usada nas faixas de atalhos do mobile.
@@ -336,15 +337,29 @@ export function FeedRow({
   );
 }
 
-export function EmptyState({ label, icon }: { label: string; icon?: React.ReactNode }) {
+export function EmptyState({
+  title,
+  label,
+  hint,
+  icon,
+  variant = 'compact',
+  color,
+}: {
+  title?: string;
+  /** @deprecated use `title` */
+  label?: string;
+  hint?: string;
+  icon?: React.ReactNode;
+  variant?: EmptyStateVariant;
+  color?: DashboardTone;
+}) {
   return (
-    <Center h={140}>
-      <Stack gap="xs" align="center">
-        {icon}
-        <Text c="dimmed" size="sm" ta="center">
-          {label}
-        </Text>
-      </Stack>
-    </Center>
+    <EmptyStateBase
+      variant={variant}
+      color={color}
+      icon={icon}
+      title={title ?? label ?? ''}
+      hint={hint}
+    />
   );
 }

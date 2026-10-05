@@ -16,7 +16,6 @@ import {
   Title,
   useMantineColorScheme,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconCopy, IconBuildingChurch, IconExternalLink } from '@tabler/icons-react';
 import { publicLinksApi } from '../../api/accounts';
 import { useLanguage } from '../../i18n';
@@ -31,9 +30,11 @@ import type {
   PublicChurchLinkSystem,
   PublicChurchLinksPayload,
 } from '../../types';
+import { useFeedback } from '../../hooks/useFeedback';
 
 export default function PublicLinksPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { colorScheme } = useMantineColorScheme();
   const router = useRouter();
   const slug = typeof router.query.slug === 'string' ? router.query.slug : '';
@@ -309,10 +310,7 @@ export default function PublicLinksPage() {
             const copyPayload = async () => {
               if (!payload) return;
               await copyToClipboard(payload);
-              notifications.show({
-                color: 'green',
-                message: t.linksPage.pixPayloadCopied,
-              });
+              fb.success(t.linksPage.pixPayloadCopied);
             };
 
             return (
@@ -475,3 +473,5 @@ export default function PublicLinksPage() {
     </>
   );
 }
+
+

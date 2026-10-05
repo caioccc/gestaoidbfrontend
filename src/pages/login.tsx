@@ -12,14 +12,15 @@ import {
   Group,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import AuthShell from '../components/AuthShell';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { login } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -52,11 +53,7 @@ export default function LoginPage() {
     try {
       await login(values.email, values.password);
       sessionStorage.removeItem('idb_pending_approval');
-      notifications.show({
-        color: 'green',
-        title: 'Bem-vindo!',
-        message: 'Login realizado com sucesso.',
-      });
+      fb.success(t.loginPage.success);
     } catch (err: any) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail;

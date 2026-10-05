@@ -19,7 +19,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import { IconPencil } from '@tabler/icons-react';
 import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
@@ -46,6 +45,7 @@ import type {
 } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface RelativeForm {
   id?: number;
@@ -148,6 +148,7 @@ export default function MemberFormModal({
   onSave,
 }: MemberFormModalProps) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const isMobile = useIsMobile();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -374,17 +375,17 @@ export default function MemberFormModal({
       if (!res.ok) throw new Error('viacep');
       const data = await res.json();
       if (data.erro) {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else if (data.uf) {
         form.setFieldValue('street', data.logradouro || '');
         form.setFieldValue('neighborhood', data.bairro || '');
         form.setFieldValue('city', data.localidade || '');
         form.setFieldValue('state', data.uf || '');
       } else {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       }
     } catch {
-      notifications.show({ color: 'red', message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -400,7 +401,7 @@ export default function MemberFormModal({
     }
     try {
       await onSave?.(payload, !!member);
-      notifications.show({ color: 'green', message: t.membersPage.saved });
+      fb.success(t.membersPage.saved);
       form.resetDirty();
       setStep(0);
       onClose();
@@ -413,7 +414,7 @@ export default function MemberFormModal({
         data?.name?.[0] ||
         data?.photo?.[0] ||
         data?.detail;
-      notifications.show({ color: 'red', message: msg || t.overview });
+      fb.error(msg || t.overview);
     } finally {
       setSaving(false);
     }
@@ -928,3 +929,4 @@ export default function MemberFormModal({
       </Modal>
   );
 }
+

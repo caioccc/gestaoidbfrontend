@@ -24,7 +24,6 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconArrowRotaryLeft,
   IconBellRinging,
@@ -40,6 +39,7 @@ import {
   IconTruckReturn,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
@@ -49,6 +49,7 @@ import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { toISO, toSentenceCase, toUpperCamelWords, maskPhone } from '../utils/format';
 import type { Loan, MaterialItem, Member, StorageLocation } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 function formatISODate(iso: string | null): string {
   if (!iso) return '—';
@@ -85,6 +86,7 @@ function isDueToday(loan: Loan): boolean {
 
 function ItemsTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [items, setItems] = useState<MaterialItem[]>([]);
   const [locations, setLocations] = useState<StorageLocation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,14 +206,14 @@ function ItemsTab() {
       } else {
         await accountsApi.createMaterial(payload);
       }
-      notifications.show({ color: 'green', message: t.inventoryPage.itemSaved });
+      fb.success(t.inventoryPage.itemSaved);
       setOpened(false);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg =
         data?.name?.[0] || data?.location?.[0] || data?.detail || t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.error(msg);
     } finally {
       setSaving(false);
     }
@@ -222,13 +224,13 @@ function ItemsTab() {
     setDeleting(true);
     try {
       await accountsApi.deleteMaterial(toDelete.id);
-      notifications.show({ color: 'green', message: t.inventoryPage.itemDeleted });
+      fb.success(t.inventoryPage.itemDeleted);
       setToDelete(null);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg = data?.detail || t.inventoryPage.deleteBlocked;
-      notifications.show({ color: 'red', message: msg });
+      fb.error(msg);
     } finally {
       setDeleting(false);
     }
@@ -380,12 +382,12 @@ function ItemsTab() {
           {loading ? (
             <SkeletonResponsiveTable rows={7} columns={5} inCard={false} />
           ) : items.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="teal" variant="light">
-              <IconBuildingWarehouse size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.inventoryPage.itemsEmpty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="teal"
+            icon={<IconBuildingWarehouse size={24} />}
+            title={t.inventoryPage.itemsEmpty}
+          />
         ) : (
           <>
             <Box visibleFrom="lg">
@@ -608,6 +610,7 @@ function ItemsTab() {
 
 function LocationsTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [locations, setLocations] = useState<StorageLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [opened, setOpened] = useState(false);
@@ -678,13 +681,13 @@ function LocationsTab() {
       } else {
         await accountsApi.createStorageLocation(payload);
       }
-      notifications.show({ color: 'green', message: t.inventoryPage.locationSaved });
+      fb.success(t.inventoryPage.locationSaved);
       setOpened(false);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg = data?.name?.[0] || data?.detail || t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.error(msg);
     } finally {
       setSaving(false);
     }
@@ -695,12 +698,12 @@ function LocationsTab() {
     setDeleting(true);
     try {
       await accountsApi.deleteStorageLocation(toDelete.id);
-      notifications.show({ color: 'green', message: t.inventoryPage.locationDeleted });
+      fb.success(t.inventoryPage.locationDeleted);
       setToDelete(null);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
-      notifications.show({ color: 'red', message: data?.detail || t.overview });
+      fb.error(data?.detail || t.overview);
     } finally {
       setDeleting(false);
     }
@@ -761,12 +764,12 @@ function LocationsTab() {
           {loading ? (
             <SkeletonResponsiveTable rows={6} columns={2} inCard={false} />
           ) : locations.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="teal" variant="light">
-              <IconBuildingWarehouse size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.inventoryPage.locationsEmpty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="teal"
+            icon={<IconBuildingWarehouse size={24} />}
+            title={t.inventoryPage.locationsEmpty}
+          />
         ) : (
           <>
             <Box visibleFrom="lg">
@@ -883,6 +886,7 @@ interface LoanFormValues {
 
 function LoansTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { colorScheme } = useMantineColorScheme();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [items, setItems] = useState<MaterialItem[]>([]);
@@ -1025,14 +1029,14 @@ function LoansTab() {
       } else {
         await accountsApi.createLoan(payload);
       }
-      notifications.show({ color: 'green', message: t.inventoryPage.loanSaved });
+      fb.success(t.inventoryPage.loanSaved);
       setOpened(false);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
       const msg =
         data?.item?.[0] || data?.borrower_name?.[0] || data?.detail || t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.error(msg);
     } finally {
       setSaving(false);
     }
@@ -1043,12 +1047,12 @@ function LoansTab() {
     setReturning(true);
     try {
       await accountsApi.returnLoan(toReturn.id);
-      notifications.show({ color: 'green', message: t.inventoryPage.loanSaved });
+      fb.success(t.inventoryPage.loanSaved);
       setToReturn(null);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
-      notifications.show({ color: 'red', message: data?.detail || t.overview });
+      fb.error(data?.detail || t.overview);
     } finally {
       setReturning(false);
     }
@@ -1059,12 +1063,12 @@ function LoansTab() {
     setDeleting(true);
     try {
       await accountsApi.deleteLoan(toDelete.id);
-      notifications.show({ color: 'green', message: t.inventoryPage.loanDeleted });
+      fb.success(t.inventoryPage.loanDeleted);
       setToDelete(null);
       load();
     } catch (err: any) {
       const data = err?.response?.data;
-      notifications.show({ color: 'red', message: data?.detail || t.overview });
+      fb.error(data?.detail || t.overview);
     } finally {
       setDeleting(false);
     }
@@ -1321,12 +1325,12 @@ function LoansTab() {
           {loading ? (
             <SkeletonResponsiveTable rows={7} columns={6} inCard={false} />
           ) : loanRows.length === 0 ? (
-          <Stack align="center" py="xl" gap="sm">
-            <ThemeIcon size={48} radius="xl" color="teal" variant="light">
-              <IconTruckReturn size={24} />
-            </ThemeIcon>
-            <Text c="dimmed">{t.inventoryPage.loansEmpty}</Text>
-          </Stack>
+          <EmptyState
+            variant="center"
+            color="teal"
+            icon={<IconTruckReturn size={24} />}
+            title={t.inventoryPage.loansEmpty}
+          />
         ) : (
           <>
             <Box visibleFrom="lg">
@@ -1673,3 +1677,4 @@ export default function InventoryPage() {
     </AuthGuard>
   );
 }
+

@@ -31,12 +31,13 @@ import {
   IconReport,
 } from '@tabler/icons-react';
 import { Dropzone, MS_EXCEL_MIME_TYPE } from '@mantine/dropzone';
-import { notifications } from '@mantine/notifications';
 import PageHeader from '../components/PageHeader';
 import ImportErrorsPanel from '../components/ImportErrorsPanel';
 import ColumnMatchStep from '../components/ColumnMatchStep';
 import ColumnPreview from '../components/ColumnPreview';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
+import { firstFieldError } from '../utils/apiError';
 import { financeApi, saveBlob, TEMPLATE_FILES } from '../api/finance';
 import { ImportResult, ReconciliationItem, ExistingMonthData, SpreadsheetInspection } from '../types';
 
@@ -78,6 +79,7 @@ function downloadStaticTemplate(key: string) {
 
 export default function ImportPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const [active, setActive] = useState(0);
   const [files, setFiles] = useState<Record<SlotKey, File | null>>({
@@ -165,24 +167,23 @@ export default function ImportPage() {
     setError(null);
     setResult(null);
     setProcessing(true);
+    // Um toast so, atualizado no lugar: evita o piscar de "processando" ->
+    // "sucesso" e mantem o progresso visivel durante o upload das planilhas.
+    fb.task(dryRun ? 'import-dry-run' : 'import-commit', t.importPage.processingSpreadsheets);
     try {
       const res = await financeApi.importSpreadsheet(buildFormData(dryRun));
       setResult(res);
       setActive(processIdx);
       if (dryRun) {
-        notifications.show({ color: 'blue', message: t.importPage.dryRunDone });
+        fb.taskSuccess('import-dry-run', t.importPage.dryRunDone);
       } else {
-        notifications.show({
-          color: 'green',
-          title: t.importPage.successTitle,
-          message: t.importPage.entriesImported,
-        });
+        fb.taskSuccess('import-commit', t.importPage.entriesImported);
         router.push('/dashboard');
       }
     } catch (err: any) {
-      const msg = err?.response?.data?.detail || 'Falha ao processar as planilhas.';
+      const msg = firstFieldError(err?.response?.data) || t.importPage.processFailed;
       setError(msg);
-      notifications.show({ color: 'red', title: 'Erro', message: msg });
+      fb.taskError(dryRun ? 'import-dry-run' : 'import-commit', err, msg);
     } finally {
       setProcessing(false);
       setCommitOpen(false);
@@ -205,12 +206,9 @@ export default function ImportPage() {
           ? `caixa-idb-${year}-${String(month).padStart(2, '0')}.xls`
           : `relatorio-regional-${year}-${String(month).padStart(2, '0')}.xls`;
       saveBlob(blob, filename);
+      fb.success(t.common.toast.copied);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Falha ao gerar o arquivo.',
-      });
+      fb.fromError(err, t.importPage.templateFailed);
     } finally {
       setDownloading(null);
     }

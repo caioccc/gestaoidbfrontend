@@ -1,3 +1,4 @@
+import { useFeedback } from '../hooks/useFeedback';
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import {
@@ -6,7 +7,6 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Group,
   Indicator,
   Modal,
@@ -21,10 +21,10 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { YearPickerInput } from "@mantine/dates";
-import { notifications } from "@mantine/notifications";
 import {
   IconAdjustmentsHorizontal,
   IconCertificate,
+  IconFileDescription,
   IconDownload,
   IconFileTypePdf,
   IconPencil,
@@ -34,6 +34,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import PageHeader from "../components/PageHeader";
+import EmptyState from "../components/EmptyState";
 import AuthGuard from "../components/AuthGuard";
 import Layout from "../components/Layout";
 import MobileItemCard from "../components/MobileItemCard";
@@ -91,14 +92,15 @@ export default function CertificatesPage() {
 
 function IssuedTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
   const [certificates, setCertificates] = useState<EcclesiasticalCertificate[]>(
-    [],
+    []
   );
   const [loading, setLoading] = useState(true);
   const [issueOpen, setIssueOpen] = useState(false);
   const [deleting, setDeleting] = useState<EcclesiasticalCertificate | null>(
-    null,
+    null
   );
   const [search, setSearch] = useState("");
   const [certsType, setCertsType] = useState<string>("");
@@ -141,7 +143,7 @@ function IssuedTab() {
       .catch(() => {
         setCertificates([]);
         setTotal(0);
-        notifications.show({ color: "red", message: t.certificates.error });
+        fb.error(t.certificates.error);
       })
       .finally(() => setLoading(false));
   }, [page, pageSize, search, certsType, year, t, setPage, setTotal]);
@@ -191,7 +193,7 @@ function IssuedTab() {
       const blob = await accountsApi.certificatePdfDownload(cert.id);
       saveBlob(blob, `${cert.generated_pdf_name ?? "certificado.pdf"}`);
     } catch {
-      notifications.show({ color: "red", message: t.certificates.error });
+      fb.error(t.certificates.error);
     }
   };
 
@@ -353,25 +355,25 @@ function IssuedTab() {
           <SkeletonResponsiveTable rows={7} columns={5} />
         ) : certificates.length === 0 ? (
         <Card withBorder>
-          <Center h={160}>
-            <Stack gap="sm" align="center">
-              <Text c="dimmed" data-testid="cert-empty">
-                {hasFilters
-                  ? t.certificates.filterEmpty
-                  : t.certificates.emptyIssued}
-              </Text>
-              {hasFilters && (
-                <Button
-                  variant="light"
-                  size="xs"
-                  onClick={clearFilters}
-                  data-testid="cert-empty-clear-filters"
-                >
-                  {t.common.clearFilters}
-                </Button>
-              )}
-            </Stack>
-          </Center>
+          <div data-testid="cert-empty">
+            <EmptyState
+              variant="center"
+              icon={<IconCertificate size={24} />}
+              title={hasFilters ? t.certificates.filterEmpty : t.certificates.emptyIssued}
+              action={
+                hasFilters ? (
+                  <Button
+                    variant="light"
+                    size="xs"
+                    onClick={clearFilters}
+                    data-testid="cert-empty-clear-filters"
+                  >
+                    {t.common.clearFilters}
+                  </Button>
+                ) : undefined
+              }
+            />
+          </div>
         </Card>
       ) : (
         <Card withBorder padding={0}>
@@ -604,17 +606,11 @@ function IssuedTab() {
                 if (!deleting) return;
                 try {
                   await accountsApi.deleteCertificate(deleting.id);
-                  notifications.show({
-                    color: "green",
-                    message: t.certificates.deleteCertDone,
-                  });
+                  fb.success(t.certificates.deleteCertDone);
                   setDeleting(null);
                   load();
                 } catch {
-                  notifications.show({
-                    color: "red",
-                    message: t.certificates.error,
-                  });
+                  fb.error(t.certificates.error);
                 }
               }}
             >
@@ -629,6 +625,7 @@ function IssuedTab() {
 
 function TemplatesTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -642,7 +639,7 @@ function TemplatesTab() {
       .certificateTemplates()
       .then(setTemplates)
       .catch(() =>
-        notifications.show({ color: "red", message: t.certificates.error }),
+        fb.error(t.certificates.error)
       )
       .finally(() => setLoading(false));
   }, [t]);
@@ -709,9 +706,11 @@ function TemplatesTab() {
           <SkeletonResponsiveTable rows={7} columns={5} breakpoint="lg" />
         ) : templates.length === 0 ? (
         <Card withBorder>
-          <Center h={160}>
-            <Text c="dimmed">{t.certificates.emptyTemplates}</Text>
-          </Center>
+          <EmptyState
+            variant="center"
+            icon={<IconFileDescription size={24} />}
+            title={t.certificates.emptyTemplates}
+          />
         </Card>
       ) : (
         <>
@@ -874,17 +873,11 @@ function TemplatesTab() {
                 if (!deleting) return;
                 try {
                   await accountsApi.deleteCertificateTemplate(deleting.id);
-                  notifications.show({
-                    color: "green",
-                    message: t.certificates.deleteTemplateDone,
-                  });
+                  fb.success(t.certificates.deleteTemplateDone);
                   setDeleting(null);
                   load();
                 } catch {
-                  notifications.show({
-                    color: "red",
-                    message: t.certificates.error,
-                  });
+                  fb.error(t.certificates.error);
                 }
               }}
             >
@@ -896,3 +889,5 @@ function TemplatesTab() {
     </Stack>
   );
 }
+
+

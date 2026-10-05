@@ -15,7 +15,6 @@ import {
   Text,
   ThemeIcon,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconUsersGroup,
   IconPlus,
@@ -32,6 +31,7 @@ import MemberFormModal from '../../../components/MemberFormModal';
 import MemberCardModal from '../../../components/MemberCardModal';
 import { useLanguage } from '../../../i18n';
 import { useChurchCardConfig } from '../../../hooks/useChurchCardConfig';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { accountsApi } from '../../../api/accounts';
 import type { Member, MinistryArea } from '../../../types';
 
@@ -46,6 +46,7 @@ export default function MembersSection({
   staffAccess?: boolean;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const cardData = useChurchCardConfig(
     staffAccess
       ? () => accountsApi.getChurchProfile(churchId)
@@ -108,13 +109,13 @@ export default function MembersSection({
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await accountsApi.deleteChurchMember(churchId, toDelete.id);
-      notifications.show({ color: 'green', message: t.membersPage.deleted });
-      setToDelete(null);
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
+        await accountsApi.deleteChurchMember(churchId, toDelete.id);
+        fb.success(t.membersPage.deleted);
+        setToDelete(null);
+        load();
+      } catch (err) {
+        fb.fromError(err, t.common.toast.deleteFailed);
+      } finally {
       setDeleting(false);
     }
   };

@@ -24,7 +24,6 @@ import {
   Alert,
   Radio,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconBuilding,
   IconMapPin,
@@ -52,6 +51,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { accountsApi } from '../../../api/accounts';
 import { PendingChurch, Church, ChurchMembership, Role } from '../../../types';
 import { toUpperCamelWords } from '../../../utils/format';
+import { firstFieldError } from '../../../utils/apiError';
+import { useFeedback } from '../../../hooks/useFeedback';
 
 const UF_LIST = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -86,20 +87,9 @@ const STATUS_BORDER_WIDTH: Record<string, number> = {
   REJECTED: 2,
 };
 
-function apiErrorMessage(err: any, fallback: string): string {
-  const d = err?.response?.data;
-  if (!d) return fallback;
-  if (typeof d === 'string') return d;
-  if (typeof d.detail === 'string') return d.detail;
-  const first = Object.keys(d)[0];
-  const val = first ? d[first] : null;
-  if (Array.isArray(val) && typeof val[0] === 'string') return `${first}: ${val[0]}`;
-  if (typeof val === 'string') return `${first}: ${val}`;
-  return fallback;
-}
-
 export default function AdminChurchesPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const { switchChurch } = useAuth();
   const [churches, setChurches] = useState<PendingChurch[]>([]);
@@ -211,8 +201,8 @@ export default function AdminChurchesPage() {
     try {
       await switchChurch(church.id);
       router.push('/dashboard');
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
       setOpening(null);
     }
   };
@@ -222,15 +212,17 @@ export default function AdminChurchesPage() {
     try {
       if (type === 'approve') {
         await accountsApi.approveChurch(id);
-        notifications.show({ color: 'green', message: t.approvalsPage.approvedMsg });
+        fb.success(t.approvalsPage.approvedMsg);
       } else {
         await accountsApi.rejectChurch(id);
-        notifications.show({ color: 'red', message: t.approvalsPage.rejectedMsg });
+        // Rejeitar e um desfecho negativo, nao um erro: `warning` evita o
+        // icone de "X" que sugeriria falha tecnica.
+        fb.warning(t.approvalsPage.rejectedMsg);
       }
       setSelected(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao executar a ação.' });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setBusyId(null);
     }
@@ -241,14 +233,11 @@ export default function AdminChurchesPage() {
     setDeleting(true);
     try {
       await accountsApi.deleteChurch(toDelete.id);
-      notifications.show({
-        color: 'green',
-        message: t.adminChurches.deleteSuccess,
-      });
+      fb.success(t.adminChurches.deleteSuccess);
       setToDelete(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir a igreja.' });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -335,12 +324,14 @@ export default function AdminChurchesPage() {
       if (editChurch.church_type === 'CONGREGATION') {
         payload.accounting_category = formFields.accounting_category.trim();
       }
-      await accountsApi.updateChurch(editChurch.id, payload);
-      notifications.show({ color: 'green', message: t.adminChurches.editChurchSuccess });
-      setEditChurch(null);
+          await accountsApi.updateChurch(editChurch.id, payload);
+          fb.success(t.adminChurches.editChurchSuccess);
+          setEditChurch(null);
       load();
     } catch (err: any) {
-      setEditError(apiErrorMessage(err, 'Não foi possível salvar.'));
+      // `setEditError` alimenta o alerta inline do modal (nao e um toast), entao
+      // usa a extracao direta em vez de `fb.fromError`.
+      setEditError(firstFieldError(err?.response?.data) || t.common.toast.saveFailed);
     } finally {
       setEditSaving(false);
     }
@@ -464,16 +455,16 @@ export default function AdminChurchesPage() {
           role: formFields.resp_role,
         };
       }
-      await accountsApi.createChurch(payload);
-      notifications.show({ color: 'green', message: t.churchesPage.saveDone });
-      setCreating(false);
-      load();
-    } catch (err: any) {
-      const data = err?.response?.data;
-      const detail =
-        data?.detail || data?.parent_church?.[0] || 'Erro ao criar a igreja.';
-      setCreateError(detail);
-    } finally {
+          await accountsApi.createChurch(payload);
+          fb.success(t.churchesPage.saveDone);
+          setCreating(false);
+          load();
+        } catch (err: any) {
+          setCreateError(
+            firstFieldError(err?.response?.data, ['parent_church']) ||
+              t.common.toast.saveFailed
+          );
+        } finally {
       setSaving(false);
     }
   };

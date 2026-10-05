@@ -3,21 +3,19 @@
 
    O movimento é sutil de propósito: serve para a triagem achar o que importa
    em telas com dezenas de cartões, sem competir com o conteúdo. Respeita
-   prefers-reduced-motion. */
+   prefers-reduced-motion.
+
+   As cores usam `light-dark()` no lugar das classes `.attentionCardDark` /
+   `.attentionDotDark`: o valor do dark sai do próprio CSS, então `prayer-requests`
+   e `visitation` não leem mais o tema para trocar de estilo. */
 
 .attentionCard {
   position: relative;
-  border-color: var(--mantine-color-orange-5) !important;
+  border-color: light-dark(var(--mantine-color-orange-5), var(--mantine-color-orange-8)) !important;
   border-left-width: 4px !important;
-  border-left-color: var(--mantine-color-orange-6) !important;
-  background-color: var(--mantine-color-orange-0);
+  border-left-color: light-dark(var(--mantine-color-orange-6), var(--mantine-color-orange-5)) !important;
+  background-color: light-dark(var(--mantine-color-orange-0), rgba(255, 145, 60, 0.07));
   animation: attentionPulse 2.4s ease-in-out infinite;
-}
-
-.attentionCardDark {
-  border-color: var(--mantine-color-orange-8) !important;
-  border-left-color: var(--mantine-color-orange-5) !important;
-  background-color: rgba(255, 145, 60, 0.07);
 }
 
 @keyframes attentionPulse {
@@ -34,14 +32,10 @@
   display: inline-block;
   width: 8px;
   height: 8px;
-  border-radius: 9999;
-  background: var(--mantine-color-orange-6);
+  border-radius: 9999px;
+  background: light-dark(var(--mantine-color-orange-6), var(--mantine-color-orange-4));
   flex-shrink: 0;
   animation: attentionDotPulse 1.6s ease-in-out infinite;
-}
-
-.attentionDotDark {
-  background: var(--mantine-color-orange-4);
 }
 
 @keyframes attentionDotPulse {
@@ -58,8 +52,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .attentionCard,
-  .attentionDot,
-  .attentionDotDark {
+  .attentionDot {
     animation: none;
   }
   .attentionCard {

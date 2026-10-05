@@ -15,9 +15,9 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconDeviceFloppy, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { musicApi } from '../api/music';
 import { SkeletonColorEntityCards } from './LoadingSkeleton';
 import type { Ministry, MinistryRole } from '../types';
@@ -30,6 +30,7 @@ interface MinistriesModalProps {
 
 export default function MinistriesModal({ opened, onClose, volunteers }: MinistriesModalProps) {
   const { t } = useLanguage();
+const fb = useFeedback();
   const [ministries, setMinistries] = useState<Ministry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,8 +45,8 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
     setLoading(true);
     try {
       setMinistries(await musicApi.ministries());
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao carregar ministérios.' });
+    } catch (err) {
+      fb.fromError(err, t.music.ministriesLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -59,13 +60,13 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
     setSaving(true);
     try {
       await musicApi.createMinistry({ name: n, color, leader: leader ?? undefined });
-      notifications.show({ color: 'green', message: t.music.ministrySaved });
+      fb.success(t.music.ministrySaved);
       setName('');
       setColor('#7048e8');
       setLeader(null);
       await load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao salvar ministério.' });
+    } catch (err) {
+      fb.fromError(err, t.music.ministrySaveFailed);
     } finally {
       setSaving(false);
     }
@@ -75,10 +76,10 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
     if (!window.confirm(t.music.deleteMinistryBody)) return;
     try {
       await musicApi.deleteMinistry(m.id);
-      notifications.show({ color: 'green', message: t.music.ministryDeleted });
+      fb.success(t.music.ministryDeleted);
       await load();
     } catch {
-      notifications.show({ color: 'red', message: t.music.ministryInUse });
+      fb.error(t.music.ministryInUse);
     }
   };
 
@@ -87,22 +88,22 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
     if (!n) return;
     try {
       await musicApi.createMinistryRole(ministryId, { name: n });
-      notifications.show({ color: 'green', message: t.music.roleSaved });
+      fb.success(t.music.roleSaved);
       setNewRoleName('');
       setAddingTo(null);
       await load();
     } catch {
-      notifications.show({ color: 'red', message: t.music.roleInUse });
+      fb.error(t.music.roleInUse);
     }
   };
 
   const removeRole = async (ministryId: number, roleId: number) => {
     try {
       await musicApi.deleteMinistryRole(ministryId, roleId);
-      notifications.show({ color: 'green', message: t.music.roleDeleted });
+      fb.success(t.music.roleDeleted);
       await load();
     } catch {
-      notifications.show({ color: 'red', message: t.music.roleInUse });
+      fb.error(t.music.roleInUse);
     }
   };
 
@@ -135,7 +136,7 @@ export default function MinistriesModal({ opened, onClose, volunteers }: Ministr
                 </Group>
 
                 {m.leader_name ? (
-                  <Text size="xs" c="dimmed">Líder: {m.leader_name}</Text>
+                  <Text size="xs" c="dimmed">LÃ­der: {m.leader_name}</Text>
                 ) : null}
 
                 <Divider my="sm" />

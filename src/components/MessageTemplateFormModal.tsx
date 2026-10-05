@@ -9,10 +9,10 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import type { MessageTemplate, MessageTemplateCategory } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface MessageTemplateFormModalProps {
   opened: boolean;
@@ -37,6 +37,7 @@ export default function MessageTemplateFormModal({
   editing,
 }: MessageTemplateFormModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<MessageTemplateCategory>('CUSTOM');
   const [content, setContent] = useState('');
@@ -64,7 +65,7 @@ export default function MessageTemplateFormModal({
 
   const save = async () => {
     if (!title.trim()) {
-      notifications.show({ color: 'red', message: t.sender.titleRequired });
+      fb.error(t.sender.titleRequired);
       return;
     }
     setSaving(true);
@@ -80,16 +81,13 @@ export default function MessageTemplateFormModal({
       } else {
         await accountsApi.createMessageTemplate(payload);
       }
-      notifications.show({ color: 'green', message: t.sender.saved });
+      fb.success(t.sender.saved);
       onSaved();
       onClose();
     } catch (e: unknown) {
       const data = (e as { response?: { data?: Record<string, string[]> } })?.response?.data;
       const first = data ? Object.values(data)[0] : null;
-      notifications.show({
-        color: 'red',
-        message: first ? String(first) : t.sender.error,
-      });
+      fb.error(first ? String(first) : t.sender.error);
     } finally {
       setSaving(false);
     }
@@ -165,3 +163,4 @@ function categoryLabel(t: ReturnType<typeof useLanguage>['t'], c: MessageTemplat
       return t.sender.categoryCustom;
   }
 }
+

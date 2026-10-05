@@ -39,6 +39,12 @@ const theme = createTheme({
     Select: { defaultProps: { comboboxProps: { hideDetached: false } } },
     MultiSelect: { defaultProps: { comboboxProps: { hideDetached: false } } },
     TagsInput: { defaultProps: { comboboxProps: { hideDetached: false } } },
+    Modal: {
+      defaultProps: {
+        overlayProps: { backgroundOpacity: 0.6, blur: 3 },
+        radius: 'md',
+      },
+    },
   },
 });
 
@@ -177,7 +183,17 @@ export default function App({ Component, pageProps }: AppProps) {
         <title>Gestão IDB - Sistema Integrado de Gestão Eclesial</title>
         <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
       </Head>
-      <Notifications position="top-right" />
+      {/* `limit={3}` evita a pilha de 5 toasts em acoes em lote (importacao,
+          exclusao em lote): os extras entram em fila em vez de cobrir a tela.
+          `pauseResetOnHover="notification"` faz cada toast contar o tempo
+          quando o cursor esta sobre ele, e nao todos ao mesmo tempo. */}
+      <Notifications
+        position="top-right"
+        limit={3}
+        autoClose={3000}
+        pauseResetOnHover="notification"
+        containerWidth={380}
+      />
       <LanguageProvider>
         <AppContent>
           <AuthProvider>

@@ -16,7 +16,6 @@ import {
   Table,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconUserShield,
   IconPlus,
@@ -25,6 +24,7 @@ import {
   IconBuildingChurch,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
@@ -35,6 +35,7 @@ import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
 import { ChurchMembership, Role } from '../types';
 import { toUpperCamelWords, isValidEmail } from '../utils/format';
+import { useFeedback } from '../hooks/useFeedback';
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'PASTOR', label: 'Pastor(a)' },
@@ -59,6 +60,7 @@ const isStrongPassword = (v: string) =>
 
 export default function UsersPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const { hasRole } = useRoleHelpers(user);
   // Secretária vê a lista (somente leitura); Pastor(a)/ADMIN gerenciam.
@@ -116,7 +118,7 @@ export default function UsersPage() {
         password: form.values.password,
         password2: form.values.password2,
       });
-      notifications.show({ color: 'green', message: t.usersPage.saved });
+      fb.success(t.usersPage.saved);
       setOpened(false);
       form.reset();
       load();
@@ -127,7 +129,7 @@ export default function UsersPage() {
         data?.password?.[0] ||
         data?.password2?.[0] ||
         data?.detail;
-      notifications.show({ color: 'red', message: msg || t.overview });
+      fb.error(msg || t.overview);
     } finally {
       setSaving(false);
     }
@@ -137,12 +139,12 @@ export default function UsersPage() {
     if (!churchId || !canManageUsers || membershipId === user?.id) return;
     setSavingRoleId(membershipId);
     try {
-      await accountsApi.updateChurchUserRole(churchId, membershipId, role);
-      notifications.show({ color: 'green', message: t.usersPage.roleUpdated });
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
+        await accountsApi.updateChurchUserRole(churchId, membershipId, role);
+        fb.success(t.usersPage.roleUpdated);
+        load();
+      } catch (err) {
+        fb.fromError(err);
+      } finally {
       setSavingRoleId(null);
     }
   };
@@ -151,13 +153,13 @@ export default function UsersPage() {
     if (!churchId || !canManageUsers || !toRemove) return;
     setRemoving(true);
     try {
-      await accountsApi.removeChurchUser(churchId, toRemove.id);
-      notifications.show({ color: 'green', message: t.usersPage.removed });
-      setToRemove(null);
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
+        await accountsApi.removeChurchUser(churchId, toRemove.id);
+        fb.success(t.usersPage.removed);
+        setToRemove(null);
+        load();
+      } catch (err) {
+        fb.fromError(err, t.common.toast.deleteFailed);
+      } finally {
       setRemoving(false);
     }
   };
@@ -166,14 +168,12 @@ export default function UsersPage() {
     return (
       <AuthGuard roles={['PASTOR', 'SECRETARIA']}>
         <Layout>
-          <Center h="60vh">
-            <Stack align="center" gap="sm">
-              <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-                <IconBuildingChurch size={24} />
-              </ThemeIcon>
-              <Text c="dimmed">{t.usersPage.empty}</Text>
-            </Stack>
-          </Center>
+          <EmptyState
+            variant="center"
+            minHeight="60vh"
+            icon={<IconBuildingChurch size={24} />}
+            title={t.usersPage.empty}
+          />
         </Layout>
       </AuthGuard>
     );
@@ -285,12 +285,11 @@ export default function UsersPage() {
             {loading ? (
               <SkeletonResponsiveTable rows={10} columns={4} breakpoint="sm" inCard={false} />
             ) : users.length === 0 ? (
-            <Stack align="center" py="xl" gap="sm">
-              <ThemeIcon size={48} radius="xl" color="gray" variant="light">
-                <IconUserShield size={24} />
-              </ThemeIcon>
-              <Text c="dimmed">{t.usersPage.empty}</Text>
-            </Stack>
+            <EmptyState
+              variant="center"
+              icon={<IconUserShield size={24} />}
+              title={t.usersPage.empty}
+            />
           ) : (
             <>
               <Box visibleFrom="sm">

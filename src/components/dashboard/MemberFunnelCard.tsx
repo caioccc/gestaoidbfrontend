@@ -46,7 +46,7 @@ export default function MemberFunnelCard({
         },
       ];
     },
-    [members, t.funnel],
+    [members, t.funnel]
   );
 
   const totalMembers = data.reduce((sum, item) => sum + item.total, 0);

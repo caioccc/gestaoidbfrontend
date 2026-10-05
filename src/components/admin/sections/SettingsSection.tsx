@@ -10,11 +10,11 @@ import {
   Loader,
   Box,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import PageHeader from '../../../components/PageHeader';
 import ChurchProfileForm from '../../../components/ChurchProfileForm';
 import { useLanguage } from '../../../i18n';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { accountsApi } from '../../../api/accounts';
 import { firstFieldError } from '../../../utils/apiError';
 import { ChurchType } from '../../../types';
@@ -33,6 +33,7 @@ export default function SettingsSection({
   staffAccess = true,
 }: SettingsSectionProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,9 +47,9 @@ export default function SettingsSection({
       : accountsApi.getChurchProfileForSede(churchId);
     fetcher
       .then((data) => active && setProfile(data))
-      .catch(() => {
+      .catch((err) => {
         setProfile(null);
-        notifications.show({ color: 'red', message: 'Não foi possível carregar o perfil.' });
+        fb.fromError(err, t.common.toast.loadFailed);
       })
       .finally(() => active && setLoading(false));
     return () => {
@@ -63,24 +64,18 @@ export default function SettingsSection({
         ? accountsApi.updateChurchProfile(churchId, payload)
         : accountsApi.updateChurchProfileForSede(churchId, payload);
       await request;
-      notifications.show({
-        color: 'green',
-        title: t.settingsPage.saved,
-        message: t.settingsPage.saved,
-      });
+      fb.success(t.settingsPage.saved);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message:
-          firstFieldError(err?.response?.data, [
-            'name',
-            'logo',
-            'state',
-            'card_primary_color',
-            'card_secondary_color',
-          ]) || 'Não foi possível salvar.',
-      });
+      fb.fromError(
+        err,
+        firstFieldError(err?.response?.data, [
+          'name',
+          'logo',
+          'state',
+          'card_primary_color',
+          'card_secondary_color',
+        ]) || t.common.toast.saveFailed
+      );
     } finally {
       setSaving(false);
     }
@@ -88,15 +83,13 @@ export default function SettingsSection({
 
   const handleClearData = async () => {
     setClearing(true);
+    fb.task('clear-church-data', t.common.toast.processing);
     try {
       const res = await accountsApi.clearChurchData(churchId);
-      notifications.show({
-        color: 'green',
-        message: res.detail || 'Dados apagados.',
-      });
+      fb.taskSuccess('clear-church-data', res.detail || t.settingsPage.cleared);
       setConfirmOpen(false);
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao apagar os dados.' });
+    } catch (err) {
+      fb.taskError('clear-church-data', err, t.settingsPage.clearFailed);
     } finally {
       setClearing(false);
     }

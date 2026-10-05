@@ -14,7 +14,6 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconCalendarEvent,
@@ -34,6 +33,7 @@ import GrowthGroupFormModal from '../components/GrowthGroupFormModal';
 import { accountsApi, churchLinksApi, growthGroupsApi } from '../api/accounts';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { absoluteUrl, copyToClipboard } from '../utils/share';
 import { nearestGroup, haversineMeters } from '../utils/geo';
 import type {
@@ -95,6 +95,7 @@ export default function GrowthGroupsPage() {
   const { user } = useAuth();
   const { hasRole } = useRoleHelpers(user);
   const { t } = useLanguage();
+  const fb = useFeedback();
 
   const canEdit = hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO');
   const canDelete = hasRole('PASTOR', 'SECRETARIA');
@@ -128,9 +129,9 @@ export default function GrowthGroupsPage() {
         setGroups(g);
         setStats(s);
       })
-      .catch(() => {
-        notifications.show({ message: t.growthGroups.loadError, color: 'red' });
-      })
+          .catch((err) => {
+            fb.fromError(err, t.growthGroups.loadError);
+          })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -169,12 +170,12 @@ export default function GrowthGroupsPage() {
       : growthGroupsApi.create(payload);
     request
       .then(() => {
-        notifications.show({ message: t.growthGroups.saved, color: 'green' });
+        fb.success(t.growthGroups.saved);
         setFormOpen(false);
         load();
       })
       .catch(() => {
-        notifications.show({ message: t.growthGroups.saveError, color: 'red' });
+        fb.error(t.growthGroups.saveError);
       })
       .finally(() => setSaving(false));
   };
@@ -188,7 +189,7 @@ export default function GrowthGroupsPage() {
       // slug indisponível: copia o caminho relativo
     }
     await copyToClipboard(absoluteUrl(path));
-    notifications.show({ color: 'green', message: t.growthGroups.publicLinkCopied });
+    fb.success(t.growthGroups.publicLinkCopied);
   };
 
   const confirmDelete = () => {
@@ -197,12 +198,12 @@ export default function GrowthGroupsPage() {
     growthGroupsApi
       .remove(toDelete.id)
       .then(() => {
-        notifications.show({ message: t.growthGroups.deleteDone, color: 'green' });
+        fb.success(t.growthGroups.deleteDone);
         setToDelete(null);
         load();
       })
       .catch(() => {
-        notifications.show({ message: t.growthGroups.saveError, color: 'red' });
+        fb.error(t.growthGroups.saveError);
       })
       .finally(() => setDeleting(false));
   };

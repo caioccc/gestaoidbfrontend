@@ -18,7 +18,6 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconArrowDown,
@@ -31,11 +30,14 @@ import {
   IconTrash,
   IconWorld,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
+import TruncatedText from './TruncatedText';
 import { useLanguage } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { musicApi } from '../api/music';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { Band, BandSetlist, BandSetlistItem, Song } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SetlistsModalProps {
   opened: boolean;
@@ -103,6 +105,7 @@ function SongThumb({ song, size = 50 }: { song: Song | undefined; size?: number 
 
 export default function SetlistsModal({ opened, onClose, editing, onSaved }: SetlistsModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isMobile = useIsMobile();
 
   const toRow = (it: BandSetlistItem): Row => ({
@@ -137,7 +140,7 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
       (editing?.items ?? [])
         .slice()
         .sort((a, b) => a.order - b.order)
-        .map((it) => toRow(it)),
+        .map((it) => toRow(it))
     );
     setAddValue(null);
     setAddSearch('');
@@ -148,21 +151,21 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
    *  música varias vezes por render, e `Array.find` a cada vez vira O(n*m). */
   const songsById = useMemo(
     () => new Map(songs.map((s) => [String(s.id), s])),
-    [songs],
+    [songs]
   );
 
   const selectedIds = useMemo(() => new Set(rows.map((r) => r.songId)), [rows]);
 
   const remainingSongs = useMemo(
     () => songs.filter((s) => !selectedIds.has(String(s.id))),
-    [songs, selectedIds],
+    [songs, selectedIds]
   );
 
   /** Músicas privadas já selecionadas — combinadas com setlist público o
    *  backend recusa, então avisamos antes e travamos o botão de salvar. */
   const privateSelected = useMemo(
     () => rows.filter((r) => songsById.get(r.songId)?.is_private),
-    [rows, songsById],
+    [rows, songsById]
   );
   const blockedByPrivacy = !isPrivate && privateSelected.length > 0;
 
@@ -200,7 +203,7 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
   const save = async () => {
     if (!date || !description.trim() || rows.length === 0) return;
     if (blockedByPrivacy) {
-      notifications.show({ color: 'yellow', message: t.music.setlistPrivateSongBlocked });
+      fb.warning(t.music.setlistPrivateSongBlocked);
       return;
     }
     setSaving(true);
@@ -221,16 +224,13 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
       } else {
         await musicApi.createBandSetlist(payload);
       }
-      notifications.show({ color: 'green', message: t.music.setlistSaved });
+      fb.success(t.music.setlistSaved);
       onSaved();
       onClose();
     } catch (err) {
       const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
       const detail = (data?.detail ?? data?.items) as string | string[] | undefined;
-      notifications.show({
-        color: 'red',
-        message: Array.isArray(detail) ? detail[0] : (detail ?? t.music.setlistSaveError),
-      });
+      fb.error(Array.isArray(detail) ? detail[0] : (detail ?? t.music.setlistSaveError));
     } finally {
       setSaving(false);
     }
@@ -245,7 +245,7 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
         value: String(s.id),
         label: `${s.title}${s.artist ? ` — ${s.artist}` : ''}`,
       })),
-    [remainingSongs],
+    [remainingSongs]
   );
 
   const renderOption = ({ option }: { option: { value: string; label: string } }) => {
@@ -254,13 +254,13 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
       <Group gap="sm" wrap="nowrap">
         <SongThumb song={song} />
         <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text size="sm" truncate>
+          <TruncatedText size="sm" single tooltip={song?.title || option.label}>
             {song?.title || option.label}
-          </Text>
+          </TruncatedText>
           {song?.artist ? (
-            <Text size="xs" c="dimmed" truncate>
+            <TruncatedText size="xs" c="dimmed" single tooltip={song.artist}>
               {song.artist}
-            </Text>
+            </TruncatedText>
           ) : null}
         </Box>
         {song?.is_private ? (
@@ -452,7 +452,7 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
               ) : null}
 
               {rows.length === 0 ? (
-                <Text size="sm" c="dimmed">{t.music.setlistEmpty}</Text>
+                <EmptyState variant="compact" title={t.music.setlistEmpty} />
               ) : (
                 <>
                   <Group justify="space-between" gap="xs">
@@ -497,12 +497,17 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
                               />
                             </Tooltip>
                           ) : null}
-                          <Text size="sm" truncate style={{ flex: 1 }}>
+                          <TruncatedText
+                            size="sm"
+                            single
+                            style={{ flex: 1 }}
+                            tooltip={`${title}${artist ? ` — ${artist}` : ''}`}
+                          >
                             {title}
                             <Text span size="xs" c="dimmed">
                               {artist ? ` — ${artist}` : ''}
                             </Text>
-                          </Text>
+                          </TruncatedText>
                           <Tooltip label={t.music.setlistSongMoveUp}>
                             <ActionIcon
                               variant="subtle"
@@ -553,3 +558,4 @@ export default function SetlistsModal({ opened, onClose, editing, onSaved }: Set
     </Modal>
   );
 }
+

@@ -15,7 +15,6 @@ import {
   Textarea,
   TextInput,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconHeartHandshake, IconHandStop, IconPray } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -25,6 +24,7 @@ import {
   PrayerRequestCategory,
   PrayerRequestPreferredPeriod,
 } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const PRAYER_CATEGORY_KEYS: PrayerRequestCategory[] = [
   'HEALTH',
@@ -52,6 +52,7 @@ interface Props {
 
 export default function PrayerRequestPublicModal({ opened, onClose, slug, portalProps }: Props) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const categoryData = PRAYER_CATEGORY_KEYS.map((k) => ({
     value: k,
     label: t.prayerRequestsPage.categoryLabel[k],
@@ -133,13 +134,10 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
     if (state.trim().length !== 2) missing.push(t.registerPage.state);
     if (!preferredPeriod) missing.push(t.prayerPublicModal.preferredPeriod);
     if (missing.length) {
-      notifications.show({
-        color: 'red',
-        message: t.prayerPublicModal.requiredVisitFields.replace(
+      fb.error(t.prayerPublicModal.requiredVisitFields.replace(
           '{fields}',
           missing.join(', ')
-        ),
-      });
+        ));
       return false;
     }
     return true;
@@ -148,20 +146,17 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const advance = () => {
     if (currentKey === 'contact') {
       if (!anonymous && name.trim().length < 2) {
-        notifications.show({ color: 'red', message: t.prayerPublicModal.requiredName });
+        fb.error(t.prayerPublicModal.requiredName);
         return;
       }
     }
     if (currentKey === 'reason') {
       if (!category) {
-        notifications.show({ color: 'red', message: t.prayerPublicModal.categoryPlaceholder });
+        fb.error(t.prayerPublicModal.categoryPlaceholder);
         return;
       }
       if (!description.trim()) {
-        notifications.show({
-          color: 'red',
-          message: t.prayerPublicModal.requiredDescription,
-        });
+        fb.error(t.prayerPublicModal.requiredDescription);
         return;
       }
     }
@@ -180,7 +175,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const buscarCep = async () => {
     const clean = cep.replace(/\D/g, '');
     if (clean.length !== 8) {
-      notifications.show({ color: 'red', message: t.registerPage.cepInvalid });
+      fb.error(t.registerPage.cepInvalid);
       return;
     }
     setCepLoading(true);
@@ -188,7 +183,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const data = await res.json();
       if (data.erro) {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else {
         if (data.logradouro) setStreet(data.logradouro);
         if (data.bairro) setNeighborhood(data.bairro);
@@ -196,7 +191,7 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
         if (data.uf) setState(data.uf);
       }
     } catch {
-      notifications.show({ color: 'red', message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -205,14 +200,11 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
   const submit = async () => {
     if (!category) return;
     if (!description.trim()) {
-      notifications.show({
-        color: 'red',
-        message: t.prayerPublicModal.requiredDescription,
-      });
+      fb.error(t.prayerPublicModal.requiredDescription);
       return;
     }
     if (!anonymous && name.trim().length < 2) {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.requiredName });
+      fb.error(t.prayerPublicModal.requiredName);
       return;
     }
     if (wantsVisit && !validateVisitStep()) {
@@ -237,9 +229,9 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
         preferred_period: wantsVisit ? preferredPeriod ?? 'ANY' : 'ANY',
       });
       setSubmitted(true);
-      notifications.show({ color: 'green', message: t.prayerPublicModal.submitDone });
+      fb.success(t.prayerPublicModal.submitDone);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerPublicModal.submitError });
+      fb.error(t.prayerPublicModal.submitError);
     } finally {
       setSubmitting(false);
     }
@@ -534,3 +526,5 @@ export default function PrayerRequestPublicModal({ opened, onClose, slug, portal
     </Modal>
   );
 }
+
+

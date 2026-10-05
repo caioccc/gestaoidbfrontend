@@ -19,6 +19,7 @@ import {
   IconCalendarEvent,
   IconChartDonut,
   IconFileText,
+  IconHeartHandshake,
   IconNotes,
   IconReport,
   IconUserHeart,
@@ -158,12 +159,12 @@ export default function AdminView({ year, month }: { year: number; month: number
 
   const activeMembers = useMemo(
     () => members.filter((member) => member.status === 'ACTIVE'),
-    [members],
+    [members]
   );
 
   const absentMembers = useMemo(
     () => members.filter((member) => member.lifecycle_stage === 'ABSENT_CARE'),
-    [members],
+    [members]
   );
 
   const newMembers = useMemo(() => {
@@ -177,7 +178,7 @@ export default function AdminView({ year, month }: { year: number; month: number
 
   const monthServices = useMemo(
     () => services.filter((service) => service.date.startsWith(currentMonthKey)),
-    [services, currentMonthKey],
+    [services, currentMonthKey]
   );
 
   const monthTotals = useMemo(
@@ -190,7 +191,7 @@ export default function AdminView({ year, month }: { year: number; month: number
         }),
         { attendees: 0, visitors: 0, conversions: 0 },
       ),
-    [monthServices],
+    [monthServices]
   );
 
   const pendingPrayers = useMemo(
@@ -198,12 +199,12 @@ export default function AdminView({ year, month }: { year: number; month: number
       prayers
         .filter((prayer) => prayer.status === 'PENDING' || prayer.status === 'PRAYING')
         .sort((a, b) => b.created_at.localeCompare(a.created_at)),
-    [prayers],
+    [prayers]
   );
 
   const recentMembers = useMemo(
     () => [...members].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6),
-    [members],
+    [members]
   );
 
   const upcomingEvents = useMemo(
@@ -212,7 +213,7 @@ export default function AdminView({ year, month }: { year: number; month: number
         .filter((event) => (event.date ? event.date >= todayISO : true))
         .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'))
         .slice(0, 6),
-    [events, todayISO],
+    [events, todayISO]
   );
 
   const upcomingCultos = useMemo(() => {
@@ -220,7 +221,7 @@ export default function AdminView({ year, month }: { year: number; month: number
     const occurrences = expandEvents(
       events.filter((event) => event.category === 'culto'),
       today,
-      6,
+      6
     );
     return occurrences.sort((a, b) => {
       const dateOrder = (dateToApi(a.date) ?? '').localeCompare(dateToApi(b.date) ?? '');
@@ -231,7 +232,7 @@ export default function AdminView({ year, month }: { year: number; month: number
 
   const monthPoint = useMemo(
     () => summary?.series.find((point) => point.month === currentMonth) ?? null,
-    [summary, currentMonth],
+    [summary, currentMonth]
   );
 
   const contactHint = (member: Member) => {
@@ -284,7 +285,7 @@ export default function AdminView({ year, month }: { year: number; month: number
         onClick: () => void router.push('/reports'),
       },
     ],
-    [dv, router],
+    [dv, router]
   );
 
   const shortcutItems = useMemo(
@@ -295,7 +296,7 @@ export default function AdminView({ year, month }: { year: number; month: number
         icon: SHORTCUT_ICONS[key],
         ...SHORTCUT_META[key],
       })),
-    [dv],
+    [dv]
   );
 
   return (
@@ -405,7 +406,7 @@ export default function AdminView({ year, month }: { year: number; month: number
           }
         >
           {pendingPrayers.length === 0 ? (
-            <EmptyState label={dv.psNoPrayers} />
+            <EmptyState variant="compact" icon={<IconHeartHandshake size={24} />} title={dv.psNoPrayers} />
           ) : (
             <Stack gap={2}>
               {pendingPrayers.slice(0, 5).map((prayer) => (
@@ -455,7 +456,7 @@ export default function AdminView({ year, month }: { year: number; month: number
           }
         >
           {recentMembers.length === 0 ? (
-            <EmptyState label={dv.adNoMembers} />
+            <EmptyState variant="compact" icon={<IconUsersGroup size={24} />} title={dv.adNoMembers} />
           ) : (
             <Stack gap={2}>
               {recentMembers.map((member) => (
@@ -493,7 +494,7 @@ export default function AdminView({ year, month }: { year: number; month: number
           }
         >
           {upcomingEvents.length === 0 ? (
-            <EmptyState label={dv.psNoEvents} />
+            <EmptyState variant="compact" icon={<IconCalendarEvent size={24} />} title={dv.psNoEvents} />
           ) : (
             <Stack gap={2}>
               {upcomingEvents.map((event) => (

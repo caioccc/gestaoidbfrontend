@@ -18,8 +18,8 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
+  IconPlaylistAdd,
   IconAlertTriangle,
   IconBrandYoutube,
   IconDeviceFloppy,
@@ -29,10 +29,13 @@ import {
   IconTrash,
   IconX,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
+import TruncatedText from './TruncatedText';
 import { musicApi } from '../api/music';
 import { useLanguage } from '../i18n';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import type { Band, SongPayload, YouTubeSearchResult } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SongsBulkAddModalProps {
   opened: boolean;
@@ -73,6 +76,7 @@ const extractId = (raw: string): string | null => {
 
 export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBulkAddModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
 
   const [bands, setBands] = useState<Band[]>([]);
@@ -94,7 +98,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
 
   const selectedIds = useMemo(
     () => new Set(rows.map((row) => row.youtube_id)),
-    [rows],
+    [rows]
   );
 
   const reset = useCallback(() => {
@@ -168,7 +172,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
             church_key: row.church_key.trim() || data.church_key || data.original_key || '',
             tags: row.tags.trim() || data.tags || '',
           };
-        }),
+        })
       );
     } catch {
       // Pré-cadastro é otimização: se falhar, as linhas seguem com o que veio
@@ -191,7 +195,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
       prefilled: false,
       duplicate: false,
     }),
-    [defaultBand, defaultKey, defaultTags],
+    [defaultBand, defaultKey, defaultTags]
   );
 
   const addRows = useCallback(
@@ -201,7 +205,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
       setRows((current) => [...current, ...fresh]);
       void precheck(fresh);
     },
-    [precheck, selectedIds],
+    [precheck, selectedIds]
   );
 
   const addResults = (incoming: YouTubeSearchResult[]) => {
@@ -232,7 +236,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
 
   const patchRow = (key: string, patch: Partial<BulkRow>) => {
     setRows((current) =>
-      current.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+      current.map((row) => (row.key === key ? { ...row, ...patch } : row))
     );
   };
 
@@ -245,11 +249,11 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
   const addByLink = () => {
     const id = extractId(linkValue);
     if (!id) {
-      notifications.show({ color: 'red', message: t.music.bulkInvalidLink });
+      fb.error(t.music.bulkInvalidLink);
       return;
     }
     if (selectedIds.has(id)) {
-      notifications.show({ color: 'yellow', message: t.music.bulkAlreadySelected });
+      fb.warning(t.music.bulkAlreadySelected);
       return;
     }
     addRows([
@@ -293,9 +297,9 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
       if (failed > 0) notes.push(t.music.bulkFailed.replace('{count}', String(failed)));
 
       if (created > 0) {
-        notifications.show({ color: 'green', message: notes.join(' · ') });
+        fb.success(notes.join(' · '));
       } else {
-        notifications.show({ color: 'yellow', message: notes.join(' · ') });
+        fb.warning(notes.join(' · '));
       }
 
       if (failed > 0) {
@@ -313,7 +317,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
         });
         setRows(keep);
         setFailedRows(errors);
-        notifications.show({ color: 'red', message: t.music.bulkFixRows });
+        fb.error(t.music.bulkFixRows);
         if (created > 0) onSaved();
         return;
       }
@@ -323,10 +327,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
     } catch (err) {
       const data = (err as { response?: { data?: Record<string, unknown> } })?.response?.data;
       const detail = (data?.detail ?? data?.songs) as string | string[] | undefined;
-      notifications.show({
-        color: 'red',
-        message: Array.isArray(detail) ? detail[0] : (detail ?? t.music.chordSaveError),
-      });
+      fb.error(Array.isArray(detail) ? detail[0] : (detail ?? t.music.chordSaveError));
     } finally {
       setSaving(false);
     }
@@ -334,7 +335,7 @@ export default function SongsBulkAddModal({ opened, onClose, onSaved }: SongsBul
 
   const bandOptions = useMemo(
     () => bands.map((b) => ({ value: String(b.id), label: b.name })),
-    [bands],
+    [bands]
   );
   const allResultsSelected =
     results.length > 0 && results.every((r) => selectedIds.has(r.youtube_id));
@@ -452,7 +453,8 @@ onKeyDown={(e) => e.key === 'Enter' && void doSearch()}
                           borderRadius: 6,
                           overflow: 'hidden',
                           flexShrink: 0,
-                          backgroundColor: 'var(--mantine-color-gray-2)',
+                          backgroundColor:
+                            'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
                         }}
                       >
                         {r.thumbnail_url ? (
@@ -464,12 +466,17 @@ onKeyDown={(e) => e.key === 'Enter' && void doSearch()}
                         ) : null}
                       </Box>
                       <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-                        <Text size="sm" fw={600} truncate>
+                        <TruncatedText size="sm" fw={600} single tooltip={r.title}>
                           {r.title}
-                        </Text>
-                        <Text size="xs" c="dimmed" truncate>
+                        </TruncatedText>
+                        <TruncatedText
+                          size="xs"
+                          c="dimmed"
+                          single
+                          tooltip={`${r.channel_name}${r.duration ? ` • ${r.duration}` : ''}`}
+                        >
                           {r.channel_name} {r.duration ? `• ${r.duration}` : ''}
-                        </Text>
+                        </TruncatedText>
                       </Stack>
                     </UnstyledButton>
                   );
@@ -510,9 +517,11 @@ onKeyDown={(e) => e.key === 'Enter' && void doSearch()}
           </Group>
 
           {rows.length === 0 ? (
-            <Text size="sm" c="dimmed" py="md" ta="center">
-              {t.music.bulkEmpty}
-            </Text>
+            <EmptyState
+              variant="center"
+              icon={<IconPlaylistAdd size={24} />}
+              title={t.music.bulkEmpty}
+            />
           ) : (
             <ScrollArea.Autosize mah={340} type="auto">
               <Table.ScrollContainer minWidth={980}>
@@ -540,7 +549,8 @@ onKeyDown={(e) => e.key === 'Enter' && void doSearch()}
                                 height: 32,
                                 borderRadius: 4,
                                 overflow: 'hidden',
-                                backgroundColor: 'var(--mantine-color-gray-2)',
+                                backgroundColor:
+                                  'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
                               }}
                             >
                               <img
@@ -722,3 +732,4 @@ function firstError(errors?: Record<string, string[] | string>): string | undefi
   const message = Array.isArray(value) ? value[0] : value;
   return message ? `${field}: ${message}` : undefined;
 }
+

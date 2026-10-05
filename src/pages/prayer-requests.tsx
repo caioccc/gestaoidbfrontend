@@ -23,9 +23,7 @@ import {
   Textarea,
   TextInput,
   Tooltip,
-  useMantineColorScheme,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconArchive,
   IconEraser,
@@ -34,6 +32,7 @@ import {
   IconCalendarPlus,
   IconChevronRight,
   IconClock,
+  IconHandStop,
   IconHeartHandshake,
   IconLayoutKanban,
   IconLayoutList,
@@ -52,6 +51,7 @@ import FilterDrawer from '../components/FilterDrawer';
 import { ListPagination } from '../components/ListPagination';
 import MobileListToolbar from '../components/MobileListToolbar';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import { SkeletonPrayerKanban, SkeletonPrayerList } from '../components/LoadingSkeleton';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { accountsApi } from '../api/accounts';
@@ -67,6 +67,7 @@ import type {
 } from '../types';
 import { toSentenceCase, formatDateTime } from '../utils/format';
 import styles from '../styles/attention.module.css';
+import { useFeedback } from '../hooks/useFeedback';
 
 const STATUS_COLOR: Record<PrayerRequestStatus, string> = {
   PENDING: 'orange',
@@ -134,10 +135,10 @@ const buildWhatsAppLink = (phone: string, name: string): string | null => {
 
 export default function PrayerRequestsPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const router = useRouter();
   const isCompact = useIsCompactList();
-  const { colorScheme } = useMantineColorScheme();
 
   const [requests, setRequests] = useState<PrayerRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,15 +166,10 @@ export default function PrayerRequestsPage() {
   const [bulking, setBulking] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // "Novo / Aguardando" é o que precisa de atenção: ganha borda colorida e
-  // pulso para não passar despercebido na triagem.
   const isPendingAttention = (r: PrayerRequest) => r.status === 'PENDING';
   const pendingCardClass = (r: PrayerRequest) =>
-    isPendingAttention(r)
-      ? `${styles.attentionCard} ${colorScheme === 'dark' ? styles.attentionCardDark : ''}`
-      : undefined;
-  const newDotClass = () =>
-    `${styles.attentionDot} ${colorScheme === 'dark' ? styles.attentionDotDark : ''}`;
+    isPendingAttention(r) ? styles.attentionCard : undefined;
+  const newDotClass = () => styles.attentionDot;
 
   const load = () => {
     setLoading(true);
@@ -193,7 +189,7 @@ export default function PrayerRequestsPage() {
         setTotal(data.count);
       })
       .catch(() => {
-        notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+        fb.error(t.prayerRequestsPage.actions.genericError);
       })
       .finally(() => setLoading(false));
   };
@@ -277,7 +273,7 @@ export default function PrayerRequestsPage() {
       const updated = await accountsApi.updatePrayerRequest(id, { status });
       applyUpdated(updated);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.statusError });
+      fb.error(t.prayerRequestsPage.actions.statusError);
     }
   };
 
@@ -296,7 +292,7 @@ export default function PrayerRequestsPage() {
       const updated = await accountsApi.updatePrayerRequest(id, { assigned_to: assignedTo });
       applyUpdated(updated);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.statusError });
+      fb.error(t.prayerRequestsPage.actions.statusError);
     }
   };
 
@@ -305,7 +301,7 @@ export default function PrayerRequestsPage() {
       const updated = await accountsApi.updatePrayerRequest(id, { wants_visit: wantsVisit });
       applyUpdated(updated);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.statusError });
+      fb.error(t.prayerRequestsPage.actions.statusError);
     }
   };
 
@@ -317,9 +313,9 @@ export default function PrayerRequestsPage() {
         pastoral_notes: toSentenceCase(drawerNotesDraft),
       });
       applyUpdated(updated);
-      notifications.show({ color: 'green', message: t.prayerRequestsPage.drawer.notesSaved });
+      fb.success(t.prayerRequestsPage.drawer.notesSaved);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.statusError });
+      fb.error(t.prayerRequestsPage.actions.statusError);
     } finally {
       setSavingDrawerNotes(false);
     }
@@ -333,9 +329,9 @@ export default function PrayerRequestsPage() {
     try {
       const blob = await accountsApi.printPrayerSheet();
       saveBlob(blob, `caderno-oracao-${new Date().toISOString().slice(0, 10)}.pdf`);
-      notifications.show({ color: 'green', message: t.prayerRequestsPage.actions.printSheetDone });
+      fb.success(t.prayerRequestsPage.actions.printSheetDone);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+      fb.error(t.prayerRequestsPage.actions.genericError);
     }
   };
 
@@ -351,7 +347,7 @@ export default function PrayerRequestsPage() {
       setArchiveTarget(null);
       closeDrawer();
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.statusError });
+      fb.error(t.prayerRequestsPage.actions.statusError);
     } finally {
       setArchiving(false);
     }
@@ -371,12 +367,9 @@ export default function PrayerRequestsPage() {
         prev.filter((r) => r.status !== 'ANSWERED')
       );
       setTotal((value) => Math.max(0, value - targets.length));
-      notifications.show({
-        color: 'green',
-        message: t.prayerRequestsPage.actions.clearAnsweredDone,
-      });
+      fb.success(t.prayerRequestsPage.actions.clearAnsweredDone);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+      fb.error(t.prayerRequestsPage.actions.genericError);
     } finally {
       setBulking(false);
     }
@@ -391,9 +384,9 @@ export default function PrayerRequestsPage() {
       setTotal((value) => Math.max(0, value - 1));
       setDeleteTarget(null);
       closeDrawer();
-      notifications.show({ color: 'green', message: t.prayerRequestsPage.actions.deleteDone });
+      fb.success(t.prayerRequestsPage.actions.deleteDone);
     } catch {
-      notifications.show({ color: 'red', message: t.prayerRequestsPage.actions.genericError });
+      fb.error(t.prayerRequestsPage.actions.genericError);
     } finally {
       setDeleting(false);
     }
@@ -607,26 +600,28 @@ export default function PrayerRequestsPage() {
               <SkeletonPrayerKanban columns={KANBAN_STATUSES.length} cardsPerColumn={3} />
             )
           ) : requests.length === 0 ? (
-          <Stack align="center" gap="xs" mt="xl">
-            <Text fw={600}>{t.prayerRequestsPage.empty}</Text>
-            <Text size="sm" c="dimmed">
-              {t.prayerRequestsPage.emptyHint}
-            </Text>
-            {filterCount > 0 ? (
-              <Button
-                size="xs"
-                variant="subtle"
-                onClick={() => {
-                  setStatusFilter('ALL');
-                  setCategoryFilter('ALL');
-                  setPeriodFilter('ALL');
-                  setWantsVisitOnly(false);
-                }}
-              >
-                {t.common.clearFilters}
-              </Button>
-            ) : null}
-          </Stack>
+          <EmptyState
+            variant="center"
+            icon={<IconHandStop size={24} />}
+            title={t.prayerRequestsPage.empty}
+            hint={t.prayerRequestsPage.emptyHint}
+            action={
+              filterCount > 0 ? (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  onClick={() => {
+                    setStatusFilter('ALL');
+                    setCategoryFilter('ALL');
+                    setPeriodFilter('ALL');
+                    setWantsVisitOnly(false);
+                  }}
+                >
+                  {t.common.clearFilters}
+                </Button>
+              ) : undefined
+            }
+          />
         ) : viewMode === 'list' ? (
           <Stack gap="sm" maw={960}>
             {requests.map((r) => {
@@ -1117,9 +1112,7 @@ export default function PrayerRequestsPage() {
                 p="sm"
                 style={{
                   background:
-                    colorScheme === 'dark'
-                      ? 'var(--mantine-color-dark-6)'
-                      : 'var(--mantine-color-blue-0)',
+                    'light-dark(var(--mantine-color-blue-0), var(--mantine-color-dark-6))',
                   borderLeft: '3px solid var(--mantine-color-blue-4)',
                 }}
               >
@@ -1296,3 +1289,4 @@ export default function PrayerRequestsPage() {
     </AuthGuard>
   );
 }
+

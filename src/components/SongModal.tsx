@@ -25,7 +25,6 @@ import {
   Textarea,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertTriangle,
   IconBrandYoutube,
@@ -40,11 +39,14 @@ import {
   IconTrash,
   IconWorld,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
+import TruncatedText from './TruncatedText';
 import { musicApi } from '../api/music';
 import { useLanguage } from '../i18n';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { TOUCH_TARGET } from './PlayerToolsBar';
 import type { Band, Song, YouTubeSearchResult, SongPayload } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface SongModalProps {
   opened: boolean;
@@ -55,6 +57,7 @@ interface SongModalProps {
 
 export default function SongModal({ opened, onClose, editing, onSaved }: SongModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isMobile = useIsMobile();
 
   /**
@@ -113,7 +116,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
     setYoutubeUrl(
       editing?.youtube_id
         ? `https://www.youtube.com/watch?v=${editing.youtube_id}`
-        : '',
+        : ''
     );
     setThumbnailUrl(editing?.thumbnail_url ?? '');
     setChurchKey(editing?.church_key ?? '');
@@ -179,7 +182,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
   const pickByUrl = (targetStep?: number) => {
     const id = parseYoutubeLink(youtubeUrl);
     if (!id) {
-      notifications.show({ color: 'red', message: t.music.youtubeLinkInvalid });
+      fb.error(t.music.youtubeLinkInvalid);
       return;
     }
     setYoutubeId(id);
@@ -295,7 +298,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
       } else {
         await musicApi.createSong(payload);
       }
-      notifications.show({ color: 'green', message: t.music.songSaved });
+      fb.success(t.music.songSaved);
       onSaved();
       onClose();
     } catch (err) {
@@ -304,10 +307,7 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
         | string
         | string[]
         | undefined;
-      notifications.show({
-        color: 'red',
-        message: Array.isArray(detail) ? detail[0] : (detail ?? t.music.chordSaveError),
-      });
+      fb.error(Array.isArray(detail) ? detail[0] : (detail ?? t.music.chordSaveError));
     } finally {
       setSaving(false);
     }
@@ -408,7 +408,8 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
               borderRadius: 8,
               overflow: 'hidden',
               flexShrink: 0,
-              backgroundColor: 'var(--mantine-color-gray-2)',
+              backgroundColor:
+                'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
             }}
           >
             <AspectRatio ratio={16 / 9} h="100%">
@@ -692,12 +693,17 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
                                   {t.music.selectedBadge}
                                 </Badge>
                               ) : null}
-                              <Text size="xs" fw={600} lineClamp={2}>
+                              <TruncatedText size="xs" fw={600} lines={2} tooltip={r.title}>
                                 {r.title}
-                              </Text>
-                              <Text size="xs" c="dimmed" truncate>
+                              </TruncatedText>
+                              <TruncatedText
+                                size="xs"
+                                c="dimmed"
+                                single
+                                tooltip={`${r.channel_name}${r.duration ? ` • ${r.duration}` : ''}`}
+                              >
                                 {r.channel_name} {r.duration ? `• ${r.duration}` : ''}
-                              </Text>
+                              </TruncatedText>
                             </Stack>
                           </Card>
                         );
@@ -729,9 +735,9 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
                         <Badge size="xs" variant="filled" w="fit-content">
                           {t.music.selectedBadge}
                         </Badge>
-                        <Text size="sm" fw={600} lineClamp={2}>
+                        <TruncatedText size="sm" fw={600} lines={2} tooltip={title || youtubeId}>
                           {title || youtubeId}
-                        </Text>
+                        </TruncatedText>
                         <Text size="xs" c="dimmed" style={{ wordBreak: 'break-all' }}>
                           {youtubeId}
                         </Text>
@@ -757,14 +763,11 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
 
                 {/* Vazio: orienta o próximo passo em vez de repetir a busca. */}
                 {!hasValidYoutubeId && results.length === 0 ? (
-                  <Paper withBorder p="lg">
-                    <Stack gap={4} align="center">
-                      <IconInfoCircle size={22} />
-                      <Text size="sm" c="dimmed" ta="center">
-                        {t.music.stepPickPrompt}
-                      </Text>
-                    </Stack>
-                  </Paper>
+                  <EmptyState
+                    variant="inline"
+                    icon={<IconInfoCircle size={22} />}
+                    title={t.music.stepPickPrompt}
+                  />
                 ) : null}
               </Stack>
             </Stepper.Step>
@@ -849,3 +852,5 @@ export default function SongModal({ opened, onClose, editing, onSaved }: SongMod
     </Modal>
   );
 }
+
+

@@ -13,17 +13,19 @@ import {
   Text,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconBell,
+  IconBellOff,
   IconCake,
   IconCalendarEvent,
   IconIdBadge,
   IconPackage,
   IconArrowRight,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { accountsApi } from '../api/accounts';
 import type { AppAlert } from '../types';
 
@@ -67,6 +69,7 @@ function formatFullDate(iso: string): string {
 export default function NotificationBell() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
 
   const [alerts, setAlerts] = useState<AppAlert[]>([]);
@@ -90,12 +93,7 @@ export default function NotificationBell() {
 
       if (prevUnread.current !== null && unread > prevUnread.current) {
         const diff = unread - prevUnread.current;
-        notifications.show({
-          color: 'blue',
-          icon: <IconBell size={18} />,
-          title: t.alertsBell.title,
-          message: t.alertsBell.newAlerts.replace('{count}', String(diff)),
-        });
+        fb.info(t.alertsBell.newAlerts.replace('{count}', String(diff)));
       }
       prevUnread.current = unread;
     } catch {
@@ -151,13 +149,13 @@ export default function NotificationBell() {
   const todayBirthdays = alerts.filter((a) => a.type === 'birthday_today');
   const upcomingBirthdays = alerts.filter((a) => a.type === 'birthday_upcoming');
   const cardAlerts = alerts.filter(
-    (a) => a.type === 'card_validity_soon' || a.type === 'card_validity_expired',
+    (a) => a.type === 'card_validity_soon' || a.type === 'card_validity_expired'
   );
   const loanAlerts = alerts.filter(
     (a) =>
       a.type === 'loan_return_today' ||
       a.type === 'loan_return_soon' ||
-      a.type === 'loan_return_overdue',
+      a.type === 'loan_return_overdue'
   );
 
   const goMembers = () => {
@@ -281,9 +279,11 @@ export default function NotificationBell() {
           <Divider />
 
           {alerts.length === 0 ? (
-            <Text size="sm" c="dimmed" ta="center" py="md">
-              {t.alertsBell.empty}
-            </Text>
+            <EmptyState
+              variant="compact"
+              icon={<IconBellOff size={24} />}
+              title={t.alertsBell.empty}
+            />
           ) : (
             <ScrollArea.Autosize mah={320}>
               <Stack gap="xs">

@@ -21,7 +21,6 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconCheck,
   IconCopy,
@@ -34,8 +33,10 @@ import {
   IconUsersGroup,
   IconX,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { formatDate } from '../utils/format';
 import { buildFormUrl, copyToClipboard } from '../utils/share';
 import ShareLinkModal from './ShareLinkModal';
@@ -49,6 +50,7 @@ const PAGE_SIZE = 25;
 
 export default function SubmissionsTab() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [items, setItems] = useState<MemberSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>('ALL');
@@ -107,8 +109,8 @@ export default function SubmissionsTab() {
       const res = await accountsApi.churchMemberFormLinkRegenerate();
       setFormLink(buildFormUrl(res.hash));
       setConfirmFormLinkRegen(false);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setRegeneratingFormLink(false);
     }
@@ -151,22 +153,21 @@ export default function SubmissionsTab() {
         await accountsApi.reviewMemberSubmission(
           id,
           reviewAction,
-          reviewAction === 'reject' && notes.trim() ? notes.trim() : undefined,
+          reviewAction === 'reject' && notes.trim() ? notes.trim() : undefined
         );
       }
-      notifications.show({
-        color: 'green',
-        message:
-          reviewAction === 'approve'
-            ? t.memberSubmissions.approvedMsg
-            : t.memberSubmissions.rejectedMsg,
-      });
+      fb.show(
+        reviewAction === 'approve' ? 'success' : 'warning',
+        reviewAction === 'approve'
+          ? t.memberSubmissions.approvedMsg
+          : t.memberSubmissions.rejectedMsg
+      );
       setReviewing(null);
       setBulkIds(null);
       setSelected(new Set());
       load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setBusy(false);
     }
@@ -382,23 +383,24 @@ export default function SubmissionsTab() {
           {loading ? (
             <SkeletonResponsiveTable rows={8} columns={6} breakpoint="md" inCard={false} />
           ) : items.length === 0 ? (
-          <Center py={60}>
-            <Stack align="center" gap="sm">
-              <ThemeIcon size={64} radius="xl" color="gray" variant="light">
-                <IconUserCheck size={32} />
-              </ThemeIcon>
-              <Text fw={600} size="md">
-                {t.memberSubmissions.emptyTitle}
-              </Text>
-              <Text size="sm" c="dimmed" ta="center" maw={340}>
-                {t.memberSubmissions.emptyHint}
-              </Text>
-            </Stack>
-          </Center>
+          <EmptyState
+            variant="center"
+            icon={<IconUserCheck size={32} />}
+            title={t.memberSubmissions.emptyTitle}
+            hint={t.memberSubmissions.emptyHint}
+          />
         ) : (
           <>
             {selected.size > 0 && (
-              <Group gap="xs" px="md" py="sm" bg="gray.0">
+                <Group
+                  gap="xs"
+                  px="md"
+                  py="sm"
+                  style={{
+                    backgroundColor:
+                      'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-7))',
+                  }}
+                >
                 <Text size="sm" fw={600}>
                   {t.memberSubmissions.selectedCount.replace(
                     '{count}',

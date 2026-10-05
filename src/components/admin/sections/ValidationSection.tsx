@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Group } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import PageHeader from '../../../components/PageHeader';
 import { MonthYearPicker } from '../../../components/MonthYearPicker';
 import ValidationPanel from '../../../components/ValidationPanel';
@@ -8,6 +7,7 @@ import SignatureModal from '../../../components/SignatureModal';
 import { useLanguage } from '../../../i18n';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { MonthlyValidationResponse } from '../../../types';
+import { useFeedback } from '../../../hooks/useFeedback';
 
 export default function ValidationSection({
   api,
@@ -17,6 +17,7 @@ export default function ValidationSection({
   churchLabel: string;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
   const [data, setData] = useState<MonthlyValidationResponse | null>(null);
@@ -49,13 +50,9 @@ export default function ValidationSection({
       await api.submitValidation(year, month, action, note, photo, signature);
       setNote('');
       reload();
-      notifications.show({ color: 'green', message: t.validationPage.approved });
+      fb.success(t.validationPage.approved);
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: err?.response?.data?.detail || 'Não foi possível salvar.',
-      });
+      fb.error(err?.response?.data?.detail || 'Não foi possível salvar.');
     } finally {
       setter(false);
     }
@@ -100,3 +97,5 @@ export default function ValidationSection({
     </>
   );
 }
+
+

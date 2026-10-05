@@ -17,20 +17,21 @@ import {
   IconAlertTriangle,
   IconReport,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import * as XLSX from 'xlsx';
 import apiClient from '../api/client';
 import PageHeader from '../components/PageHeader';
 import { MonthYearPicker } from '../components/MonthYearPicker';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { useAuth } from '../contexts/AuthContext';
 import { RegionalReport, MonthlyClosingsResponse } from '../types';
 import { financeApi, saveBlob } from '../api/finance';
 import { formatBRL, toNumber } from '../utils/format';
 
-export default function ReportsPage() {
-  const { t } = useLanguage();
-  const { user } = useAuth();
+  export default function ReportsPage() {
+      const { t } = useLanguage();
+      const fb = useFeedback();
+      const { user } = useAuth();
   const now = new Date();
   const [year, setYear] = useState<number>(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth() + 1);
@@ -96,8 +97,8 @@ export default function ReportsPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', title: 'Erro', message: 'Falha ao gerar o PDF.' });
+    } catch (err) {
+      fb.fromError(err, t.reportsPage.pdfFailed);
     } finally {
       setDownloadingPdf(false);
     }
@@ -141,8 +142,8 @@ export default function ReportsPage() {
     try {
       const blob = await financeApi.nationalReportXlsx(year, month);
       saveBlob(blob, `relatorio_nacional_${String(month).padStart(2, '0')}_${year}.xlsx`);
-    } catch {
-      notifications.show({ color: 'red', title: 'Erro', message: 'Falha ao gerar o Relatório Nacional.' });
+    } catch (err) {
+      fb.fromError(err, t.reportsPage.nationalFailed);
     } finally {
       setDownloadingNational(false);
     }

@@ -18,7 +18,6 @@ import {
   Textarea,
 } from '@mantine/core';
 import { Dropzone, PDF_MIME_TYPE, IMAGE_MIME_TYPE } from '@mantine/dropzone';
-import { notifications } from '@mantine/notifications';
 import { IconArrowsMove, IconUpload, IconX, IconTrash } from '@tabler/icons-react';
 import { accountsApi, CertificateTemplatePayload } from '../api/accounts';
 import { useLanguage } from '../i18n';
@@ -30,6 +29,7 @@ import type {
   CertificateTemplate,
   CertificateType,
 } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const FIELD_KEYS: CertificateFieldKey[] = [
   'recipient_name',
@@ -179,11 +179,12 @@ export default function CertificateTemplateModal({
   editing,
 }: CertificateTemplateModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const isCompact = useIsCompactList();
   const [name, setName] = useState('');
   const [certType, setCertType] = useState<CertificateType>('CUSTOM');
   const [layoutMode, setLayoutMode] = useState<'SYSTEM_DEFAULT' | 'CUSTOM_IMAGE' | 'BASE_PDF'>(
-    'SYSTEM_DEFAULT',
+    'SYSTEM_DEFAULT'
   );
   const [defaultVerse, setDefaultVerse] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -197,7 +198,7 @@ export default function CertificateTemplateModal({
   >(() => normalizeFields(editing?.fields_layout));
   const editorRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ key: CertificateFieldKey; offXPct: number; offYPct: number } | null>(
-    null,
+    null
   );
 
   useEffect(() => {
@@ -237,7 +238,7 @@ export default function CertificateTemplateModal({
       };
       if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [],
+    []
   );
 
   const moveDrag = React.useCallback(
@@ -257,7 +258,7 @@ export default function CertificateTemplateModal({
         return { ...prev, [key]: { ...cur, x: nx, y: ny } };
       });
     },
-    [],
+    []
   );
 
   const endDrag = React.useCallback(
@@ -267,7 +268,7 @@ export default function CertificateTemplateModal({
       }
       dragRef.current = null;
     },
-    [],
+    []
   );
 
   const handleClose = () => {
@@ -277,7 +278,7 @@ export default function CertificateTemplateModal({
 
   const save = async () => {
     if (!name.trim()) {
-      notifications.show({ color: 'red', message: t.certificates.error });
+      fb.error(t.certificates.error);
       return;
     }
     setSaving(true);
@@ -299,16 +300,13 @@ export default function CertificateTemplateModal({
       } else {
         await accountsApi.createCertificateTemplate(payload);
       }
-      notifications.show({ color: 'green', message: t.certificates.saveDone });
+      fb.success(t.certificates.saveDone);
       onSaved();
       onClose();
     } catch (e: unknown) {
       const data = (e as { response?: { data?: Record<string, string[]> } })?.response?.data;
       const first = data ? Object.values(data)[0] : null;
-      notifications.show({
-        color: 'red',
-        message: first ? String(first) : t.certificates.error,
-      });
+      fb.error(first ? String(first) : t.certificates.error);
     } finally {
       setSaving(false);
     }
@@ -334,7 +332,7 @@ export default function CertificateTemplateModal({
         : editing && !removeBg
           ? editing.background_image_url
           : null,
-    [bgFile, editing, removeBg],
+    [bgFile, editing, removeBg]
   );
 
   return (
@@ -640,3 +638,5 @@ function ActionIconX() {
     </Box>
   );
 }
+
+

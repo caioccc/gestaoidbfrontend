@@ -24,12 +24,12 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconBuildingChurch, IconCheck, IconSend } from '@tabler/icons-react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { publicFormApi } from '../../api/accounts';
 import { useLanguage } from '../../i18n';
+import { useFeedback } from '../../hooks/useFeedback';
 import ImageUpload from '../../components/ImageUpload';
 import RelativesFormSection from '../../components/RelativesFormSection';
 import { SkeletonFormFields } from '../../components/LoadingSkeleton';
@@ -128,6 +128,7 @@ const toDateValue = (
 
 export default function PublicMemberFormPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const isMobile = useIsMobile();
   const router = useRouter();
   const hash = typeof router.query.hash === 'string' ? router.query.hash : '';
@@ -225,7 +226,7 @@ export default function PublicMemberFormPage() {
   const removeRelative = (index: number) => {
     form.setFieldValue(
       'relatives',
-      form.values.relatives.filter((_, i) => i !== index),
+      form.values.relatives.filter((_, i) => i !== index)
     );
   };
 
@@ -238,17 +239,17 @@ export default function PublicMemberFormPage() {
       if (!res.ok) throw new Error('viacep');
       const data = await res.json();
       if (data.erro) {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       } else if (data.uf) {
         form.setFieldValue('street', data.logradouro || '');
         form.setFieldValue('neighborhood', data.bairro || '');
         form.setFieldValue('city', data.localidade || '');
         form.setFieldValue('state', data.uf || '');
       } else {
-        notifications.show({ color: 'red', message: t.registerPage.cepError });
+        fb.error(t.registerPage.cepError);
       }
     } catch {
-      notifications.show({ color: 'red', message: t.registerPage.cepError });
+      fb.error(t.registerPage.cepError);
     } finally {
       setCepLoading(false);
     }
@@ -291,7 +292,7 @@ export default function PublicMemberFormPage() {
           valid = false;
           form.setFieldError(
             `relatives.${i}.kinship`,
-            t.membersPage.relativeKinship,
+            t.membersPage.relativeKinship
           );
         }
       });
@@ -356,8 +357,8 @@ export default function PublicMemberFormPage() {
     try {
       await publicFormApi.submit(hash, buildPayload());
       setSubmitted(true);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setSubmitting(false);
     }

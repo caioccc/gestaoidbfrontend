@@ -10,9 +10,11 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconDownload, IconTrash, IconUpload } from '@tabler/icons-react';
+import { IconDownload, IconFileText, IconTrash, IconUpload } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
+import { firstFieldError } from '../utils/apiError';
 import { accountsApi } from '../api/accounts';
 import type { Member, MemberDocument, MemberDocumentType } from '../types';
 import { SkeletonTableOnly } from './LoadingSkeleton';
@@ -38,6 +40,7 @@ export default function MemberDocumentsModal({
   onClose: () => void;
 }) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const [docs, setDocs] = useState<MemberDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -55,8 +58,8 @@ export default function MemberDocumentsModal({
     accountsApi
       .memberDocuments(member.id)
       .then(setDocs)
-      .catch(() => {
-        notifications.show({ color: 'red', message: t.overview });
+      .catch((err) => {
+        fb.fromError(err, t.common.toast.loadFailed);
       })
       .finally(() => setLoading(false));
   }, [member, t]);
@@ -80,8 +83,8 @@ export default function MemberDocumentsModal({
       a.download = doc.file_name;
       a.click();
       URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.downloadFailed);
     } finally {
       setBusyId(null);
     }
@@ -96,18 +99,16 @@ export default function MemberDocumentsModal({
     if (notes) formData.append('notes', notes);
     try {
       await accountsApi.uploadMemberDocument(member.id, formData);
-      notifications.show({ color: 'green', message: t.membersPage.saved });
+      fb.success(t.membersPage.saved);
       setFile(null);
       setNotes('');
       load();
     } catch (err: any) {
-      const data = err?.response?.data;
-      const msg =
-        data?.file?.[0] ||
-        data?.doc_type?.[0] ||
-        data?.detail ||
-        t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.fromError(
+        err,
+        firstFieldError(err?.response?.data, ['file', 'doc_type']) ||
+          t.common.toast.saveFailed
+      );
     } finally {
       setUploading(false);
     }
@@ -119,8 +120,8 @@ export default function MemberDocumentsModal({
     try {
       await accountsApi.deleteMemberDocument(toDelete.id);
       setDocs((prev) => prev.filter((d) => d.id !== toDelete.id));
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
       setToDelete(null);
@@ -144,9 +145,11 @@ export default function MemberDocumentsModal({
           {loading ? (
             <SkeletonTableOnly rows={5} columns={5} rowHeight={44} />
           ) : docs.length === 0 ? (
-          <Text size="sm" c="dimmed" mb="md">
-            {t.documents.empty}
-          </Text>
+          <EmptyState
+            variant="center"
+            icon={<IconFileText size={24} />}
+            title={t.documents.empty}
+          />
         ) : (
           <Table striped mb="md">
             <Table.Thead>

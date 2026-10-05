@@ -9,9 +9,9 @@ import {
   Text,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { IconCopy, IconPlayerTrackNext, IconPlayerTrackPrev } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface LyricsSheetProps {
   lyrics: string;
@@ -27,6 +27,7 @@ type ScrollSpeed = keyof typeof SCROLL_SPEEDS;
 
 export default function LyricsSheet({ lyrics }: LyricsSheetProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [autoOn, setAutoOn] = useState(false);
   const [speed, setSpeed] = useState<ScrollSpeed>('normal');
@@ -38,7 +39,7 @@ export default function LyricsSheet({ lyrics }: LyricsSheetProps) {
         .split(/\n\s*\n/)
         .map((s) => s.trim())
         .filter(Boolean),
-    [lyrics],
+    [lyrics]
   );
 
   const stopScroll = () => {
@@ -82,9 +83,9 @@ export default function LyricsSheet({ lyrics }: LyricsSheetProps) {
     const clean = stanzas.join('\n\n') || lyrics || '';
     try {
       await navigator.clipboard.writeText(clean);
-      notifications.show({ color: 'green', message: t.music.projectionCopied });
+      fb.success(t.music.projectionCopied);
     } catch {
-      notifications.show({ color: 'red', message: t.music.copyFailed });
+      fb.error(t.music.copyFailed);
     }
   };
 
@@ -153,3 +154,4 @@ export default function LyricsSheet({ lyrics }: LyricsSheetProps) {
     </Card>
   );
 }
+

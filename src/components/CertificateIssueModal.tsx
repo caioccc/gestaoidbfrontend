@@ -15,7 +15,6 @@ import {
   Textarea,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import {
   CERT_A4_H_PX,
   CERT_A4_W_PX,
@@ -30,6 +29,7 @@ import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { CertificateDocument } from './CertificateDocument';
 import type { CertificateIssueData, CertificateTemplate, CertificateType, Member } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const PREVIEW_W_PX = 600;
 const PREVIEW_SCALE = PREVIEW_W_PX / CERT_A4_W_PX;
@@ -68,6 +68,7 @@ export default function CertificateIssueModal({
   onIssued,
 }: CertificateIssueModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { profile } = useChurchCardConfig();
   const isCompact = useIsCompactList();
 
@@ -135,7 +136,7 @@ export default function CertificateIssueModal({
       })
       .catch(() => {
         if (active) {
-          notifications.show({ color: 'red', message: t.certificates.error });
+          fb.error(t.certificates.error);
         }
       })
       .finally(() => {
@@ -157,7 +158,7 @@ export default function CertificateIssueModal({
       templateId === 'system'
         ? null
         : (templates.find((ts) => `tpl-${ts.id}` === templateId) ?? null),
-    [templates, templateId],
+    [templates, templateId]
   );
 
   const layoutMode = selectedTemplate?.layout_mode ?? 'SYSTEM_DEFAULT';
@@ -180,7 +181,7 @@ export default function CertificateIssueModal({
         { value: 'MEMBERSHIP_COURSE', label: t.certificates.typeMembershipCourse },
         { value: 'CUSTOM', label: t.certificates.typeCustom },
       ] as { value: CertificateType; label: string }[],
-    [t],
+    [t]
   );
 
   const templateOptions = useMemo(() => {
@@ -253,7 +254,7 @@ export default function CertificateIssueModal({
       if (layoutMode !== 'BASE_PDF') {
         setRunning('generating');
         if (!previewNode) {
-          notifications.show({ color: 'red', message: t.certificates.error });
+          fb.error(t.certificates.error);
           return;
         }
         blob = await certificateNodeToBlob(previewNode);
@@ -277,7 +278,7 @@ export default function CertificateIssueModal({
         const cert = await accountsApi.issueCertificate(
           { ...payload, member: memberId },
           selectedTemplate?.id ?? null,
-          null,
+          null
         );
         const pdfBlob = await accountsApi.certificatePdfDownload(cert.id);
         saveBlob(pdfBlob, `${certificateFileName(recipient.trim())}.pdf`);
@@ -285,17 +286,14 @@ export default function CertificateIssueModal({
         await accountsApi.issueCertificate(
           { ...payload, member: memberId },
           selectedTemplate?.id ?? null,
-          blob ? new File([blob], 'generated.pdf', { type: 'application/pdf' }) : null,
+          blob ? new File([blob], 'generated.pdf', { type: 'application/pdf' }) : null
         );
       }
-      notifications.show({ color: 'green', message: t.certificates.issuedDone });
+      fb.success(t.certificates.issuedDone);
       onIssued();
       onClose();
     } catch (e: unknown) {
-      notifications.show({
-        color: 'red',
-        message: firstApiError(e) || t.certificates.error,
-      });
+      fb.error(firstApiError(e) || t.certificates.error);
     } finally {
       setRunning('none');
     }
@@ -497,3 +495,4 @@ export default function CertificateIssueModal({
     </Modal>
   );
 }
+

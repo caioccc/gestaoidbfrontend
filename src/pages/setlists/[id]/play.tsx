@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   Card,
-  Center,
   Divider,
   Drawer,
   Group,
@@ -18,7 +17,6 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { useDisclosure, useHotkeys } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
 import {
   IconArrowLeft,
   IconChevronLeft,
@@ -26,8 +24,12 @@ import {
   IconListCheck,
   IconMaximize,
   IconMinimize,
+  IconMusic,
+  IconPlus,
 } from '@tabler/icons-react';
 import AuthGuard from '../../../components/AuthGuard';
+import EmptyState from '../../../components/EmptyState';
+import TruncatedText from '../../../components/TruncatedText';
 import ChordSyncPlayer, {
   type ChordSyncPlayerControls,
 } from '../../../components/ChordSyncPlayer';
@@ -36,6 +38,7 @@ import LyricsSheet from '../../../components/LyricsSheet';
 import { TOUCH_TARGET, touchStyles } from '../../../components/PlayerToolsBar';
 import { SkeletonPanel } from '../../../components/LoadingSkeleton';
 import { useLanguage } from '../../../i18n';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 import { musicApi } from '../../../api/music';
 import { formatMusicalKey } from '../../../utils/format';
@@ -50,7 +53,7 @@ interface QueueEntry {
 type View = 'player' | 'chords' | 'plain';
 
 const MONTHS_PT = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'MarÃ§o', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
@@ -84,7 +87,7 @@ function ChordStrip({ chords }: { chords: ChordItem[] }) {
   const { t } = useLanguage();
   const notes = useMemo(
     () => chords.map((c) => formatMusicalKey(c.note_fmt || c.note)),
-    [chords],
+    [chords]
   );
   if (!notes.length) {
     return <Text c="dimmed" size="sm">{t.music.noChordsForSync}</Text>;
@@ -103,6 +106,7 @@ function ChordStrip({ chords }: { chords: ChordItem[] }) {
 export default function SetlistPlayerPage() {
   const router = useRouter();
   const { t } = useLanguage();
+const fb = useFeedback();
   const isMobile = useIsMobile();
   const id = Number(router.query.id);
 
@@ -135,11 +139,11 @@ export default function SetlistPlayerPage() {
           } catch {
             return { item, song: null };
           }
-        }),
+        })
       );
       setEntries(loaded);
-    } catch {
-      notifications.show({ color: 'red', message: 'Setlist não encontrada.' });
+    } catch (err) {
+      fb.fromError(err, t.music.setlistNotFound);
     } finally {
       setLoading(false);
     }
@@ -156,7 +160,7 @@ export default function SetlistPlayerPage() {
       setCurrent(clamped);
       setView('player');
     },
-    [entries.length],
+    [entries.length]
   );
 
   const goPrev = useCallback(() => {
@@ -170,21 +174,20 @@ export default function SetlistPlayerPage() {
   const handleEnded = useCallback(
     (entry: QueueEntry) => {
       const hasNext = currentRef.current < entries.length - 1;
-      const name = entry.song?.title ?? entry.item.song_title ?? '—';
-      notifications.show({
-        color: hasNext ? 'green' : 'teal',
-        autoClose: 3500,
-        message: name
+      const name = entry.song?.title ?? entry.item.song_title ?? 'â€”';
+      fb.success(
+        name
           ? hasNext
             ? `${t.music.songEnded}: ${name}`
             : `${t.music.setlistFinished} — ${name}`
           : hasNext
             ? t.music.songEnded
             : t.music.setlistFinished,
-      });
+        { autoClose: 3500 }
+      );
       if (hasNext) goNext();
     },
-    [entries.length, goNext, t],
+    [entries.length, goNext, t]
   );
 
   useHotkeys([
@@ -269,9 +272,9 @@ export default function SetlistPlayerPage() {
                       </Box>
                     </Button>
                     <Box style={{ minWidth: 0 }}>
-                      <Text fw={700} size="lg" truncate>
+                      <TruncatedText fw={700} size="lg" single tooltip={title}>
                         {title}
-                      </Text>
+                      </TruncatedText>
                       <Badge variant="light" size="sm">
                         {entries.length} {t.music.songCountLabel}
                       </Badge>
@@ -333,14 +336,19 @@ export default function SetlistPlayerPage() {
                         .replace('{current}', String(current + 1))
                         .replace('{total}', String(Math.max(entries.length, 1)))}
                     </Text>
-                    <Text fw={700} size="lg" truncate>
+                    <TruncatedText
+                      fw={700}
+                      size="lg"
+                      single
+                      tooltip={entry?.song?.title ?? entry?.item.song_title ?? undefined}
+                    >
                       {entry?.song?.title ?? entry?.item.song_title ?? '—'}
-                    </Text>
+                    </TruncatedText>
                     <Group gap={6} justify="center" wrap="nowrap" miw={0}>
                       {entry?.song?.artist ? (
-                        <Text size="xs" c="dimmed" truncate>
+                        <TruncatedText size="xs" c="dimmed" single tooltip={entry.song.artist}>
                           {entry.song.artist}
-                        </Text>
+                        </TruncatedText>
                       ) : null}
                       {entry?.song && displayKey ? (
                         <Badge variant="light" color="grape" size="sm" style={{ flexShrink: 0 }}>
@@ -369,7 +377,21 @@ export default function SetlistPlayerPage() {
 
             {entries.length === 0 ? (
               <Card withBorder p="xl">
-                <Text c="dimmed" ta="center">{t.music.setlistEmpty}</Text>
+                <EmptyState
+                  variant="center"
+                  icon={<IconMusic size={24} />}
+                  title={t.music.setlistEmpty}
+                  hint={t.music.setlistEmptyHint}
+                  action={
+                    <Button
+                      variant="light"
+                      leftSection={<IconPlus size={16} />}
+                      onClick={() => void router.push('/setlists')}
+                    >
+                      {t.music.addFirstSong}
+                    </Button>
+                  }
+                />
               </Card>
             ) : (
               <>
@@ -444,9 +466,14 @@ export default function SetlistPlayerPage() {
                       <Text c="dimmed" ta="center">
                         {t.music.songErrorInSetlist}
                       </Text>
-                      <Text size="sm" fw={600}>
+                      <TruncatedText
+                        size="sm"
+                        fw={600}
+                        single
+                        tooltip={entry?.item.song_title ?? undefined}
+                      >
                         {entry?.item.song_title ?? '—'}
-                      </Text>
+                      </TruncatedText>
                     </Stack>
                   </Card>
                 )}
@@ -492,12 +519,17 @@ export default function SetlistPlayerPage() {
                     {i + 1}
                   </Badge>
                   <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" fw={active ? 700 : 500} truncate>
+                    <TruncatedText
+                      size="sm"
+                      fw={active ? 700 : 500}
+                      single
+                      tooltip={e.song?.title ?? e.item.song_title ?? undefined}
+                    >
                       {e.song?.title ?? e.item.song_title ?? '—'}
-                    </Text>
-                    <Text size="xs" c="dimmed" truncate>
+                    </TruncatedText>
+                    <TruncatedText size="xs" c="dimmed" single tooltip={e.song?.artist || undefined}>
                       {e.song?.artist ?? ''}
-                    </Text>
+                    </TruncatedText>
                   </Box>
                 </Group>
                 <Group gap={4} mt={6} wrap="wrap">
@@ -521,9 +553,11 @@ export default function SetlistPlayerPage() {
             );
           })}
           {entries.length === 0 ? (
-            <Text c="dimmed" ta="center">
-              {t.music.setlistEmpty}
-            </Text>
+            <EmptyState
+              variant="compact"
+              icon={<IconMusic size={16} />}
+              title={t.music.setlistEmpty}
+            />
           ) : null}
         </Stack>
       </Drawer>

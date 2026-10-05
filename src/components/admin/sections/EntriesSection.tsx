@@ -16,7 +16,6 @@ import {
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { DataTable, DataTableColumn } from 'mantine-datatable';
 import {
   IconPlus,
@@ -32,6 +31,7 @@ import MoneyInput from '../../../components/MoneyInput';
 import MobileItemCard from '../../../components/MobileItemCard';
 import { useLanguage } from '../../../i18n';
 import { useCategories } from '../../../hooks/useCategories';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { FinancialEntry } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { formatBRL, formatDate, toISO, toNumber, toSentenceCase } from '../../../utils/format';
@@ -61,22 +61,11 @@ function widerRange(
   return next;
 }
 
-function apiErrorMessage(err: any, fallback: string): string {
-  const d = err?.response?.data;
-  if (!d) return fallback;
-  if (typeof d === 'string') return d;
-  if (typeof d.detail === 'string') return d.detail;
-  const first = Object.keys(d)[0];
-  const val = first ? d[first] : null;
-  if (Array.isArray(val) && typeof val[0] === 'string') return `${first}: ${val[0]}`;
-  if (typeof val === 'string') return `${first}: ${val}`;
-  return fallback;
-}
-
-const PAGE_SIZE = 20;
+  const PAGE_SIZE = 20;
 
 export default function EntriesSection({ api, churchLabel }: { api: AdminFinanceApi; churchLabel: string }) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const { categories } = useCategories();
 
   const [records, setRecords] = useState<FinancialEntry[]>([]);
@@ -173,10 +162,10 @@ export default function EntriesSection({ api, churchLabel }: { api: AdminFinance
       };
       if (editing) {
         await api.updateEntry(editing.id, payload);
-        notifications.show({ color: 'green', message: 'Entrada atualizada.' });
+        fb.success(t.entriesPage.updated);
       } else {
         await api.createEntry(payload);
-        notifications.show({ color: 'green', message: 'Entrada registrada.' });
+        fb.success(t.entriesPage.registered);
       }
       setModalOpen(false);
       setEditing(null);
@@ -185,11 +174,7 @@ export default function EntriesSection({ api, churchLabel }: { api: AdminFinance
       form.reset();
       load();
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: apiErrorMessage(err, 'Não foi possível salvar.'),
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -200,11 +185,11 @@ export default function EntriesSection({ api, churchLabel }: { api: AdminFinance
     setDeleting(true);
     try {
       await api.deleteEntry(deleteTarget.id);
-      notifications.show({ color: 'green', message: 'Registro excluído.' });
+      fb.success(t.common.toast.deleted);
       setDeleteTarget(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir.' });
+    } catch (err: any) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }

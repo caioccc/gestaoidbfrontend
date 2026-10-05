@@ -1,3 +1,4 @@
+import { useFeedback } from '../hooks/useFeedback';
 import React, { useEffect, useState } from 'react';
 import {
   Button,
@@ -17,7 +18,6 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
   IconCheck,
@@ -70,6 +70,7 @@ interface RegisterForm {
 
 export default function RegisterPage() {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [active, setActive] = useState(0);
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState<string | null>(null);
@@ -218,14 +219,11 @@ export default function RegisterPage() {
         sessionStorage.setItem('idb_pending_approval', '1');
       }
       setDone(true);
-      notifications.show({
-          color: 'green',
-          title: t.registerPage.successTitle,
-          message:
-            form.values.church_type === 'INDEPENDENT'
-              ? t.registerPage.pendingSede
-              : t.registerPage.pendingCongregation,
-        });
+      fb.success(
+        form.values.church_type === 'INDEPENDENT'
+          ? t.registerPage.pendingSede
+          : t.registerPage.pendingCongregation
+      );
     } catch (err: any) {
       const data = err?.response?.data;
       const msg = data?.email?.[0] || data?.church_name?.[0] || data?.detail;
@@ -537,3 +535,5 @@ export default function RegisterPage() {
     </AuthShell>
   );
 }
+
+

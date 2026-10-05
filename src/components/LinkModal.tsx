@@ -14,7 +14,6 @@ import {
   Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { IconCopy, IconSearch, IconQrcode } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
@@ -23,6 +22,7 @@ import { buildPixPayload } from '../utils/pix';
 import MaskedTextInput from './MaskedTextInput';
 import QrShareCard from './QrShareCard';
 import type { ChurchLinkType, ChurchPixAmountMode, ChurchPublicLink } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 const PIX_TYPES = ['CNPJ', 'CPF', 'Telefone', 'E-mail', 'Chave Aleatória'];
 const DEFAULT_GRID = [30, 50, 100, 200];
@@ -105,6 +105,7 @@ export default function LinkModal({
   onSaved,
 }: LinkModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [gridPreview, setGridPreview] = useState<number | null>(null);
   const [openAmount, setOpenAmount] = useState<string>('');
 
@@ -250,13 +251,13 @@ export default function LinkModal({
 
   const copyKey = async () => {
     await copyToClipboard(form.values.pix_key.trim());
-    notifications.show({ color: 'green', message: t.publicLinks.pixCopied });
+    fb.success(t.publicLinks.pixCopied);
   };
 
   const copyPayload = async () => {
     if (!pixPayload) return;
     await copyToClipboard(pixPayload);
-    notifications.show({ color: 'green', message: t.linksPage.pixPayloadCopied });
+    fb.success(t.linksPage.pixPayloadCopied);
   };
 
   const buscarCep = async () => {
@@ -705,3 +706,4 @@ export default function LinkModal({
     </Modal>
   );
 }
+

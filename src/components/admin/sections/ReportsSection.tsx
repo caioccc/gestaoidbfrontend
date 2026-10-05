@@ -18,12 +18,12 @@ import {
   IconAlertTriangle,
   IconReport,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import * as XLSX from 'xlsx';
 import apiClient from '../../../api/client';
 import PageHeader from '../../../components/PageHeader';
 import { MonthYearPicker } from '../../../components/MonthYearPicker';
 import { useLanguage } from '../../../i18n';
+import { useFeedback } from '../../../hooks/useFeedback';
 import { RegionalReport, MonthlyClosingsResponse, ChurchType } from '../../../types';
 import { AdminFinanceApi } from '../../../api/adminFinance';
 import { saveBlob } from '../../../api/finance';
@@ -38,12 +38,13 @@ export default function ReportsSection({
   churchLabel: string;
   churchType?: ChurchType;
 }) {
-  const { t } = useLanguage();
-  const now = new Date();
-  const [year, setYear] = useState<number>(now.getFullYear());
-  const [month, setMonth] = useState<number>(now.getMonth() + 1);
-  const [data, setData] = useState<RegionalReport | null>(null);
-  const [closings, setClosings] = useState<MonthlyClosingsResponse | null>(null);
+      const { t } = useLanguage();
+      const fb = useFeedback();
+      const now = new Date();
+      const [year, setYear] = useState<number>(now.getFullYear());
+      const [month, setMonth] = useState<number>(now.getMonth() + 1);
+      const [data, setData] = useState<RegionalReport | null>(null);
+      const [closings, setClosings] = useState<MonthlyClosingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -101,8 +102,8 @@ export default function ReportsSection({
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      notifications.show({ color: 'red', title: 'Erro', message: 'Falha ao gerar o PDF.' });
+    } catch (err) {
+      fb.fromError(err, t.reportsPage.pdfFailed);
     } finally {
       setDownloadingPdf(false);
     }
@@ -146,8 +147,8 @@ export default function ReportsSection({
     try {
       const blob = await api.nationalReportXlsx(year, month);
       saveBlob(blob, `relatorio_nacional_${String(month).padStart(2, '0')}_${year}.xlsx`);
-    } catch {
-      notifications.show({ color: 'red', title: 'Erro', message: 'Falha ao gerar o Relatório Nacional.' });
+    } catch (err) {
+      fb.fromError(err, t.reportsPage.nationalFailed);
     } finally {
       setDownloadingNational(false);
     }

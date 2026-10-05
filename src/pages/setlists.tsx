@@ -21,7 +21,6 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { Carousel } from '@mantine/carousel';
-import { notifications } from '@mantine/notifications';
 import { MonthPickerInput } from '@mantine/dates';
 import Autoplay from 'embla-carousel-autoplay';
 import { useInViewport, useReducedMotion } from '@mantine/hooks';
@@ -42,6 +41,8 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
+import TruncatedText from '../components/TruncatedText';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import FilterDrawer from '../components/FilterDrawer';
@@ -55,6 +56,7 @@ import {
 } from '../components/LoadingSkeleton';
 import { useLanguage } from '../i18n';
 import type { SupportedLocale } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { musicApi } from '../api/music';
 import { formatMusicalKey } from '../utils/format';
@@ -74,7 +76,7 @@ const VISIBILITY_OPTIONS = [
   { value: 'private', translationKey: 'visibilityPrivate' },
 ] as const;
 
-/** Selo de setlist privado, reaproveitado nas três visualizações. */
+/** Selo de setlist privado, reaproveitado nas trÃªs visualizaÃ§Ãµes. */
 function SetlistPrivateBadge({ size = 'xs' }: { size?: 'xs' | 'sm' }) {
   const { t } = useLanguage();
   return (
@@ -273,7 +275,9 @@ function SetlistEmptyMedia({ height }: { height: number | string }) {
   return (
     <Center
       h={height}
-      style={{ background: 'var(--mantine-color-gray-1)' }}
+      style={{
+        background: 'light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))',
+      }}
     >
       <Stack gap={4} align="center">
         <IconMusic size={26} color="var(--mantine-color-dimmed)" />
@@ -289,7 +293,7 @@ function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: nu
       delay: 3500 + (setlist.id % 4) * 300,
       stopOnMouseEnter: true,
       stopOnFocusIn: true,
-    }),
+    })
   );
   const items = sortedItems(setlist);
 
@@ -321,9 +325,9 @@ function SetlistCarousel({ setlist, height }: { setlist: BandSetlist; height: nu
 type AutoplayApi = ReturnType<typeof Autoplay>;
 
 /** Capa da galeria: carrossel em tela cheia, com o autoplay controlado pelo card
- *  (ele é quem sabe se a capa está visível na rolagem e se o ponteiro está
- *  sobre ela). Os indicadores são decorativos — o card abre o setlist inteiro
- *  no modo culto, então não fazem sentido como destino de teclado. */
+ *  (ele Ã© quem sabe se a capa estÃ¡ visÃ­vel na rolagem e se o ponteiro estÃ¡
+ *  sobre ela). Os indicadores sÃ£o decorativos â€” o card abre o setlist inteiro
+ *  no modo culto, entÃ£o nÃ£o fazem sentido como destino de teclado. */
 function SetlistGalleryCover({
   setlist,
   plugins,
@@ -384,6 +388,7 @@ function SetlistGalleryCard({
   onDelete: (s: BandSetlist) => void;
 }) {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const router = useRouter();
   const items = sortedItems(setlist);
   const hasSongs = items.length > 0;
@@ -392,16 +397,16 @@ function SetlistGalleryCard({
 
   const [exporting, setExporting] = useState(false);
 
-  /* O autoplay é dirigido aqui, e não pelo plugin, porque duas condições
-   * externas ao carousel o afetam: a capa só deve animar quando está visível
-   * na rolagem (senão são N timers ociosos), e precisa parar enquanto o ponteiro
-   * está sobre o card — o cluster de ações é irmão da capa, então o
-   * stopOnMouseEnter do Embla não dispara quando o usuário mira nos botões. */
+  /* O autoplay Ã© dirigido aqui, e nÃ£o pelo plugin, porque duas condiÃ§Ãµes
+   * externas ao carousel o afetam: a capa sÃ³ deve animar quando estÃ¡ visÃ­vel
+   * na rolagem (senÃ£o sÃ£o N timers ociosos), e precisa parar enquanto o ponteiro
+   * estÃ¡ sobre o card â€” o cluster de aÃ§Ãµes Ã© irmÃ£o da capa, entÃ£o o
+   * stopOnMouseEnter do Embla nÃ£o dispara quando o usuÃ¡rio mira nos botÃµes. */
   const autoplay = useRef<AutoplayApi>(
     Autoplay({
       delay: 3500 + (setlist.id % 4) * 300,
       stopOnFocusIn: true,
-    }),
+    })
   );
   const { ref: coverRef, inViewport: coverVisible } = useInViewport();
   const [coverHovered, setCoverHovered] = useState(false);
@@ -433,9 +438,9 @@ function SetlistGalleryCard({
 
       if (!text) throw new Error('sem letras');
       await navigator.clipboard.writeText(text);
-      notifications.show({ color: 'green', message: t.music.projectionCopied });
+      fb.success(t.music.projectionCopied);
     } catch {
-      notifications.show({ color: 'red', message: t.music.copyFailed });
+      fb.error(t.music.copyFailed);
     } finally {
       setExporting(false);
     }
@@ -445,14 +450,14 @@ function SetlistGalleryCard({
     items
       .slice(0, 3)
       .map((item) => `${item.order}. ${item.song_title}`)
-      .join(' • ') + (items.length > 3 ? ' …' : '');
+      .join(' â€¢ ') + (items.length > 3 ? ' â€¦' : '');
 
   const credits = [
     setlist.created_by_name ? `${t.music.setlistCreatedBy}: ${setlist.created_by_name}` : null,
     setlist.band_name ? `${t.music.setlistBand}: ${setlist.band_name}` : null,
   ]
     .filter(Boolean)
-    .join(' • ');
+    .join(' â€¢ ');
 
   return (
     <Card
@@ -597,9 +602,9 @@ function SetlistGalleryCard({
 
       <div className={galleryStyles.meta}>
         <span className={galleryStyles.title} title={setlist.description}>
-          {setlist.description || '—'}
+          {setlist.description || 'â€”'}
         </span>
-        <span className={galleryStyles.subtitle}>{credits || '—'}</span>
+        <span className={galleryStyles.subtitle}>{credits || 'â€”'}</span>
         {songSummary ? <span className={galleryStyles.summary}>{songSummary}</span> : null}
       </div>
     </Card>
@@ -627,10 +632,12 @@ function SetlistListCard({
           <SetlistCarousel setlist={setlist} height={104} />
         </Box>
         <Stack gap={6} style={{ flex: '1 1 280px', minWidth: 0 }}>
-          <Box>
-            <Text fw={700} truncate>{setlist.description}</Text>
-            <Text c="dimmed" size="sm">{formatDateLabel(setlist.date, locale)}</Text>
-          </Box>
+            <Box>
+              <TruncatedText fw={700} single tooltip={setlist.description}>
+                {setlist.description}
+              </TruncatedText>
+              <Text c="dimmed" size="sm">{formatDateLabel(setlist.date, locale)}</Text>
+            </Box>
           <Group gap={6}>
             {setlist.theme ? <Badge variant="light" size="sm">{setlist.theme}</Badge> : null}
             {setlist.band_name ? (
@@ -641,21 +648,29 @@ function SetlistListCard({
               {setlist.items.length} {t.music.songCountLabel}
             </Badge>
           </Group>
-          <Stack gap={2}>
-            {items.slice(0, 4).map((item) => (
-              <Text key={item.id} size="xs" c="dimmed" truncate>
-                {item.order}. {item.song_title}
-                {item.custom_key ? (
-                  <Text span c="grape"> ({formatMusicalKey(item.custom_key)})</Text>
-                ) : ''}
-              </Text>
-            ))}
+            <Stack gap={2}>
+              {items.slice(0, 4).map((item) => (
+                <TruncatedText
+                  key={item.id}
+                  size="xs"
+                  c="dimmed"
+                  single
+                  tooltip={`${item.order}. ${item.song_title}${
+                    item.custom_key ? ` (${formatMusicalKey(item.custom_key)})` : ''
+                  }`}
+                >
+                  {item.order}. {item.song_title}
+                  {item.custom_key ? (
+                    <Text span c="grape"> ({formatMusicalKey(item.custom_key)})</Text>
+                  ) : ''}
+                </TruncatedText>
+              ))}
             {items.length > 4 ? (
               <Text size="xs" c="dimmed">+{items.length - 4} {t.music.songCountLabel}</Text>
             ) : null}
           </Stack>
           <Text size="xs" c="dimmed" truncate>
-            {t.music.setlistCreatedBy}: {setlist.created_by_name || '—'}
+            {t.music.setlistCreatedBy}: {setlist.created_by_name || 'â€”'}
           </Text>
         </Stack>
         <Group justify="flex-end" style={{ flex: '0 0 auto' }}>
@@ -787,15 +802,23 @@ function SetlistTableView({
                       {setlist.is_private ? <SetlistPrivateBadge size="xs" /> : null}
                     </Group>
                     {items.length > 0 ? (
-                      <Stack gap={2} mt={4}>
-                        {items.slice(0, 3).map((item) => (
-                          <Text key={item.id} size="xs" c="dimmed" truncate>
-                            {item.order}. {item.song_title}
-                            {item.custom_key ? (
-                              <Text span c="grape"> ({formatMusicalKey(item.custom_key)})</Text>
-                            ) : ''}
-                          </Text>
-                        ))}
+                        <Stack gap={2} mt={4}>
+                          {items.slice(0, 3).map((item) => (
+                            <TruncatedText
+                              key={item.id}
+                              size="xs"
+                              c="dimmed"
+                              single
+                              tooltip={`${item.order}. ${item.song_title}${
+                                item.custom_key ? ` (${formatMusicalKey(item.custom_key)})` : ''
+                              }`}
+                            >
+                              {item.order}. {item.song_title}
+                              {item.custom_key ? (
+                                <Text span c="grape"> ({formatMusicalKey(item.custom_key)})</Text>
+                              ) : ''}
+                            </TruncatedText>
+                          ))}
                         {items.length > 3 ? (
                           <Text size="xs" c="dimmed">
                             +{items.length - 3} {t.music.songCountLabel}
@@ -808,14 +831,14 @@ function SetlistTableView({
                     {setlist.theme ? (
                       <Badge variant="light">{setlist.theme}</Badge>
                     ) : (
-                      <Text c="dimmed">—</Text>
+                      <Text c="dimmed">â€”</Text>
                     )}
                   </Table.Td>
                   <Table.Td>
                     {setlist.band_name ? (
                       <Badge variant="dot" color={setlist.band_color}>{setlist.band_name}</Badge>
                     ) : (
-                      <Text c="dimmed">—</Text>
+                      <Text c="dimmed">â€”</Text>
                     )}
                   </Table.Td>
                   <Table.Td>
@@ -825,7 +848,7 @@ function SetlistTableView({
                     </Group>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm">{setlist.created_by_name || '—'}</Text>
+                    <Text size="sm">{setlist.created_by_name || 'â€”'}</Text>
                   </Table.Td>
                   <Table.Td>
                     <Group gap={6} wrap="nowrap">
@@ -852,6 +875,7 @@ function SetlistTableView({
 
 export default function SetlistsPage() {
   const { t } = useLanguage();
+const fb = useFeedback();
   const { user } = useAuth();
   const { canManageMusic } = useRoleHelpers(user);
 
@@ -891,10 +915,10 @@ export default function SetlistsPage() {
           month: month || undefined,
           band: bandFilter ? Number(bandFilter) : undefined,
           visibility,
-        }),
+        })
       );
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao carregar setlists.' });
+    } catch (err) {
+      fb.fromError(err, t.music.setlistsLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -966,10 +990,10 @@ export default function SetlistsPage() {
     if (!window.confirm(t.music.deleteSetlistBody)) return;
     try {
       await musicApi.deleteBandSetlist(setlist.id);
-      notifications.show({ color: 'green', message: t.music.setlistDeleted });
+      fb.success(t.music.setlistDeleted);
       void load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir setlist.' });
+    } catch (err) {
+      fb.fromError(err, t.music.setlistDeleteFailed);
     }
   };
 
@@ -1093,7 +1117,12 @@ export default function SetlistsPage() {
           )
         ) : setlists.length === 0 ? (
           <Card withBorder p="xl">
-            <Text c="dimmed">{t.music.noSetlists}</Text>
+            <EmptyState
+              variant="center"
+              icon={<IconMusic size={24} />}
+              title={t.music.noSetlists}
+              hint={t.music.addToSetlistHint}
+            />
           </Card>
         ) : (
           <>
@@ -1207,3 +1236,4 @@ export default function SetlistsPage() {
     </AuthGuard>
   );
 }
+

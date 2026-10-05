@@ -119,11 +119,11 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
 
   const monthPoint = useMemo(
     () => summary?.series.find((point) => point.month === currentMonth) ?? null,
-    [summary, currentMonth],
+    [summary, currentMonth]
   );
   const previousPoint = useMemo(
     () => summary?.series.find((point) => point.month === currentMonth - 1) ?? null,
-    [summary, currentMonth],
+    [summary, currentMonth]
   );
 
   const monthEntries = monthPoint?.entries ?? 0;
@@ -148,11 +148,11 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
   const pendingExits = useMemo(() => exits.filter((exit) => !exit.receipt), [exits]);
   const recentEntries = useMemo(
     () => [...entries].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6),
-    [entries],
+    [entries]
   );
   const recentPendingExits = useMemo(
     () => [...pendingExits].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6),
-    [pendingExits],
+    [pendingExits]
   );
 
   const cashFlowData = useMemo(
@@ -162,7 +162,7 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
         [dv.chartEntries]: point.entries,
         [dv.chartExits]: point.exits,
       })),
-    [summary, t.months, dv.chartEntries, dv.chartExits],
+    [summary, t.months, dv.chartEntries, dv.chartExits]
   );
 
   const quickActions = useMemo<QuickAction[]>(
@@ -196,7 +196,7 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
         onClick: () => void router.push('/dre'),
       },
     ],
-    [dv, router],
+    [dv, router]
   );
 
   const competenceLabel =
@@ -289,7 +289,7 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
         skeletonHeight={300}
       >
         {cashFlowData.length === 0 ? (
-          <EmptyState label={t.common.noData} />
+          <EmptyState variant="compact" icon={<IconScale size={24} />} title={t.common.noData} />
         ) : (
           <AreaChart
             h={300}
@@ -323,7 +323,7 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
           }
         >
           {recentPendingExits.length === 0 ? (
-            <EmptyState label={dv.tkNoPendingExits} />
+            <EmptyState variant="compact" icon={<IconCash size={24} />} title={dv.tkNoPendingExits} />
           ) : (
             <Stack gap={2}>
               {recentPendingExits.map((exit) => (
@@ -360,7 +360,7 @@ export default function TreasurerView({ year, month }: { year: number; month: nu
           }
         >
           {recentEntries.length === 0 ? (
-            <EmptyState label={dv.tkNoRecentTithes} />
+            <EmptyState variant="compact" icon={<IconReceipt size={24} />} title={dv.tkNoRecentTithes} />
           ) : (
             <Stack gap={2}>
               {recentEntries.map((entry) => (

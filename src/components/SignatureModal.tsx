@@ -1,3 +1,4 @@
+import { useFeedback } from '../hooks/useFeedback';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Modal,
@@ -13,7 +14,6 @@ import {
 } from '@mantine/core';
 import { IconCamera, IconRefresh, IconCheck } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
-import { notifications } from '@mantine/notifications';
 
 interface SignatureModalProps {
   opened: boolean;
@@ -29,6 +29,7 @@ export default function SignatureModal({
   onConfirm,
 }: SignatureModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [step, setStep] = useState(0);
 
   const [photo, setPhoto] = useState<string | null>(null);
@@ -204,11 +205,7 @@ export default function SignatureModal({
       await onConfirm(photo, signature);
       onClose();
     } catch (err) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: t.validationPage.confirmError,
-      });
+      fb.error(t.validationPage.confirmError);
     } finally {
       setSubmitting(false);
     }
@@ -377,3 +374,5 @@ export default function SignatureModal({
     </Modal>
   );
 }
+
+

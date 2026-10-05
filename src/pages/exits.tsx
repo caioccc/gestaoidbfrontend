@@ -19,7 +19,6 @@ import {
 } from '@mantine/core';
 import { DatePickerInput, DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import { DataTable, DataTableColumn } from 'mantine-datatable';
 import {
   IconPlus,
@@ -37,6 +36,7 @@ import MoneyInput from '../components/MoneyInput';
 import ExportModal from '../components/ExportModal';
 import { useLanguage } from '../i18n';
 import { useCategories } from '../hooks/useCategories';
+import { useFeedback } from '../hooks/useFeedback';
 import { FinancialExit } from '../types';
 import { financeApi } from '../api/finance';
 import { formatBRL, formatDate, toISO, toNumber, toSentenceCase } from '../utils/format';
@@ -68,20 +68,9 @@ function widerRange(
   return next;
 }
 
-function apiErrorMessage(err: any, fallback: string): string {
-  const d = err?.response?.data;
-  if (!d) return fallback;
-  if (typeof d === 'string') return d;
-  if (typeof d.detail === 'string') return d.detail;
-  const first = Object.keys(d)[0];
-  const val = first ? d[first] : null;
-  if (Array.isArray(val) && typeof val[0] === 'string') return `${first}: ${val[0]}`;
-  if (typeof val === 'string') return `${first}: ${val}`;
-  return fallback;
-}
-
 export default function ExitsPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const { categories } = useCategories();
   const router = useRouter();
 
@@ -178,10 +167,10 @@ export default function ExitsPage() {
       if (receiptFile) fd.append('receipt', receiptFile);
       if (editing) {
         await financeApi.updateExit(editing.id, fd);
-        notifications.show({ color: 'green', message: 'Saída atualizada.' });
+        fb.success(t.exitsPage.updated);
       } else {
         await financeApi.createExit(fd);
-        notifications.show({ color: 'green', message: 'Saída registrada.' });
+        fb.success(t.exitsPage.registered);
       }
       setModalOpen(false);
       setEditing(null);
@@ -191,11 +180,7 @@ export default function ExitsPage() {
       form.reset();
       load();
     } catch (err: any) {
-      notifications.show({
-        color: 'red',
-        title: 'Erro',
-        message: apiErrorMessage(err, 'Não foi possível salvar.'),
-      });
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -206,11 +191,11 @@ export default function ExitsPage() {
     setDeleting(true);
     try {
       await financeApi.deleteExit(deleteTarget.id);
-      notifications.show({ color: 'green', message: 'Registro excluído.' });
+      fb.success(t.common.toast.deleted);
       setDeleteTarget(null);
       load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir.' });
+    } catch (err: any) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }

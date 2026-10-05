@@ -22,7 +22,9 @@ import {
   IconMapPin,
   IconSearch,
   IconTrash,
+  IconUsersGroup,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import MobileItemCard from './MobileItemCard';
 import { SkeletonMobileCards, SkeletonTableCells } from './LoadingSkeleton';
 import { useLanguage } from '../i18n';
@@ -193,9 +195,11 @@ export default function GrowthGroupsTable({
         />
       </Group>
       {rows.length === 0 ? (
-        <Text c="dimmed" ta="center" py="xl">
-          {t.growthGroups.noGroups}
-        </Text>
+        <EmptyState
+          variant="center"
+          icon={<IconUsersGroup size={24} />}
+          title={t.growthGroups.noGroups}
+        />
       ) : (
         <>
           <Box visibleFrom="sm">

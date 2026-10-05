@@ -21,7 +21,6 @@ import {
 } from '@mantine/core';
 import { DateInput, DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconAdjustmentsHorizontal,
   IconFileText,
@@ -37,6 +36,7 @@ import {
   IconWand,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
+import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MobileItemCard from '../components/MobileItemCard';
@@ -50,6 +50,7 @@ import { accountsApi, ChurchMinutesPayload } from '../api/accounts';
 import { saveBlob } from '../api/finance';
 import { useLanguage } from '../i18n';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
+import { useFeedback } from '../hooks/useFeedback';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { generateMinutesPdf } from '../utils/minutesPdf';
 import { toUpperCamelWords } from '../utils/format';
@@ -83,6 +84,7 @@ interface MinutesFormValues {
 
 export default function MinutesPage() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const { church } = useCurrentChurch();
   const isCompact = useIsCompactList();
   const [minutes, setMinutes] = useState<ChurchMinutes[]>([]);
@@ -248,12 +250,12 @@ export default function MinutesPage() {
 
     request
       .then(() => {
-        notifications.show({ message: t.minutesPage.saved, color: 'green' });
+        fb.success(t.minutesPage.saved);
         setOpened(false);
         load();
       })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
+      .catch((err) => {
+        fb.fromError(err, t.common.toast.saveFailed);
       })
       .finally(() => setSaving(false));
   });
@@ -271,12 +273,12 @@ export default function MinutesPage() {
     accountsApi
       .deleteMinutes(toDelete.id)
       .then(() => {
-        notifications.show({ message: t.minutesPage.deleted, color: 'green' });
+        fb.success(t.minutesPage.deleted);
         setToDelete(null);
         load();
       })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
+      .catch((err) => {
+        fb.fromError(err, t.common.toast.deleteFailed);
       })
       .finally(() => setDeleting(false));
   };
@@ -287,12 +289,12 @@ export default function MinutesPage() {
     accountsApi
       .regenerateMinutesHash(toRegenerate.id)
       .then(() => {
-        notifications.show({ message: t.minutesPage.regenerate, color: 'green' });
+        fb.success(t.minutesPage.regenerate);
         setToRegenerate(null);
         load();
       })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
+      .catch((err) => {
+        fb.fromError(err);
       })
       .finally(() => setRegenerating(false));
   };
@@ -303,12 +305,12 @@ export default function MinutesPage() {
     accountsApi
       .removeMinutesPdf(toRemovePdf.id)
       .then(() => {
-        notifications.show({ message: t.minutesPage.saved, color: 'green' });
+        fb.success(t.minutesPage.saved);
         setToRemovePdf(null);
         load();
       })
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
+      .catch((err) => {
+        fb.fromError(err);
       })
       .finally(() => setRemovingPdf(false));
   };
@@ -316,22 +318,28 @@ export default function MinutesPage() {
   const copyLink = (item: ChurchMinutes) => {
     navigator.clipboard
       .writeText(publicUrl(item))
-      .then(() => notifications.show({ message: t.minutesPage.copied, color: 'green' }))
+      .then(() => fb.success(t.minutesPage.copied))
       .catch(() => undefined);
   };
 
   const downloadPdf = (item: ChurchMinutes) => {
+    fb.task(`minutes-pdf-${item.id}`, t.common.toast.sending);
     accountsApi
       .minutesPdfDownload(item.id)
-      .then((blob) => saveBlob(blob, item.pdf_name || 'ata.pdf'))
-      .catch(() => {
-        notifications.show({ message: t.overview, color: 'red' });
+      .then((blob) => {
+        saveBlob(blob, item.pdf_name || 'ata.pdf');
+        fb.taskSuccess(`minutes-pdf-${item.id}`, t.common.toast.downloaded);
+      })
+      .catch((err) => {
+        fb.taskError(`minutes-pdf-${item.id}`, err, t.common.toast.downloadFailed);
       });
   };
 
   const generatePdf = async (item: ChurchMinutes) => {
     if (generatingId !== null) return;
     setGeneratingId(item.id);
+    // Geracao client-side pode demorar: toast unico em vez de spinner no botao.
+    fb.task(`minutes-generate-${item.id}`, t.common.toast.processing);
     try {
       await generateMinutesPdf({
         title: item.title,
@@ -354,10 +362,10 @@ export default function MinutesPage() {
           signature: t.minutesPage.pdfSignature,
         },
       });
-      notifications.show({ message: t.minutesPage.pdfGenerated, color: 'green' });
-    } catch {
-      notifications.show({ message: t.overview, color: 'red' });
-    } finally {
+        fb.taskSuccess(`minutes-generate-${item.id}`, t.minutesPage.pdfGenerated);
+      } catch (err) {
+        fb.taskError(`minutes-generate-${item.id}`, err, t.common.toast.operationFailed);
+      } finally {
       setGeneratingId(null);
     }
   };
@@ -367,7 +375,9 @@ export default function MinutesPage() {
       <Tooltip label={t.minutesPage.generatePdf}>
         <ActionIcon
           variant="subtle"
-          loading={generatingId === m.id}
+          // Sem `loading`: o progresso fica no toast. `disabled` preserva a
+          // trava contra cliques duplicados durante a geracao.
+          disabled={generatingId !== null}
           onClick={() => generatePdf(m)}
           aria-label={t.minutesPage.generatePdf}
           data-testid={`minute-genpdf-${m.id}`}
@@ -502,24 +512,26 @@ export default function MinutesPage() {
           {loading ? (
             <SkeletonResponsiveTable rows={8} columns={6} />
           ) : minutes.length === 0 ? (
-          <Card withBorder p="xl" ta="center" c="dimmed">
-            <ThemeIcon size={48} radius="xl" variant="light" mx="auto" mb="sm">
-              <IconFileText size={24} />
-            </ThemeIcon>
-            <Text data-testid="minutes-empty">
-              {hasFilters ? t.minutesPage.filterEmpty : t.minutesPage.empty}
-            </Text>
-            {hasFilters && (
-              <Button
-                variant="light"
-                size="xs"
-                mt="sm"
-                onClick={clearFilters}
-                data-testid="minutes-empty-clear-filters"
-              >
-                {t.common.clearFilters}
-              </Button>
-            )}
+          <Card withBorder p="xl">
+            <div data-testid="minutes-empty">
+              <EmptyState
+                variant="center"
+                icon={<IconFileText size={24} />}
+                title={hasFilters ? t.minutesPage.filterEmpty : t.minutesPage.empty}
+                action={
+                  hasFilters ? (
+                    <Button
+                      variant="light"
+                      size="xs"
+                      onClick={clearFilters}
+                      data-testid="minutes-empty-clear-filters"
+                    >
+                      {t.common.clearFilters}
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
           </Card>
         ) : (
           <Card withBorder p={0}>

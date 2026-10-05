@@ -39,7 +39,6 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { notifications } from '@mantine/notifications';
 import {
   IconBrandWhatsapp,
   IconDotsVertical,
@@ -67,6 +66,7 @@ import type {
   MinistryArea,
 } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
+import { useFeedback } from '../hooks/useFeedback';
 
 const STAGE_COLORS: Record<string, string> = {
   VISITOR: 'violet',
@@ -327,9 +327,10 @@ export default function MembersFunnelTab({
   churchContact,
 }: MembersFunnelTabProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { colorScheme } = useMantineColorScheme();
   const [boards, setBoards] = useState<Record<string, Member[]>>(() =>
-    Object.fromEntries(FUNNEL_COLUMNS.map((s) => [s, [] as Member[]])),
+    Object.fromEntries(FUNNEL_COLUMNS.map((s) => [s, [] as Member[]]))
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -350,7 +351,7 @@ export default function MembersFunnelTab({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const load = () => {
@@ -407,7 +408,7 @@ export default function MembersFunnelTab({
     setDragStart(
       member && stage && index >= 0
         ? { id, member, stage, index }
-        : null,
+        : null
     );
   };
 
@@ -496,7 +497,7 @@ export default function MembersFunnelTab({
       applyMove(member, overBoard);
     } else {
       if (dragStart && member) revertVisualMove(dragStart.index, sourceStage, member);
-      notifications.show({ color: 'red', message: t.funnel.moveError });
+      fb.error(t.funnel.moveError);
     }
 
     setDraggingId(null);
@@ -533,10 +534,10 @@ export default function MembersFunnelTab({
             { ...member, lifecycle_stage: nextStage as LifecycleStage, status: nextStatus },
           ],
         }));
-        notifications.show({ color: 'green', message: t.funnel.moved });
+        fb.success(t.funnel.moved);
       })
       .catch(() => {
-        notifications.show({ color: 'red', message: t.funnel.moveError });
+        fb.error(t.funnel.moveError);
         load();
       });
   };
@@ -572,7 +573,7 @@ export default function MembersFunnelTab({
     if (isEdit && visitorForm.visitor) {
       const saved = await accountsApi.updateMember(visitorForm.visitor.id, payload);
       replaceMemberInBoards(saved);
-      notifications.show({ color: 'green', message: t.funnel.visitorSaved });
+      fb.success(t.funnel.visitorSaved);
       return saved;
     }
     const created = await accountsApi.createMember({
@@ -583,7 +584,7 @@ export default function MembersFunnelTab({
       ...prev,
       VISITOR: [...prev.VISITOR, { ...created, lifecycle_stage: 'VISITOR' }],
     }));
-    notifications.show({ color: 'green', message: t.funnel.visitorSaved });
+    fb.success(t.funnel.visitorSaved);
     return created;
   };
 
@@ -603,7 +604,7 @@ export default function MembersFunnelTab({
         { ...saved, lifecycle_stage: res.lifecycle_stage as LifecycleStage },
       ],
     }));
-    notifications.show({ color: 'green', message: t.funnel.promoted });
+    fb.success(t.funnel.promoted);
     return saved;
   };
 
@@ -613,10 +614,10 @@ export default function MembersFunnelTab({
     try {
       await accountsApi.deleteMember(toDelete.id);
       removeMemberFromBoards(toDelete.id);
-      notifications.show({ color: 'green', message: t.funnel.visitorDeleted });
+      fb.success(t.funnel.visitorDeleted);
       setToDelete(null);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.deleteFailed);
     } finally {
       setDeleting(false);
     }
@@ -627,7 +628,7 @@ export default function MembersFunnelTab({
       const next = { ...prev };
       for (const s of FUNNEL_COLUMNS) {
         next[s] = next[s].map((m) =>
-          m.id === memberId ? { ...m, last_contact_at: new Date().toISOString() } : m,
+          m.id === memberId ? { ...m, last_contact_at: new Date().toISOString() } : m
         );
       }
       return next;

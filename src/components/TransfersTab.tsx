@@ -11,15 +11,19 @@ import {
   Table,
   Text,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
+  IconArrowDownLeft,
+  IconArrowUpRight,
   IconArrowRight,
   IconPlus,
   IconSend,
   IconCheck,
   IconX,
 } from '@tabler/icons-react';
+import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
+import { firstFieldError } from '../utils/apiError';
 import { accountsApi } from '../api/accounts';
 import type { Member, MemberTransfer, MemberTransferStatus } from '../types';
 import { SkeletonTableOnly } from './LoadingSkeleton';
@@ -47,6 +51,7 @@ const fmtDate = (iso: string, locale = 'pt-br'): string => {
 
 export default function TransfersTab() {
   const { t, locale } = useLanguage();
+  const fb = useFeedback();
   const [incoming, setIncoming] = useState<MemberTransfer[]>([]);
   const [outgoing, setOutgoing] = useState<MemberTransfer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,8 +79,8 @@ export default function TransfersTab() {
       ]);
       setOutgoing(o);
       setIncoming(i);
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -92,8 +97,8 @@ export default function TransfersTab() {
     setEmitOpen(true);
     try {
       setMembers(await accountsApi.members());
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
+    } catch (err) {
+      fb.fromError(err, t.common.toast.loadFailed);
     }
   };
 
@@ -116,17 +121,15 @@ export default function TransfersTab() {
     setSaving(true);
     try {
       await accountsApi.createMemberTransfer(Number(memberId), Number(target));
-      notifications.show({ color: 'green', message: t.membersPage.saved });
+      fb.success(t.membersPage.saved);
       setEmitOpen(false);
       refresh();
     } catch (err: any) {
-      const data = err?.response?.data;
-      const msg =
-        data?.member_id?.[0] ||
-        data?.target_church_id?.[0] ||
-        data?.detail ||
-        t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.fromError(
+        err,
+        firstFieldError(err?.response?.data, ['member_id', 'target_church_id']) ||
+          t.common.toast.saveFailed
+      );
     } finally {
       setSaving(false);
     }
@@ -140,22 +143,15 @@ export default function TransfersTab() {
     try {
       if (action === 'receive') {
         await accountsApi.receiveTransfer(transfer.id);
-        notifications.show({
-          color: 'green',
-          message: t.transfers.received,
-        });
+        fb.success(t.transfers.received);
       } else {
         await accountsApi.cancelTransfer(transfer.id);
-        notifications.show({
-          color: 'gray',
-          message: t.transfers.canceled,
-        });
+        // Cancelar e um desfecho neutro, nao um erro: `info` evita o icone de "X".
+        fb.info(t.transfers.canceled);
       }
       refresh();
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.detail || err?.response?.data?.detail?.[0] || t.overview;
-      notifications.show({ color: 'red', message: msg });
+      fb.fromError(err, t.common.toast.operationFailed);
     } finally {
       setBusyId(null);
     }
@@ -267,9 +263,11 @@ export default function TransfersTab() {
               {t.transfers.incomingTitle}
             </Text>
             {incoming.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {t.transfers.incomingEmpty}
-              </Text>
+              <EmptyState
+                variant="inline"
+                icon={<IconArrowDownLeft size={24} />}
+                title={t.transfers.incomingEmpty}
+              />
             ) : (
               <Table striped>
                 <Table.Thead>
@@ -293,9 +291,11 @@ export default function TransfersTab() {
               {t.transfers.outgoingTitle}
             </Text>
             {outgoing.length === 0 ? (
-              <Text size="sm" c="dimmed">
-                {t.transfers.outgoingEmpty}
-              </Text>
+              <EmptyState
+                variant="inline"
+                icon={<IconArrowUpRight size={24} />}
+                title={t.transfers.outgoingEmpty}
+              />
             ) : (
               <Table striped>
                 <Table.Thead>

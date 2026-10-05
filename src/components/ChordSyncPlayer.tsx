@@ -133,7 +133,7 @@ export default function ChordSyncPlayer({
 
   const transposedChords = useMemo(
     () => transposeChordsJson(chords, transpose),
-    [chords, transpose],
+    [chords, transpose]
   );
   const displayChords = useMemo(() => dedupeChords(transposedChords), [transposedChords]);
   const canSync = displayChords.length > 0;
@@ -148,7 +148,7 @@ export default function ChordSyncPlayer({
 
   const currentMatch = useMemo(
     () => chordAt(displayChords, progress),
-    [displayChords, progress],
+    [displayChords, progress]
   );
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export default function ChordSyncPlayer({
     (delta: number) => {
       seekTo(Math.max(0, Math.min(duration || 0, progress + delta)));
     },
-    [progress, duration, seekTo],
+    [progress, duration, seekTo]
   );
 
   const markLoopA = useCallback(() => {

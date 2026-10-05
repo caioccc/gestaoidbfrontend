@@ -20,7 +20,6 @@ import {
   Tooltip,
   UnstyledButton,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -28,13 +27,16 @@ import {
   IconChevronDown,
   IconChevronUp,
   IconDotsVertical,
+  IconHistory,
   IconInfoCircle,
   IconLock,
   IconPencil,
   IconRefresh,
   IconTrash,
+  IconUsersGroup,
 } from '@tabler/icons-react';
 import PageHeader from '../../components/PageHeader';
+import EmptyState from '../../components/EmptyState';
 import AuthGuard from '../../components/AuthGuard';
 import Layout from '../../components/Layout';
 import SongModal from '../../components/SongModal';
@@ -44,6 +46,7 @@ import SongChordStatusBadge from '../../components/SongChordStatusBadge';
 import { TOUCH_TARGET, touchStyles } from '../../components/PlayerToolsBar';
 import { SkeletonPageHeader, SkeletonPanel } from '../../components/LoadingSkeleton';
 import { useLanguage } from '../../i18n';
+import { useFeedback } from '../../hooks/useFeedback';
 import { useIsMobile } from '../../hooks/useIsMobile';
 import { useAuth } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
@@ -55,6 +58,7 @@ type Tab = 'player' | 'lyrics' | 'history';
 export default function SongDetailPage() {
   const router = useRouter();
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const id = Number(router.query.id);
@@ -86,8 +90,8 @@ export default function SongDetailPage() {
       setSong(await musicApi.song(id));
       const h = await musicApi.songHistory(id);
       setHistory(h.results);
-    } catch {
-      notifications.show({ color: 'red', message: 'Música não encontrada.' });
+    } catch (err) {
+      fb.fromError(err, t.music.songNotFound);
     } finally {
       setLoading(false);
     }
@@ -110,9 +114,9 @@ export default function SongDetailPage() {
     try {
       const res = await musicApi.reprocessSong(song.id);
       setSong(res.song);
-      notifications.show({ color: 'green', message: t.music.chordReprocessDone });
-    } catch {
-      notifications.show({ color: 'red', message: t.music.chordSaveError });
+      fb.success(t.music.chordReprocessDone);
+    } catch (err) {
+      fb.fromError(err, t.music.chordSaveError);
     } finally {
       setReprocessing(false);
     }
@@ -123,10 +127,10 @@ export default function SongDetailPage() {
     if (!window.confirm(`Excluir "${song.title}"?`)) return;
     try {
       await musicApi.deleteSong(song.id);
-      notifications.show({ color: 'green', message: 'Música excluída.' });
+      fb.success(t.music.songDeleted);
       router.push('/songs');
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao excluir música.' });
+    } catch (err) {
+      fb.fromError(err, t.music.songDeleteFailed);
     }
   };
 
@@ -306,7 +310,8 @@ export default function SongDetailPage() {
                         height: 67.5,
                         borderRadius: 8,
                         overflow: 'hidden',
-                        backgroundColor: 'var(--mantine-color-gray-2)',
+                        backgroundColor:
+                      'light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-5))',
                       }}
                     >
                       <img
@@ -392,7 +397,11 @@ export default function SongDetailPage() {
                         {t.music.playedByBand}
                       </Text>
                       {song.band_stats.length === 0 ? (
-                        <Text size="xs" c="dimmed">{t.music.noBandStats}</Text>
+                        <EmptyState
+                          variant="compact"
+                          icon={<IconUsersGroup size={16} />}
+                          title={t.music.noBandStats}
+                        />
                       ) : (
                         <Group gap={6} wrap="wrap">
                           {song.band_stats.map((stat) => (
@@ -527,7 +536,12 @@ function HistoryTab({ items }: { items: SongHistoryItem[] }) {
   return (
     <Card withBorder>
       {items.length === 0 ? (
-        <Text c="dimmed">{t.music.noHistory}</Text>
+        <EmptyState
+          variant="center"
+          minHeight={120}
+          icon={<IconHistory size={24} />}
+          title={t.music.noHistory}
+        />
       ) : (
         <Table>
           <Table.Thead>

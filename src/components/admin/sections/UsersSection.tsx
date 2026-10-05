@@ -14,7 +14,6 @@ import {
   Table,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { notifications } from '@mantine/notifications';
 import {
   IconUserShield,
   IconPlus,
@@ -29,6 +28,7 @@ import { useAuth, useRoleHelpers } from '../../../contexts/AuthContext';
 import { accountsApi } from '../../../api/accounts';
 import { ChurchMembership, Role } from '../../../types';
 import { toUpperCamelWords, isValidEmail } from '../../../utils/format';
+import { useFeedback } from '../../../hooks/useFeedback';
 
 const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: 'PASTOR', label: 'Pastor(a)' },
@@ -60,6 +60,7 @@ export default function UsersSection({
   staffAccess?: boolean;
 }) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const { user } = useAuth();
   const { hasRole } = useRoleHelpers(user);
   // Secretária vê a lista (somente leitura); Pastor(a)/ADMIN gerenciam.
@@ -115,7 +116,7 @@ export default function UsersSection({
         password: form.values.password,
         password2: form.values.password2,
       });
-      notifications.show({ color: 'green', message: t.usersPage.saved });
+      fb.success(t.usersPage.saved);
       setOpened(false);
       form.reset();
       load();
@@ -126,7 +127,7 @@ export default function UsersSection({
         data?.password?.[0] ||
         data?.password2?.[0] ||
         data?.detail;
-      notifications.show({ color: 'red', message: msg || t.overview });
+      fb.error(msg || t.overview);
     } finally {
       setSaving(false);
     }
@@ -136,12 +137,12 @@ export default function UsersSection({
     if (!canManageUsers || membershipId === user?.id) return;
     setSavingRoleId(membershipId);
     try {
-      await accountsApi.updateChurchUserRole(churchId, membershipId, role);
-      notifications.show({ color: 'green', message: t.usersPage.roleUpdated });
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
+        await accountsApi.updateChurchUserRole(churchId, membershipId, role);
+        fb.success(t.usersPage.roleUpdated);
+        load();
+      } catch (err) {
+        fb.fromError(err);
+      } finally {
       setSavingRoleId(null);
     }
   };
@@ -150,13 +151,13 @@ export default function UsersSection({
     if (!canManageUsers || !toRemove) return;
     setRemoving(true);
     try {
-      await accountsApi.removeChurchUser(churchId, toRemove.id);
-      notifications.show({ color: 'green', message: t.usersPage.removed });
-      setToRemove(null);
-      load();
-    } catch {
-      notifications.show({ color: 'red', message: t.overview });
-    } finally {
+        await accountsApi.removeChurchUser(churchId, toRemove.id);
+        fb.success(t.usersPage.removed);
+        setToRemove(null);
+        load();
+      } catch (err) {
+        fb.fromError(err, t.common.toast.deleteFailed);
+      } finally {
       setRemoving(false);
     }
   };

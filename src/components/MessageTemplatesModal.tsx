@@ -9,13 +9,14 @@ import {
   Stack,
   Text,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconMessageCircle, IconPencil, IconPlus, IconTrash } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
+import EmptyState from './EmptyState';
 import MessageTemplateFormModal from './MessageTemplateFormModal';
 import { SkeletonActionRows } from './LoadingSkeleton';
 import type { MessageTemplate } from '../types';
+import { useFeedback } from '../hooks/useFeedback';
 
 interface MessageTemplatesModalProps {
   opened: boolean;
@@ -29,6 +30,7 @@ export default function MessageTemplatesModal({
   onChanged,
 }: MessageTemplatesModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -42,7 +44,7 @@ export default function MessageTemplatesModal({
       .messageTemplates()
       .then(setTemplates)
       .catch(() => {
-        notifications.show({ color: 'red', message: t.sender.error });
+        fb.error(t.sender.error);
       })
       .finally(() => setLoading(false));
   };
@@ -63,12 +65,12 @@ export default function MessageTemplatesModal({
     setDeleting(true);
     try {
       await accountsApi.deleteMessageTemplate(toDelete.id);
-      notifications.show({ color: 'green', message: t.sender.deleted });
+      fb.success(t.sender.deleted);
       setToDelete(null);
       load();
       onChanged();
     } catch {
-      notifications.show({ color: 'red', message: t.sender.error });
+      fb.error(t.sender.error);
     } finally {
       setDeleting(false);
     }
@@ -106,9 +108,11 @@ export default function MessageTemplatesModal({
                 <SkeletonActionRows count={6} titleWidth="45%" badges={2} actions={2} />
               </ScrollArea.Autosize>
             ) : templates.length === 0 ? (
-            <Text size="sm" c="dimmed" py="sm">
-              {t.sender.emptyTemplates}
-            </Text>
+            <EmptyState
+              variant="center"
+              icon={<IconMessageCircle size={24} />}
+              title={t.sender.emptyTemplates}
+            />
           ) : (
             <ScrollArea.Autosize mah={420} type="auto">
               <Stack gap="xs">
@@ -193,3 +197,4 @@ export default function MessageTemplatesModal({
     </>
   );
 }
+

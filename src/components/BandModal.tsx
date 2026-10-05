@@ -16,10 +16,11 @@ import {
   TextInput,
   Tooltip,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
-import { IconDeviceFloppy, IconTrash } from '@tabler/icons-react';
+import { IconDeviceFloppy, IconMusic, IconTrash } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
+import { useFeedback } from '../hooks/useFeedback';
 import { musicApi } from '../api/music';
+import EmptyState from './EmptyState';
 import ImageUpload from './ImageUpload';
 import { SkeletonColorEntityCards } from './LoadingSkeleton';
 import type { Band } from '../types';
@@ -31,6 +32,7 @@ interface BandModalProps {
 
 export default function BandModal({ opened, onClose }: BandModalProps) {
   const { t } = useLanguage();
+const fb = useFeedback();
   const [bands, setBands] = useState<Band[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -43,8 +45,8 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
     setLoading(true);
     try {
       setBands(await musicApi.bands());
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao carregar bandas.' });
+    } catch (err) {
+      fb.fromError(err, t.music.bandsLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -62,13 +64,13 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
         color,
         photo: photo ?? undefined,
       });
-      notifications.show({ color: 'green', message: t.music.bandSaved });
+      fb.success(t.music.bandSaved);
       setName('');
       setColor('#7048e8');
       setPhoto(null);
       await load();
-    } catch {
-      notifications.show({ color: 'red', message: 'Erro ao salvar banda.' });
+    } catch (err) {
+      fb.fromError(err, t.music.bandSaveFailed);
     } finally {
       setSaving(false);
     }
@@ -78,10 +80,10 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
     if (!window.confirm(t.music.deleteBandBody)) return;
     try {
       await musicApi.deleteBand(b.id);
-      notifications.show({ color: 'green', message: t.music.bandDeleted });
+      fb.success(t.music.bandDeleted);
       await load();
     } catch {
-      notifications.show({ color: 'red', message: t.music.bandInUse });
+      fb.error(t.music.bandInUse);
     }
   };
 
@@ -92,7 +94,11 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
             <SkeletonColorEntityCards count={6} cols={{ base: 1, sm: 2 }} />
           ) : bands.length === 0 ? (
           <Card withBorder p="lg">
-            <Text c="dimmed">{t.music.noBands}</Text>
+            <EmptyState
+              variant="center"
+              icon={<IconMusic size={24} />}
+              title={t.music.noBands}
+            />
           </Card>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -115,7 +121,7 @@ export default function BandModal({ opened, onClose }: BandModalProps) {
                 </Group>
                 <Group gap={8}>
                   {b.leader_name ? (
-                    <Text size="xs" c="dimmed">Líder: {b.leader_name}</Text>
+                    <Text size="xs" c="dimmed">LÃ­der: {b.leader_name}</Text>
                   ) : null}
                   <Badge variant="light" size="xs">{b.song_count} {t.music.songsTitle}</Badge>
                 </Group>
