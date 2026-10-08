@@ -175,7 +175,7 @@ function MembersTab({
   ];
 
   const filterParams = (): Record<string, string> => {
-    const params: Record<string, string> = {};
+    const params: Record<string, string> = { member_scope: '1' };
     if (dbSearch.trim()) params.search = dbSearch.trim();
     if (fStatus) params.status = fStatus;
     if (fArea) params.area = fArea;

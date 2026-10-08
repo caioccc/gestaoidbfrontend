@@ -13,11 +13,13 @@ import {
   EcclesiasticalCertificate,
   CertificateFieldKey,
   CertificateFieldLayout,
+  DiscipleOption,
   Loan,
   LoginResponse,
   MaterialItem,
   Member,
   MemberDocument,
+  MemberInvite,
   MemberImportInspection,
   MemberImportResult,
   MemberSubmission,
@@ -28,6 +30,8 @@ import {
   PendingChurch,
   PublicCardPayload,
   PublicFormMeta,
+  PublicInviteMeta,
+  PublicInviteSignupResult,
   PublicMinutesPayload,
   PublicMemberProfile,
   PublicSubmissionResult,
@@ -42,6 +46,7 @@ import {
   ChurchPublicLink,
   PublicChurchLinksPayload,
   GrowthGroup,
+  GrowthGroupMembership,
   GrowthGroupPayload,
   GrowthGroupStats,
   GrowthGroupWeekday,
@@ -101,7 +106,6 @@ export interface WorshipServicePayload {
   preacher?: string;
   theme?: string;
   scripture?: string;
-  attendees?: number;
   visitors?: number;
   conversions?: number;
   offering?: string | number;
@@ -188,6 +192,9 @@ export interface MemberListParams {
   education?: string;
   marital_status?: string;
   church_entry?: string;
+  lifecycle_stage?: string;
+  discipler?: string;
+  unassigned?: '1';
 }
 
 export interface MemberListResponse {
@@ -356,10 +363,13 @@ export const accountsApi = {
   members: (params?: MemberListParams): Promise<Member[]> =>
     apiClient.get('/api/accounts/members/', { params }).then((r) => r.data),
 
-  membersPage: (params?: MemberListParams): Promise<MemberListResponse> =>
-    apiClient
-      .get('/api/accounts/members/', { params: { ...(params || {}), paginate: 1 } })
-      .then((r) => r.data),
+    membersPage: (params?: MemberListParams): Promise<MemberListResponse> =>
+      apiClient
+        .get('/api/accounts/members/', { params: { ...(params || {}), paginate: 1 } })
+        .then((r) => r.data),
+
+    disciplers: (): Promise<DiscipleOption[]> =>
+      apiClient.get('/api/accounts/members/disciplers/').then((r) => r.data),
 
   messageTemplates: (): Promise<MessageTemplate[]> =>
     apiClient.get('/api/accounts/message-templates/').then((r) => r.data),
@@ -1202,4 +1212,51 @@ export const growthGroupsApi = {
 
   stats: (): Promise<GrowthGroupStats> =>
     apiClient.get('/api/accounts/growth-groups/stats/').then((r) => r.data),
+
+  mine: (): Promise<GrowthGroupMembership[]> =>
+    apiClient.get('/api/accounts/growth-groups/mine/').then((r) => r.data),
+
+  join: (id: number): Promise<GrowthGroupMembership> =>
+    apiClient.post(`/api/accounts/growth-groups/${id}/join/`, {}).then((r) => r.data),
+
+  leave: (id: number): Promise<GrowthGroupMembership> =>
+    apiClient.post(`/api/accounts/growth-groups/${id}/leave/`, {}).then((r) => r.data),
+};
+
+export interface MemberInviteCreatePayload {
+  label?: string;
+  max_uses?: number | null;
+  expires_at?: string | null;
+}
+
+export const memberInvitesApi = {
+  list: (all = false): Promise<MemberInvite[]> =>
+    apiClient
+      .get('/api/accounts/member-invites/', { params: all ? { all: '1' } : undefined })
+      .then((r) => r.data),
+
+  create: (payload: MemberInviteCreatePayload): Promise<MemberInvite> =>
+    apiClient.post('/api/accounts/member-invites/', payload).then((r) => r.data),
+
+  regenerate: (id: number): Promise<MemberInvite> =>
+    apiClient.post(`/api/accounts/member-invites/${id}/regenerate/`).then((r) => r.data),
+
+  toggle: (id: number): Promise<MemberInvite> =>
+    apiClient.post(`/api/accounts/member-invites/${id}/toggle/`).then((r) => r.data),
+};
+
+export const publicInviteApi = {
+  meta: (token: string): Promise<PublicInviteMeta> =>
+    apiClient.get(`/api/accounts/public/invite/${token}/`).then((r) => r.data),
+
+  signup: (
+    token: string,
+    payload: {
+      name: string;
+      phone: string;
+      birth_date?: string | null;
+      notes?: string;
+    },
+  ): Promise<PublicInviteSignupResult> =>
+    apiClient.post(`/api/accounts/public/invite/${token}/`, payload).then((r) => r.data),
 };

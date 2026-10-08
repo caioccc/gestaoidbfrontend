@@ -26,7 +26,6 @@ import {
   IconArrowDownCircle,
   IconUsers,
   IconCalendarStats,
-  IconReport,
   IconChartBar,
   IconWallet,
   IconCalendarEvent,
@@ -55,8 +54,9 @@ import {
   IconSchool,
   IconListCheck,
   IconMusic,
-  IconChartFunnel,
-} from "@tabler/icons-react";
+    IconChartFunnel,
+    IconQrcode,
+  } from "@tabler/icons-react";
 import { useAuth, useRoleHelpers } from "../contexts/AuthContext";
 import { useLanguage, SupportedLocale } from "../i18n";
 import { accountsApi } from "../api/accounts";
@@ -174,6 +174,9 @@ function SidebarContent({
   // Usuários nem Governança.
   const canSeeMembers = hasRole("PASTOR", "SECRETARIA", "TESOUREIRO");
   const canSeeVisitation = hasRole("PASTOR", "SECRETARIA", "INTERCESSAO");
+  // Papel MEMBRO não gere a secretaria, mas usa as ferramentas próprias do
+  // membro (visitantes sob sua responsabilidade, convites e inscrição em GC).
+  const canSeeMemberTools = hasRole("MEMBRO");
   const canSeePrayerRequests = hasRole("INTERCESSAO", "PASTOR", "SECRETARIA");
   const canSeeUsers = hasRole("PASTOR");
   const isMusicRole = user?.role === "MUSICO" || user?.role === "LOUVOR";
@@ -236,7 +239,8 @@ function SidebarContent({
         },
       ],
     },
-    ...(showChurchSections && (canSeeMembers || canSeeVisitation || isEbdRole)
+    ...(showChurchSections &&
+    (canSeeMembers || canSeeVisitation || isEbdRole || canSeeMemberTools)
       ? [
           {
             title: t.section.secretaryMembership,
@@ -260,7 +264,14 @@ function SidebarContent({
                 icon: <IconChartFunnel size={18} />,
                 href: "/visitors",
                 fixed: true,
-                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO"],
+                roles: ["MEMBRO", "PASTOR", "SECRETARIA", "TESOUREIRO"],
+              } as NavItem,
+              {
+                label: t.nav.invites,
+                icon: <IconQrcode size={18} />,
+                href: "/convites",
+                fixed: true,
+                roles: ["MEMBRO", "PASTOR", "SECRETARIA", "TESOUREIRO"],
               } as NavItem,
               {
                 label: t.nav.cultos,
@@ -299,7 +310,7 @@ function SidebarContent({
                 label: t.nav.growthGroups,
                 icon: <IconHomeHeart size={18} />,
                 href: "/growth-groups",
-                roles: ["PASTOR", "SECRETARIA", "TESOUREIRO", "INTERCESSAO", "PROFESSOR_EBD"],
+                roles: ["MEMBRO", "PASTOR", "SECRETARIA", "TESOUREIRO", "INTERCESSAO", "PROFESSOR_EBD"],
               } as NavItem,
               {
                 label: t.nav.visitation,
@@ -389,15 +400,6 @@ function SidebarContent({
             title: t.section.reports,
             requiresChurch: true,
             items: [
-              ...(!isCongregationScope
-                ? [
-                    {
-                      label: t.nav.reports,
-                      icon: <IconReport size={18} />,
-                      href: "/reports",
-                    },
-                  ]
-                : []),
               {
                 label: t.nav.dre,
                 icon: <IconChartBar size={18} />,

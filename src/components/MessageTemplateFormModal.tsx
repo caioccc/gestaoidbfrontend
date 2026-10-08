@@ -27,6 +27,10 @@ const CATEGORIES: MessageTemplateCategory[] = [
   'CARE',
   'VERSE',
   'CARD_EXPIRING',
+  'DISCIPLER_REMINDER',
+  'EBD_CLASS_ANNOUNCEMENT',
+  'EBD_ABSENCE_RESCUE',
+  'EBD_BIRTHDAY',
   'CUSTOM',
 ];
 
@@ -159,6 +163,14 @@ function categoryLabel(t: ReturnType<typeof useLanguage>['t'], c: MessageTemplat
       return t.sender.categoryVerse;
     case 'CARD_EXPIRING':
       return t.sender.categoryCardExpiring;
+    case 'DISCIPLER_REMINDER':
+      return t.sender.categoryDisciplerReminder;
+    case 'EBD_CLASS_ANNOUNCEMENT':
+      return t.sender.categoryEbdClassAnnouncement;
+    case 'EBD_ABSENCE_RESCUE':
+      return t.sender.categoryEbdAbsenceRescue;
+    case 'EBD_BIRTHDAY':
+      return t.sender.categoryEbdBirthday;
     case 'CUSTOM':
       return t.sender.categoryCustom;
   }

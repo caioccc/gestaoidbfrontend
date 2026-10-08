@@ -2,7 +2,15 @@
 // Refletem as respostas do backend Django/DRF
 
 export type ChurchType = 'INDEPENDENT' | 'CONGREGATION';
-export type Role = 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | 'PROFESSOR_EBD';
+export type Role =
+  | 'MEMBRO'
+  | 'PASTOR'
+  | 'SECRETARIA'
+  | 'TESOUREIRO'
+  | 'INTERCESSAO'
+  | 'LOUVOR'
+  | 'MUSICO'
+  | 'PROFESSOR_EBD';
 
 export interface Church {
   id: number;
@@ -569,6 +577,8 @@ export type LifecycleStage =
   | 'ABSENT_CARE'
   | 'TRANSITION';
 
+export type VisitorSlaState = 'green' | 'yellow' | 'red';
+
 export type ChurchEntry =
   | 'ACLAMACAO'
   | 'BATISMO'
@@ -660,8 +670,26 @@ export interface Member {
   cep: string;
   relatives: MemberRelative[];
   public_hash?: string | null;
-  created_at: string;
-  updated_at: string;
+  discipler?: number | null;
+  discipler_name?: string;
+  discipler_phone?: string;
+  discipler_photo?: string | null;
+  discipler_is_sentinel?: boolean;
+      discipler_assigned_at?: string | null;
+      source_hash?: string;
+      user?: number | null;
+      user_email?: string;
+      stage_entered_at?: string | null;
+    sla_state?: VisitorSlaState | null;
+    sla_days_waiting?: number | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface DiscipleOption {
+  id: number;
+  name: string;
+  photo: string | null;
 }
 
 export interface PublicCardPayload {
@@ -777,7 +805,9 @@ export type AppAlertType =
   | 'card_validity_expired'
   | 'loan_return_today'
   | 'loan_return_soon'
-  | 'loan_return_overdue';
+  | 'loan_return_overdue'
+  | 'visitor_sla_critical'
+  | 'visitor_unassigned';
 
 export interface AppAlert {
   type: AppAlertType;
@@ -787,6 +817,10 @@ export interface AppAlert {
   item_id?: number;
   item_name?: string;
   borrower_name?: string;
+  waiting_days?: number;
+  discipler_id?: number;
+  discipler_name?: string;
+  discipler_phone?: string;
   date: string;
 }
 
@@ -942,7 +976,6 @@ export interface WorshipService {
   preacher: string;
   theme: string;
   scripture: string;
-  attendees: number;
   visitors: number;
   conversions: number;
   offering: string;
@@ -1149,14 +1182,70 @@ export interface GrowthGroupPayload {
   is_active: boolean;
 }
 
-export interface GrowthGroupStats {
-  total_active: number;
-  total_leaders: number;
-  most_frequent_day: number | null;
-  coverage: number;
-  overlap_count: number;
-  overlap_ids: number[];
-}
+  export interface GrowthGroupStats {
+    total_active: number;
+    total_leaders: number;
+    most_frequent_day: number | null;
+    coverage: number;
+    overlap_count: number;
+    overlap_ids: number[];
+  }
+
+  export type MemberInviteStatus =
+    | 'ACTIVE'
+    | 'DISABLED'
+    | 'EXPIRED'
+    | 'EXHAUSTED';
+
+  export interface MemberInvite {
+    id: number;
+    church: number;
+    inviter: number;
+    inviter_name: string;
+    token: string;
+    path: string;
+    label: string;
+    is_active: boolean;
+    status: MemberInviteStatus;
+    max_uses: number | null;
+    remaining_uses: number | null;
+    uses_count: number;
+    expires_at: string | null;
+    created_at: string;
+    updated_at: string;
+  }
+
+  export interface PublicInviteMeta {
+    church_name: string;
+    church_city: string;
+    church_state: string;
+    church_phone: string;
+    inviter_name: string;
+    inviter_photo: string | null;
+    status: MemberInviteStatus;
+  }
+
+  export interface PublicInviteSignupResult {
+    member_id: number;
+    inviter_name: string;
+    church_name: string;
+  }
+
+  export type GrowthGroupMembershipStatus = 'ACTIVE' | 'LEFT';
+
+  export interface GrowthGroupMembership {
+    id: number;
+    group: number;
+    group_name: string;
+    member: number;
+    member_name: string;
+    status: GrowthGroupMembershipStatus;
+    status_display: string;
+    joined_at: string;
+    left_at: string | null;
+    created_at: string;
+    updated_at: string;
+  }
 
 export type PastoralVisitType =
   | 'ROUTINE'
@@ -1341,6 +1430,10 @@ export type MessageTemplateCategory =
   | 'CARE'
   | 'VERSE'
   | 'CARD_EXPIRING'
+  | 'DISCIPLER_REMINDER'
+  | 'EBD_CLASS_ANNOUNCEMENT'
+  | 'EBD_ABSENCE_RESCUE'
+  | 'EBD_BIRTHDAY'
   | 'CUSTOM';
 
 export interface MessageTemplate {

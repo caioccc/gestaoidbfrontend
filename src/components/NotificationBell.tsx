@@ -20,6 +20,7 @@ import {
   IconCalendarEvent,
   IconIdBadge,
   IconPackage,
+  IconUserQuestion,
   IconArrowRight,
 } from '@tabler/icons-react';
 import EmptyState from './EmptyState';
@@ -157,6 +158,9 @@ export default function NotificationBell() {
       a.type === 'loan_return_soon' ||
       a.type === 'loan_return_overdue'
   );
+  const visitorAlerts = alerts.filter(
+    (a) => a.type === 'visitor_sla_critical' || a.type === 'visitor_unassigned'
+  );
 
   const goMembers = () => {
     setOpened(false);
@@ -240,6 +244,29 @@ export default function NotificationBell() {
     );
   };
 
+  const renderVisitorRow = (a: AppAlert) => {
+    const unassigned = a.type === 'visitor_unassigned';
+    const color = unassigned ? 'orange' : 'red';
+    const message = (
+      unassigned ? t.alertsBell.visitorUnassigned : t.alertsBell.visitorSlaCritical
+    ).replace('{name}', a.member_name || '');
+    return (
+      <Box key={alertKey(a, churchId)}>
+        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+          <IconUserQuestion size={16} style={{ color: `var(--mantine-color-${color}-5)` }} />
+          <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }}>
+            {message}
+          </Text>
+          {!unassigned && (
+            <Badge size="xs" variant="light" color={color}>
+              {t.alertsBell.visitorDays.replace('{count}', String(a.waiting_days ?? 0))}
+            </Badge>
+          )}
+        </Group>
+      </Box>
+    );
+  };
+
   return (
     <Popover
       opened={opened}
@@ -287,8 +314,17 @@ export default function NotificationBell() {
           ) : (
             <ScrollArea.Autosize mah={320}>
               <Stack gap="xs">
+                {visitorAlerts.length > 0 && (
+                  <>
+                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                      {t.alertsBell.visitorTitle} ({visitorAlerts.length})
+                    </Text>
+                    {visitorAlerts.map(renderVisitorRow)}
+                  </>
+                )}
                 {loanAlerts.length > 0 && (
                   <>
+                    {visitorAlerts.length > 0 && <Divider />}
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                       {t.alertsBell.loanTitle} ({loanAlerts.length})
                     </Text>
@@ -297,7 +333,7 @@ export default function NotificationBell() {
                 )}
                 {todayBirthdays.length > 0 && (
                   <>
-                    {loanAlerts.length > 0 && <Divider />}
+                    {loanAlerts.length + visitorAlerts.length > 0 && <Divider />}
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                       {t.alertsBell.todayTitle} ({todayBirthdays.length})
                     </Text>
@@ -306,7 +342,9 @@ export default function NotificationBell() {
                 )}
                 {upcomingBirthdays.length > 0 && (
                   <>
-                    {loanAlerts.length + todayBirthdays.length > 0 && <Divider />}
+                    {loanAlerts.length + visitorAlerts.length + todayBirthdays.length > 0 && (
+                      <Divider />
+                    )}
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                       {t.alertsBell.upcomingTitle} ({upcomingBirthdays.length})
                     </Text>
@@ -315,7 +353,10 @@ export default function NotificationBell() {
                 )}
                 {cardAlerts.length > 0 && (
                   <>
-                    {loanAlerts.length + todayBirthdays.length + upcomingBirthdays.length >
+                    {loanAlerts.length +
+                      visitorAlerts.length +
+                      todayBirthdays.length +
+                      upcomingBirthdays.length >
                       0 && <Divider />}
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">
                       {t.alertsBell.cardTitle}

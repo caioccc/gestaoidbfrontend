@@ -37,8 +37,9 @@ import { ChurchMembership, Role } from '../types';
 import { toUpperCamelWords, isValidEmail } from '../utils/format';
 import { useFeedback } from '../hooks/useFeedback';
 
-const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'PASTOR', label: 'Pastor(a)' },
+  const ROLE_OPTIONS: { value: Role; label: string }[] = [
+    { value: 'MEMBRO', label: 'Membro / Discipulador' },
+    { value: 'PASTOR', label: 'Pastor(a)' },
   { value: 'TESOUREIRO', label: 'Tesoureiro(a)' },
   { value: 'SECRETARIA', label: 'Secretário(a)' },
   { value: 'INTERCESSAO', label: 'Intercessor(a)' },

@@ -60,9 +60,8 @@ interface ServiceFormValues {
   service_type: WorshipServiceType | null;
   presider: string;
   preacher: string;
-  theme: string;
+theme: string;
   scripture: string;
-  attendees: string;
   visitors: string;
   conversions: string;
   offering: string;
@@ -167,8 +166,7 @@ export default function CultosPage() {
     presider: '',
     preacher: '',
     theme: '',
-    scripture: '',
-    attendees: '',
+scripture: '',
     visitors: '',
     conversions: '',
     offering: '',
@@ -203,8 +201,7 @@ export default function CultosPage() {
       presider: item.presider,
       preacher: item.preacher,
       theme: item.theme,
-      scripture: item.scripture,
-      attendees: item.attendees ? String(item.attendees) : '',
+scripture: item.scripture,
       visitors: item.visitors ? String(item.visitors) : '',
       conversions: item.conversions ? String(item.conversions) : '',
       offering: item.offering || '',
@@ -228,8 +225,7 @@ export default function CultosPage() {
       presider: values.presider ? toUpperCamelWords(values.presider) : '',
       preacher: values.preacher ? toUpperCamelWords(values.preacher) : '',
       theme: values.theme ? toUpperCamelWords(values.theme) : '',
-      scripture: values.scripture,
-      attendees: integerOrUndefined(values.attendees),
+scripture: values.scripture,
       visitors: integerOrUndefined(values.visitors),
       conversions: integerOrUndefined(values.conversions),
       offering: values.offering || undefined,
@@ -399,8 +395,8 @@ export default function CultosPage() {
                     <Table.Th>{t.cultosPage.date}</Table.Th>
                     <Table.Th>{t.cultosPage.type}</Table.Th>
                     <Table.Th>{t.cultosPage.preacher}</Table.Th>
-                    <Table.Th>{t.cultosPage.theme}</Table.Th>
-                    <Table.Th>{t.cultosPage.attendees}</Table.Th>
+<Table.Th>{t.cultosPage.theme}</Table.Th>
+                    <Table.Th>{t.cultosPage.visitors}</Table.Th>
                     <Table.Th>{t.cultosPage.offering}</Table.Th>
                     <Table.Th ta="right">{t.common.actions}</Table.Th>
                   </Table.Tr>
@@ -441,9 +437,9 @@ export default function CultosPage() {
                           </Text>
                         )}
                       </Table.Td>
-                      <Table.Td>
+<Table.Td>
                         <Text size="sm">
-                          {s.attendees} <Text span c="dimmed">· {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}</Text>
+                          {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}
                         </Text>
                       </Table.Td>
                       <Table.Td>
@@ -497,8 +493,8 @@ export default function CultosPage() {
                         {t.cultosPage.presider}: {s.presider}
                       </Text>
                     )}
-                    <Text size="xs" c="dimmed" truncate>
-                      {s.attendees} · {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}
+<Text size="xs" c="dimmed" truncate>
+                      {s.visitors} {t.cultosPage.visitorsShort} · {s.conversions} {t.cultosPage.conversionsShort}
                     </Text>
                     <Text fw={700}>{formatBRL(s.offering)}</Text>
                   </Stack>
@@ -636,14 +632,7 @@ export default function CultosPage() {
                   {...form.getInputProps('scripture')}
                 />
               </Group>
-              <Group grow>
-                <NumberInput
-                  label={t.cultosPage.attendees}
-                  min={0}
-                  {...numberFieldProps(form.values.attendees, (v) =>
-                    form.setFieldValue('attendees', v),
-                  )}
-                />
+<Group grow>
                 <NumberInput
                   label={t.cultosPage.visitors}
                   min={0}

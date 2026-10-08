@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import PageHeader from '../components/PageHeader';
 import { MonthYearPicker } from '../components/MonthYearPicker';
 import SecretaryDashboard from '../components/SecretaryDashboard';
+import MemberHome from '../components/MemberHome';
 import AdminView from '../components/dashboard/AdminView';
 import PastorView from '../components/dashboard/PastorView';
 import TreasurerView from '../components/dashboard/TreasurerView';
@@ -73,6 +74,10 @@ export default function DashboardPage() {
   }, []);
 
   if (staffWithoutChurch || isLoading) return null;
+
+  // O MEMBRO não é operação da secretaria: `secretary-actions` responde só a
+  // PASTOR/SECRETARIA (403), então ele recebe um resumo dos próprios visitantes.
+  if (!isAdmin && role === 'MEMBRO') return <MemberHome />;
 
   if (!view) return <SecretaryDashboard />;
 

@@ -11,6 +11,7 @@ import {
   Menu,
   Modal,
   Paper,
+  Select,
   ScrollArea,
   Stack,
   Text,
@@ -44,12 +45,16 @@ import {
   IconDotsVertical,
   IconGripVertical,
   IconPencil,
+  IconPhone,
   IconTrash,
+  IconUserCheck,
   IconUserPlus,
   IconUsers,
+  IconClockHour4,
 } from '@tabler/icons-react';
 import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import MemberFormModal from './MemberFormModal';
 import SendWhatsAppModal from './SendWhatsAppModal';
 import VisitorFormModal, { type VisitorFormValues } from './VisitorFormModal';
@@ -61,10 +66,12 @@ import {
 } from '../utils/whatsapp';
 import type {
   CardConfig,
+  DiscipleOption,
   LifecycleStage,
   Member,
   MinistryArea,
 } from '../types';
+import type { MemberListParams } from '../api/accounts';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
 import { useFeedback } from '../hooks/useFeedback';
 
@@ -132,6 +139,7 @@ function SortableFunnelCard({
   color,
   isVisitor,
   onWhatsApp,
+  onRemindDiscipler,
   onEdit,
   onDelete,
   onPromote,
@@ -141,6 +149,7 @@ function SortableFunnelCard({
   color: string;
   isVisitor: boolean;
   onWhatsApp: (member: Member) => void;
+  onRemindDiscipler?: (member: Member) => void;
   onEdit?: (member: Member) => void;
   onDelete?: (member: Member) => void;
   onPromote?: (member: Member) => void;
@@ -159,6 +168,42 @@ function SortableFunnelCard({
         : days === 1
           ? t.funnel.yesterday
           : t.funnel.daysSince.replace('{n}', String(days));
+
+  // O sentinela da igreja representa "ninguém assumiu ainda", então um
+  // responsável apontando para ele equivale a nenhum responsável.
+  const unassigned = !member.discipler_name || member.discipler_is_sentinel === true;
+
+  // O SLA só faz sentido nas etapas de acolhimento; membros já integrados
+  // não geram sinal de espera.
+  const showSla = isVisitor && member.sla_state !== null && member.sla_state !== undefined;
+  const slaColor =
+    member.sla_state === 'red' ? 'red' : member.sla_state === 'yellow' ? 'yellow' : 'green';
+  const canRemind =
+    isVisitor &&
+    member.sla_state === 'red' &&
+    !unassigned &&
+    !!member.discipler &&
+    !!member.discipler_name;
+  const disciplerPhone = member.discipler_phone || '';
+  const slaLabel = t.funnel.slaDays.replace('{n}', String(member.sla_days_waiting ?? 0));
+  const slaBadge = showSla ? (
+    <Tooltip
+      label={t.funnel[`slaHint_${member.sla_state}` as 'slaHint_green']}
+      openDelay={300}
+    >
+      <Badge
+        size="xs"
+        color={slaColor}
+        variant="dot"
+        radius="sm"
+        leftSection={<IconClockHour4 size={10} />}
+        style={{ flexShrink: 0 }}
+        data-testid={`funnel-sla-${member.id}`}
+      >
+        {slaLabel}
+      </Badge>
+    </Tooltip>
+  ) : null;
 
   return (
     <Paper
@@ -186,6 +231,37 @@ function SortableFunnelCard({
           </Text>
         </Group>
         <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+          {canRemind && onRemindDiscipler ? (
+            <>
+              {disciplerPhone ? (
+                <Tooltip label={t.funnel.remindDiscipler} openDelay={300}>
+                  <ActionIcon
+                    component="a"
+                    href={`tel:${disciplerPhone}`}
+                    variant="subtle"
+                    color="blue"
+                    size="sm"
+                    aria-label={t.funnel.remindDiscipler}
+                    data-testid={`funnel-call-discipler-${member.id}`}
+                  >
+                    <IconPhone size={16} />
+                  </ActionIcon>
+                </Tooltip>
+              ) : null}
+              <Tooltip label={t.funnel.remindDiscipler} openDelay={300}>
+                <ActionIcon
+                  variant="light"
+                  color="green"
+                  size="sm"
+                  radius="xl"
+                  onClick={() => onRemindDiscipler(member)}
+                  data-testid={`funnel-remind-discipler-${member.id}`}
+                >
+                  <IconBrandWhatsapp size={14} />
+                </ActionIcon>
+              </Tooltip>
+            </>
+          ) : null}
           <Tooltip label={t.membersPage.sendWhatsApp}>
             <ActionIcon
               variant="subtle"
@@ -242,18 +318,38 @@ function SortableFunnelCard({
         <Text size="xs" c="dimmed" truncate>
           {member.phone || '—'}
         </Text>
-        <Tooltip label={contactLabel} openDelay={300}>
-          <Badge
-            size="xs"
-            color={color}
-            variant="outline"
-            radius="sm"
-            style={{ alignSelf: 'flex-start', maxWidth: '100%' }}
-            data-testid={`funnel-contact-${member.id}`}
+        <Group gap={4} wrap="nowrap">
+          <Tooltip label={contactLabel} openDelay={300}>
+            <Badge
+              size="xs"
+              color={color}
+              variant="outline"
+              radius="sm"
+              style={{ flexShrink: 0 }}
+              data-testid={`funnel-contact-${member.id}`}
+            >
+              {contactLabel}
+            </Badge>
+          </Tooltip>
+          <Tooltip
+            label={unassigned ? t.funnel.disciplerUnassignedHint : member.discipler_name}
+            openDelay={300}
           >
-            {contactLabel}
-          </Badge>
-        </Tooltip>
+            <Badge
+              size="xs"
+              color={unassigned ? 'red' : 'indigo'}
+              variant="light"
+              radius="sm"
+              leftSection={<IconUserCheck size={10} />}
+              tt="truncate"
+              style={{ flexShrink: 1, minWidth: 0 }}
+              data-testid={`funnel-discipler-${member.id}`}
+            >
+              {unassigned ? t.funnel.disciplerUnassigned : member.discipler_name}
+            </Badge>
+          </Tooltip>
+          {slaBadge}
+        </Group>
       </Stack>
     </Paper>
   );
@@ -329,6 +425,9 @@ export default function MembersFunnelTab({
   const { t } = useLanguage();
   const fb = useFeedback();
   const { colorScheme } = useMantineColorScheme();
+  const { user } = useAuth();
+  const { role } = useRoleHelpers(user);
+  const isPlainMember = role === 'MEMBRO';
   const [boards, setBoards] = useState<Record<string, Member[]>>(() =>
     Object.fromEntries(FUNNEL_COLUMNS.map((s) => [s, [] as Member[]]))
   );
@@ -337,6 +436,19 @@ export default function MembersFunnelTab({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState<DragStartInfo | null>(null);
   const [waMember, setWaMember] = useState<Member | null>(null);
+  const [waReminder, setWaReminder] = useState<{
+    member_id: number;
+    name: string;
+    phone: string;
+  } | null>(null);
+
+  const remindDiscipler = (m: Member) => {
+    setWaReminder({
+      member_id: m.discipler as number,
+      name: m.discipler_name || '',
+      phone: m.discipler_phone || '',
+    });
+  };
   const [areas, setAreas] = useState<MinistryArea[]>([]);
   const [visitorForm, setVisitorForm] = useState<{ opened: boolean; visitor: Member | null }>({
     opened: false,
@@ -348,6 +460,8 @@ export default function MembersFunnelTab({
   } | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [disciplers, setDisciplers] = useState<DiscipleOption[]>([]);
+  const [disciplerFilter, setDisciplerFilter] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -357,7 +471,20 @@ export default function MembersFunnelTab({
   const load = () => {
     setLoading(true);
     setError(false);
-    Promise.all([accountsApi.members(), accountsApi.ministryAreas()])
+    // O quadro precisa de todas as etapas de uma vez, então o recorte por
+    // responsável vai ao servidor e o agrupamento por etapa continua local.
+    const params: MemberListParams =
+      disciplerFilter === 'unassigned'
+        ? { unassigned: '1' }
+        : disciplerFilter
+          ? { discipler: disciplerFilter }
+          : {};
+    // Áreas de atuação são opcionais: papel MEMBRO enxerga só seus visitantes
+    // e não tem permissão nesse endpoint — o quadro não pode ficar inutilizado.
+    const areasRequest = isPlainMember
+      ? Promise.resolve([] as MinistryArea[])
+      : accountsApi.ministryAreas().catch(() => [] as MinistryArea[]);
+    Promise.all([accountsApi.members(params), areasRequest])
       .then(([all, areasData]) => {
         setAreas(areasData);
         const next = Object.fromEntries(
@@ -380,6 +507,13 @@ export default function MembersFunnelTab({
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disciplerFilter]);
+
+  useEffect(() => {
+    accountsApi
+      .disciplers()
+      .then(setDisciplers)
+      .catch(() => setDisciplers([]));
   }, []);
 
   const findBoard = (id: string): string | null => {
@@ -666,21 +800,38 @@ export default function MembersFunnelTab({
 
   return (
     <>
-      <Group justify="space-between" mb="sm">
-        <Group gap="sm">
-          <Text size="sm" c="dimmed">
-            {t.funnel.subtitle.replace('{total}', String(total))}
-          </Text>
-          <Button
-            variant="light"
-            color="violet"
-            leftSection={<IconUserPlus size={16} />}
-            onClick={openCreateVisitor}
-            data-testid="funnel-add-visitor"
-          >
-            {t.funnel.addVisitor}
-          </Button>
-        </Group>
+        <Group justify="space-between" mb="sm">
+          <Group gap="sm">
+            <Text size="sm" c="dimmed">
+              {t.funnel.subtitle.replace('{total}', String(total))}
+            </Text>
+            <Select
+              size="xs"
+              w={230}
+              searchable
+              clearable
+              value={disciplerFilter || null}
+              onChange={(value) => setDisciplerFilter(value ?? '')}
+              placeholder={t.funnel.disciplerFilterPlaceholder}
+              data={[
+                { value: 'me', label: t.funnel.myVisitorsOnly },
+                { value: 'unassigned', label: t.funnel.disciplerUnassigned },
+                ...disciplers.map((d) => ({ value: String(d.id), label: d.name })),
+              ]}
+              styles={{ input: { paddingLeft: 30 } }}
+              leftSection={<IconUserCheck size={14} />}
+              data-testid="funnel-discipler-filter"
+            />
+            <Button
+              variant="light"
+              color="violet"
+              leftSection={<IconUserPlus size={16} />}
+              onClick={openCreateVisitor}
+              data-testid="funnel-add-visitor"
+            >
+              {t.funnel.addVisitor}
+            </Button>
+          </Group>
         <Badge variant="light" size="lg">
           <Group gap={6} wrap="nowrap">
             <IconUsers size={14} />
@@ -722,6 +873,7 @@ export default function MembersFunnelTab({
                       color={STAGE_COLORS[stage]}
                       isVisitor={isVisitorStage(stage)}
                       onWhatsApp={(m) => setWaMember(m)}
+                      onRemindDiscipler={remindDiscipler}
                       onEdit={isVisitorStage(stage) ? openEditVisitor : undefined}
                       onDelete={isVisitorStage(stage) ? (m) => setToDelete(m) : undefined}
                       onPromote={isVisitorStage(stage) ? openPromote : undefined}
@@ -776,6 +928,24 @@ export default function MembersFunnelTab({
         churchName={churchName}
         churchCity={churchCity}
         onSent={handleContactSent}
+      />
+
+      <SendWhatsAppModal
+        opened={!!waReminder}
+        onClose={() => setWaReminder(null)}
+        member={
+          waReminder
+            ? {
+                id: waReminder.member_id,
+                name: waReminder.name,
+                phone: waReminder.phone,
+              }
+            : null
+        }
+        defaultCategory="DISCIPLER_REMINDER"
+        churchName={churchName}
+        churchCity={churchCity}
+        onSent={() => setWaReminder(null)}
       />
 
       <Modal

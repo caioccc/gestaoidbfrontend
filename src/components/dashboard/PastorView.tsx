@@ -198,13 +198,12 @@ export default function PastorView({ year, month }: { year: number; month: numbe
 
   const monthTotals = useMemo(
     () =>
-      monthServices.reduce(
+monthServices.reduce(
         (acc, service) => ({
-          attendees: acc.attendees + (service.attendees ?? 0),
           visitors: acc.visitors + (service.visitors ?? 0),
           conversions: acc.conversions + (service.conversions ?? 0),
         }),
-        { attendees: 0, visitors: 0, conversions: 0 },
+        { visitors: 0, conversions: 0 },
       ),
     [monthServices]
   );
@@ -526,15 +525,7 @@ export default function PastorView({ year, month }: { year: number; month: numbe
                 {monthServices.length}
               </Text>
             </Group>
-            <Group justify="space-between">
-              <Text size="sm" c="dimmed">
-                {dv.psAttendance}
-              </Text>
-              <Text size="sm" fw={700}>
-                {monthTotals.attendees}
-              </Text>
-            </Group>
-            <Group justify="space-between">
+<Group justify="space-between">
               <Text size="sm" c="dimmed">
                 {dv.psConversions}
               </Text>

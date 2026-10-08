@@ -11,10 +11,11 @@ import {
   Paper,
   SimpleGrid,
   Skeleton,
-  Stack,
+Stack,
   Text,
   ThemeIcon,
   Title,
+  Tooltip,
   UnstyledButton,
 } from '@mantine/core';
 import { useRouter } from 'next/router';
@@ -32,6 +33,8 @@ import {
   IconFileText,
   IconIdBadge,
   IconPackage,
+  IconPhone,
+  IconUserQuestion,
   IconUserCheck,
   IconUserPlus,
   IconUsers,
@@ -68,7 +71,6 @@ interface CultoRow {
   date: string;
   typeLabel: string;
   theme: string;
-  attendees: number;
   visitors: number;
 }
 
@@ -155,8 +157,13 @@ export default function SecretaryDashboard() {
   const [minutesCount, setMinutesCount] = useState(0);
   const [upcoming, setUpcoming] = useState<EventGroup[]>([]);
   const [todayISO, setTodayISO] = useState('');
-  const [secretaryActions, setSecretaryActions] = useState<SecretaryActions | null>(null);
+const [secretaryActions, setSecretaryActions] = useState<SecretaryActions | null>(null);
   const [waAction, setWaAction] = useState<SecretaryActionItem | null>(null);
+  const [waReminder, setWaReminder] = useState<{
+    member_id: number;
+    name: string;
+    phone: string;
+  } | null>(null);
   const [recentCultos, setRecentCultos] = useState<CultoRow[]>([]);
   const [recentMinutes, setRecentMinutes] = useState<MinutesRow[]>([]);
   const [hour, setHour] = useState<number | null>(null);
@@ -199,9 +206,8 @@ export default function SecretaryDashboard() {
             .map((c) => ({
               id: c.id,
               date: c.date,
-              typeLabel: c.service_type_display,
+typeLabel: c.service_type_display,
               theme: c.theme,
-              attendees: c.attendees,
               visitors: c.visitors,
             }))
         );
@@ -258,6 +264,9 @@ export default function SecretaryDashboard() {
   const birthdayUpcoming = alerts.filter((a) => a.type === 'birthday_upcoming');
   const cardSoon = alerts.filter((a) => a.type === 'card_validity_soon');
   const cardExpired = alerts.filter((a) => a.type === 'card_validity_expired');
+  const visitorAlerts = alerts.filter(
+    (a) => a.type === 'visitor_sla_critical' || a.type === 'visitor_unassigned'
+  );
   const loanAlerts = isIntercessao
     ? []
     : alerts.filter(
@@ -464,6 +473,93 @@ export default function SecretaryDashboard() {
   );
 
   const alertGroups = [
+    ...(!isIntercessao && visitorAlerts.length > 0
+      ? [
+          {
+            key: 'visitors',
+            title: sd.alertsVisitors,
+            icon: <IconUserQuestion size={16} />,
+            color: 'red',
+            count: visitorAlerts.length,
+            body: (
+              <Stack gap={2}>
+                {visitorAlerts.slice(0, 5).map((a) => {
+                  const unassigned = a.type === 'visitor_unassigned';
+                  const hasDiscipler = !unassigned && !!a.discipler_id;
+                  const disciplerPhone = a.discipler_phone || '';
+                  return (
+                    <Group
+                      key={`vis-${a.member_id ?? a.date}`}
+                      gap="xs"
+                      wrap="nowrap"
+                      py={2}
+                      data-testid={`sd-alert-${a.type}`}
+                    >
+                      <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+                        <Text size="sm" truncate>
+                          {a.member_name}
+                        </Text>
+                        {hasDiscipler && (
+                          <Text size="xs" c="dimmed" truncate>
+                            → {a.discipler_name || ''}
+                          </Text>
+                        )}
+                      </Stack>
+                      <Badge
+                        color={unassigned ? 'orange' : 'red'}
+                        variant="light"
+                        size="xs"
+                      >
+                        {unassigned
+                          ? sd.badgeNoDiscipler
+                          : `${a.waiting_days ?? 0}${sd.badgeDaysSuffix}`}
+                      </Badge>
+                      {hasDiscipler && (
+                        <Group gap={2} wrap="nowrap">
+                          {disciplerPhone ? (
+                            <Tooltip label={sd.callDiscipler}>
+                              <ActionIcon
+                                component="a"
+                                href={`tel:${disciplerPhone}`}
+                                variant="subtle"
+                                color="blue"
+                                size="sm"
+                                aria-label={sd.callDiscipler}
+                                data-testid={`sd-call-discipler-${a.member_id}`}
+                              >
+                                <IconPhone size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          ) : null}
+                          <Tooltip label={sd.remindDiscipler}>
+                            <ActionIcon
+                              variant="light"
+                              color="green"
+                              size="sm"
+                              radius="xl"
+                              onClick={() =>
+                                setWaReminder({
+                                  member_id: a.discipler_id as number,
+                                  name: a.discipler_name || '',
+                                  phone: disciplerPhone,
+                                })
+                              }
+                              aria-label={sd.remindDiscipler}
+                              data-testid={`sd-remind-discipler-${a.member_id}`}
+                            >
+                              <IconBrandWhatsapp size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      )}
+                    </Group>
+                  );
+                })}
+              </Stack>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'birthdays',
       title: sd.alertsBirthdays,
@@ -733,10 +829,11 @@ export default function SecretaryDashboard() {
                                 {c.theme}
                               </Text>
                             ) : null}
-                            <Text size="xs" c="dimmed">
-                              {sd.cultosStats
-                                .replace('{attendees}', String(c.attendees))
-                                .replace('{visitors}', String(c.visitors))}
+<Text size="xs" c="dimmed">
+                              {sd.cultosStats.replace(
+                                '{visitors}',
+                                String(c.visitors)
+                              )}
                             </Text>
                           </Stack>
                         </Group>
@@ -858,7 +955,7 @@ export default function SecretaryDashboard() {
         </>
       )}
 
-      <SendWhatsAppModal
+<SendWhatsAppModal
         opened={!!waAction}
         onClose={() => setWaAction(null)}
         member={waAction
@@ -867,6 +964,19 @@ export default function SecretaryDashboard() {
         defaultCategory={waAction?.category_hint}
         churchName={churchName}
         onSent={(memberId) => removeActionItem(memberId)}
+      />
+
+      <SendWhatsAppModal
+        opened={!!waReminder}
+        onClose={() => setWaReminder(null)}
+        member={
+          waReminder
+            ? { id: waReminder.member_id, name: waReminder.name, phone: waReminder.phone }
+            : null
+        }
+        defaultCategory="DISCIPLER_REMINDER"
+        churchName={churchName}
+        onSent={() => setWaReminder(null)}
       />
     </>
   );

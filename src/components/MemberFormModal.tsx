@@ -25,6 +25,8 @@ import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
 import RelativesFormSection from './RelativesFormSection';
 import { useLanguage } from '../i18n';
+import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
+import { accountsApi } from '../api/accounts';
 import {
   hasFullName,
   isValidCpf,
@@ -74,9 +76,10 @@ export interface MemberFormValues {
   church_entry: ChurchEntry | '';
   church_entry_other: string;
   ministry_areas: (number | string)[];
-  photo: string | null;
-  status: MemberStatus;
-  notes: string;
+    photo: string | null;
+    status: MemberStatus;
+    user: number | null;
+    notes: string;
   street: string;
   number: string;
   complement: string;
@@ -106,9 +109,10 @@ const EMPTY_FORM: MemberFormValues = {
   church_entry: '',
   church_entry_other: '',
   ministry_areas: [],
-  photo: null,
-  status: 'ACTIVE',
-  notes: '',
+    photo: null,
+    status: 'ACTIVE',
+    user: null,
+    notes: '',
   street: '',
   number: '',
   complement: '',
@@ -188,6 +192,7 @@ export default function MemberFormModal({
     ministry_areas: (m.ministry_areas || []).map(String),
     photo: m.photo || null,
     status: m.status,
+    user: m.user ?? null,
     notes: m.notes || '',
     street: m.street || '',
     number: m.number || '',
@@ -216,6 +221,39 @@ export default function MemberFormModal({
           : null,
     },
   });
+
+  const { user: sessionUser } = useAuth();
+  const { isAdmin, role } = useRoleHelpers(sessionUser);
+  // A lista de contas (church/users) só responde a PASTOR e SECRETARIA, então o
+  // campo fica oculto para os demais papéis em vez de falhar em silêncio.
+  const canLinkAccount =
+    !viewOnly && (isAdmin || role === 'PASTOR' || role === 'SECRETARIA');
+  const [accountOptions, setAccountOptions] = useState<
+    { value: string; label: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (!opened || !canLinkAccount) return;
+    const churchId = sessionUser?.church?.id;
+    if (!churchId) return;
+    let active = true;
+    accountsApi
+      .churchUsers(churchId)
+      .then((list) => {
+        if (!active) return;
+        setAccountOptions(
+          list.map((m) => ({
+            value: String(m.user_id),
+            label: `${m.user_name || m.user_email} <${m.user_email}>`,
+          }))
+        );
+      })
+      .catch(() => active && setAccountOptions([]));
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opened, canLinkAccount, sessionUser?.church?.id]);
 
   useEffect(() => {
     if (!opened) return;
@@ -344,9 +382,10 @@ export default function MemberFormModal({
       form.values.church_entry === 'OUTRO'
         ? toUpperCamelWords(form.values.church_entry_other.trim())
         : '',
-    ministry_areas: form.values.ministry_areas,
-    status: form.values.status,
-    notes: toSentenceCase(form.values.notes),
+      ministry_areas: form.values.ministry_areas,
+      status: form.values.status,
+      user: form.values.user,
+      notes: toSentenceCase(form.values.notes),
     street: toUpperCamelWords(form.values.street.trim()),
     number: form.values.number.trim(),
     complement: toUpperCamelWords(form.values.complement.trim()),
@@ -756,6 +795,29 @@ export default function MemberFormModal({
                     data-testid="member-status"
                     {...form.getInputProps('status')}
                   />
+                  {canLinkAccount && (
+                    <Select
+                      label={t.membersPage.accountLink}
+                      placeholder={t.membersPage.accountLinkPlaceholder}
+                      clearable
+                      searchable
+                      disabled={viewOnly}
+                      data={accountOptions}
+                      nothingFoundMessage={t.membersPage.accountLinkEmpty}
+                      value={
+                        form.values.user === null
+                          ? null
+                          : String(form.values.user)
+                      }
+                      onChange={(v) =>
+                        form.setFieldValue(
+                          'user',
+                          v === null || v === '' ? null : Number(v)
+                        )
+                      }
+                      data-testid="member-account"
+                    />
+                  )}
                 </SimpleGrid>
                 <MultiSelect
                   label={t.membersPage.ministryAreas}

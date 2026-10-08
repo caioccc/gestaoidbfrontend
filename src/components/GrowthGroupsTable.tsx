@@ -19,9 +19,11 @@ import {
   IconDots,
   IconEdit,
   IconHomeHeart,
+  IconLogout,
   IconMapPin,
   IconSearch,
   IconTrash,
+  IconUserPlus,
   IconUsersGroup,
 } from '@tabler/icons-react';
 import EmptyState from './EmptyState';
@@ -42,6 +44,11 @@ interface GrowthGroupsTableProps {
   onView: (group: GrowthGroup) => void;
   onEdit: (group: GrowthGroup) => void;
   onDelete: (group: GrowthGroup) => void;
+  canJoin?: boolean;
+  isJoined?: (group: GrowthGroup) => boolean;
+  joiningId?: number | null;
+  onJoin?: (group: GrowthGroup) => void;
+  onLeave?: (group: GrowthGroup) => void;
 }
 
 const WEEKDAY_VALUES: GrowthGroupWeekday[] = [0, 1, 2, 4];
@@ -65,6 +72,11 @@ export default function GrowthGroupsTable({
   onView,
   onEdit,
   onDelete,
+  canJoin = false,
+  isJoined,
+  joiningId,
+  onJoin,
+  onLeave,
 }: GrowthGroupsTableProps) {
   const { t } = useLanguage();
 
@@ -101,6 +113,27 @@ export default function GrowthGroupsTable({
           {t.common.delete}
         </Menu.Item>
       )}
+      {canJoin && onJoin && onLeave && (
+        isJoined?.(g) ? (
+          <Menu.Item
+            color="red"
+            leftSection={<IconLogout size={16} />}
+            onClick={() => onLeave(g)}
+            data-testid={`gc-leave-${g.id}`}
+          >
+            {t.growthGroups.leave}
+          </Menu.Item>
+        ) : (
+          <Menu.Item
+            leftSection={<IconUserPlus size={16} />}
+            disabled={g.is_full || joiningId === g.id}
+            onClick={() => onJoin(g)}
+            data-testid={`gc-join-${g.id}`}
+          >
+            {t.growthGroups.join}
+          </Menu.Item>
+        )
+      )}
     </>
   );
 
@@ -120,7 +153,22 @@ export default function GrowthGroupsTable({
   const rows = groups.map((g) => (
     <Table.Tr key={g.id} data-testid={`gc-row-${g.id}`}>
       <Table.Td>
-        <Text fw={600}>{g.name}</Text>
+        <Group gap={6} wrap="nowrap">
+          <Text fw={600} lineClamp={1}>
+            {g.name}
+          </Text>
+          {isJoined?.(g) && (
+            <Badge
+              size="sm"
+              variant="light"
+              color="green"
+              style={{ flexShrink: 0 }}
+              data-testid={`gc-joined-badge-${g.id}`}
+            >
+              {t.growthGroups.subscribedBadge}
+            </Badge>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td>
         <Group gap={4} wrap="nowrap">

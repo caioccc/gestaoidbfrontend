@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import { useRouter } from 'next/router';
 import apiClient from '../api/client';
 import { accountsApi } from '../api/accounts';
+import type { Role } from '../types';
 
 export interface UserSessionChurch {
   id: number;
@@ -22,7 +23,7 @@ export interface UserSession {
   is_staff: boolean;
   is_active: boolean;
   church?: UserSessionChurch | null;
-  role?: 'PASTOR' | 'SECRETARIA' | 'TESOUREIRO' | 'INTERCESSAO' | 'LOUVOR' | 'MUSICO' | 'PROFESSOR_EBD' | null;
+  role?: Role | null;
   role_display?: string | null;
   can_manage_churches?: boolean;
   can_approve_congregations?: boolean;

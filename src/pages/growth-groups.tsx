@@ -36,13 +36,14 @@ import { useLanguage } from '../i18n';
 import { useFeedback } from '../hooks/useFeedback';
 import { absoluteUrl, copyToClipboard } from '../utils/share';
 import { nearestGroup, haversineMeters } from '../utils/geo';
-import type {
-  GrowthGroup,
-  GrowthGroupPayload,
-  GrowthGroupStats,
-  GrowthGroupWeekday,
-  Member,
-} from '../types';
+  import type {
+    GrowthGroup,
+    GrowthGroupMembership,
+    GrowthGroupPayload,
+    GrowthGroupStats,
+    GrowthGroupWeekday,
+    Member,
+  } from '../types';
 
 const WEEKDAY_LABELS: Record<GrowthGroupWeekday, 'monday' | 'tuesday' | 'wednesday' | 'friday'> = {
   0: 'monday',
@@ -103,7 +104,9 @@ export default function GrowthGroupsPage() {
   const [groups, setGroups] = useState<GrowthGroup[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [stats, setStats] = useState<GrowthGroupStats | null>(null);
+  const [memberships, setMemberships] = useState<GrowthGroupMembership[]>([]);
   const [loading, setLoading] = useState(true);
+  const [joiningId, setJoiningId] = useState<number | null>(null);
 
   const [search, setSearch] = useState('');
   const [weekdayFilter, setWeekdayFilter] = useState<string | null>(null);
@@ -124,10 +127,12 @@ export default function GrowthGroupsPage() {
     Promise.all([
       growthGroupsApi.list(),
       growthGroupsApi.stats(),
+      growthGroupsApi.mine().catch(() => [] as GrowthGroupMembership[]),
     ])
-      .then(([g, s]) => {
+      .then(([g, s, m]) => {
         setGroups(g);
         setStats(s);
+        setMemberships(m);
       })
           .catch((err) => {
             fb.fromError(err, t.growthGroups.loadError);
@@ -157,6 +162,40 @@ export default function GrowthGroupsPage() {
 
   const viewOnMap = (g: GrowthGroup) => {
     setFocusedId(g.id);
+  };
+
+  const joinedGroupIds = new Set(
+    memberships.filter((m) => m.status === 'ACTIVE').map((m) => m.group)
+  );
+
+  const isJoined = (g: GrowthGroup) => joinedGroupIds.has(g.id);
+
+  const applyMembership = (m: GrowthGroupMembership) => {
+    setMemberships((prev) => [...prev.filter((x) => x.group !== m.group), m]);
+  };
+
+  const handleJoin = (g: GrowthGroup) => {
+    setJoiningId(g.id);
+    growthGroupsApi
+      .join(g.id)
+      .then((m) => {
+        applyMembership(m);
+        fb.success(t.growthGroups.joined);
+      })
+      .catch((err) => fb.fromError(err, t.growthGroups.joinError))
+      .finally(() => setJoiningId(null));
+  };
+
+  const handleLeave = (g: GrowthGroup) => {
+    setJoiningId(g.id);
+    growthGroupsApi
+      .leave(g.id)
+      .then((m) => {
+        applyMembership(m);
+        fb.success(t.growthGroups.left);
+      })
+      .catch((err) => fb.fromError(err, t.growthGroups.joinError))
+      .finally(() => setJoiningId(null));
   };
 
   const handleCoverage = useCallback((covered: number[], nearestId: number | null) => {
@@ -423,6 +462,11 @@ export default function GrowthGroupsPage() {
                 onView={viewOnMap}
                 onEdit={openEdit}
                 onDelete={setToDelete}
+                canJoin
+                isJoined={isJoined}
+                joiningId={joiningId}
+                onJoin={handleJoin}
+                onLeave={handleLeave}
               />
             )}
         </Stack>

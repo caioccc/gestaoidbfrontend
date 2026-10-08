@@ -183,13 +183,12 @@ export default function AdminView({ year, month }: { year: number; month: number
 
   const monthTotals = useMemo(
     () =>
-      monthServices.reduce(
+monthServices.reduce(
         (acc, service) => ({
-          attendees: acc.attendees + (service.attendees ?? 0),
           visitors: acc.visitors + (service.visitors ?? 0),
           conversions: acc.conversions + (service.conversions ?? 0),
         }),
-        { attendees: 0, visitors: 0, conversions: 0 },
+        { visitors: 0, conversions: 0 },
       ),
     [monthServices]
   );

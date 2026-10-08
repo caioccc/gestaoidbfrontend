@@ -13,7 +13,7 @@ export default function VisitorsPage() {
   const cardData = useChurchCardConfig();
 
   return (
-    <AuthGuard roles={['PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
+    <AuthGuard roles={['MEMBRO', 'PASTOR', 'SECRETARIA', 'TESOUREIRO']}>
       <Layout>
         <PageHeader
           title={t.membersPage.tabsVisitors}

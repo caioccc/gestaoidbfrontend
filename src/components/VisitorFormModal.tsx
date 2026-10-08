@@ -1,15 +1,18 @@
-import React, { useEffect } from 'react';
-import { Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core';
+import React, { useEffect, useState } from 'react';
+import { Button, Group, Modal, Select, Stack, Textarea, TextInput } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { useForm } from '@mantine/form';
 import MaskedTextInput from './MaskedTextInput';
+import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
-import type { Member } from '../types';
+import type { DiscipleOption, Member } from '../types';
 
 export interface VisitorFormValues {
   name: string;
   phone: string;
   notes: string;
+  discipler?: number | null;
 }
 
 interface VisitorFormModalProps {
@@ -21,9 +24,10 @@ interface VisitorFormModalProps {
 
 export default function VisitorFormModal({ opened, onClose, visitor, onSave }: VisitorFormModalProps) {
   const { t } = useLanguage();
+  const [disciplers, setDisciplers] = useState<DiscipleOption[]>([]);
 
   const form = useForm<VisitorFormValues>({
-    initialValues: { name: '', phone: '', notes: '' },
+    initialValues: { name: '', phone: '', notes: '', discipler: null },
     validate: {
       name: (v) => (v.trim().length ? null : t.common.name),
     },
@@ -36,11 +40,29 @@ export default function VisitorFormModal({ opened, onClose, visitor, onSave }: V
         name: visitor.name || '',
         phone: visitor.phone || '',
         notes: visitor.notes || '',
+        discipler: visitor.discipler ?? null,
       });
     } else {
       form.reset();
     }
     form.resetDirty();
+    accountsApi
+      .disciplers()
+      .then((list) => {
+        setDisciplers(list);
+        // MEMBRO sem cargo enxerga apenas a si mesmo como responsável — já
+        // marca por padrão para o cadastro não exigir um clique a mais.
+        if (!visitor && list.length === 1 && !form.values.discipler) {
+          form.setFieldValue('discipler', list[0].id);
+        }
+      })
+      .catch(() => {
+        notifications.show({
+          color: 'red',
+          title: t.common.error,
+          message: t.funnel.disciplersLoadError,
+        });
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, visitor?.id]);
 
@@ -83,6 +105,16 @@ export default function VisitorFormModal({ opened, onClose, visitor, onSave }: V
             error={form.errors.phone}
             onAccept={(value: string) => form.setFieldValue('phone', value)}
             data-testid="visitor-phone"
+          />
+          <Select
+            label={t.funnel.disciplerLabel}
+            placeholder={t.funnel.disciplerPlaceholder}
+            data={disciplers.map((d) => ({ value: String(d.id), label: d.name }))}
+            searchable
+            clearable
+            nothingFoundMessage={t.funnel.disciplersLoadError}
+            {...form.getInputProps('discipler', { transform: Number })}
+            data-testid="visitor-discipler"
           />
           <Textarea
             label={t.funnel.visitorNotes}

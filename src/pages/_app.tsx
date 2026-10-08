@@ -84,6 +84,7 @@ const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'];
 const PUBLIC_ROUTES = [
   '/p/[slug]',
   '/gc/[slug]',
+  '/convite/[token]',
   '/perfil/[hash]',
   '/cartao/[hash]',
   '/calendario/[hash]',
@@ -106,7 +107,7 @@ const ALL_ROLES = [
 
 const ROUTE_ROLES: Record<string, string[]> = {
   '/sunday-school': ['PASTOR', 'SECRETARIA', 'PROFESSOR_EBD'],
-  '/growth-groups': ['PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO', 'PROFESSOR_EBD'],
+  '/growth-groups': ['MEMBRO', 'PASTOR', 'SECRETARIA', 'TESOUREIRO', 'INTERCESSAO', 'PROFESSOR_EBD'],
   // Módulos de secretaria/administrativa: PROFESSOR_EBD fica de fora.
   '/cultos': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
   '/atas': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),

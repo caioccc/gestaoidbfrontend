@@ -23,6 +23,7 @@ import { useMediaQuery } from '@mantine/hooks';
 import {
   IconBrandWhatsapp,
   IconBuildingChurch,
+  IconCrosshair,
   IconMapPin,
   IconRoute,
   IconSearch,
@@ -56,6 +57,29 @@ function escapeHtml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+function distanceMeters(
+  from: [number, number],
+  to: [number, number]
+): number {
+  const R = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(to[0] - from[0]);
+  const dLng = toRad(to[1] - from[1]);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(from[0])) * Math.cos(toRad(to[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+function publicUserIcon(L: any) {
+  return L.divIcon({
+    className: '',
+    html: '<div style="width:18px;height:18px;border-radius:50%;background:#1c7ed6;border:3px solid #fff;box-shadow:0 0 0 2px rgba(28,126,214,.45),0 1px 6px rgba(0,0,0,.4)"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
 }
 
 function publicGroupIcon(L: any, color: string) {
@@ -113,17 +137,20 @@ function PublicGCMap({
   center,
   themeColor,
   height,
+  userLocation,
 }: {
   groups: PublicGrowthGroup[];
   center: [number, number] | null;
   themeColor: string;
   height: number;
+  userLocation: [number, number] | null;
 }) {
   const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
   const featureRef = useRef<any>(null);
+  const userMarkerRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -156,10 +183,26 @@ function PublicGCMap({
         mapRef.current = null;
         leafletRef.current = null;
         featureRef.current = null;
+        userMarkerRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Marcador do usuário: centraliza o mapa quando a localização é obtida.
+  useEffect(() => {
+    const map = mapRef.current;
+    const L = leafletRef.current;
+    if (!ready || !map || !L || !userLocation) return;
+    if (!userMarkerRef.current) {
+      userMarkerRef.current = L.marker(userLocation, {
+        icon: publicUserIcon(L),
+      }).addTo(map);
+    } else {
+      userMarkerRef.current.setLatLng(userLocation);
+    }
+    map.setView(userLocation, Math.max(map.getZoom(), 15));
+  }, [ready, userLocation]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -224,6 +267,11 @@ export default function PublicGrowthGroupsPage() {
   const [search, setSearch] = useState('');
   const [weekdayFilter, setWeekdayFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null
+  );
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState(false);
 
   const isMobile = useMediaQuery('(max-width: 768px)');
   const isDesktop = useMediaQuery('(min-width: 992px)');
@@ -275,6 +323,42 @@ export default function PublicGrowthGroupsPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, search, weekdayFilter, categoryFilter]);
+
+  const handleLocate = () => {
+    if (!navigator.geolocation) {
+      setLocationError(true);
+      return;
+    }
+    setLocating(true);
+    setLocationError(false);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+      },
+      () => {
+        setLocating(false);
+        setLocationError(true);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const nearest = useMemo(() => {
+    if (!userLocation) return null;
+    let best: { name: string; meters: number } | null = null;
+    for (const g of filtered) {
+      if (g.latitude == null || g.longitude == null) continue;
+      const meters = Math.round(
+        distanceMeters(userLocation, [
+          g.latitude as number,
+          g.longitude as number,
+        ])
+      );
+      if (!best || meters < best.meters) best = { name: g.name, meters };
+    }
+    return best;
+  }, [userLocation, filtered]);
 
   const weekdayOptions = useMemo(() => {
     if (!data) return [];
@@ -592,14 +676,43 @@ export default function PublicGrowthGroupsPage() {
 
                 {anyCoordinates ? (
                   <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-                    <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
-                      <PublicGCMap
-                        groups={filtered}
-                        center={mapCenter}
-                        themeColor={themeColor}
-                        height={mapHeight}
-                      />
-                    </Paper>
+                    <Stack gap="sm">
+                      <Paper withBorder radius="md" p="xs">
+                        <Group justify="space-between" wrap="wrap" gap="xs">
+                          <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={<IconCrosshair size={14} />}
+                            loading={locating}
+                            onClick={handleLocate}
+                            data-testid="gc-public-locate"
+                          >
+                            {t.publicGrowthGroups.myLocation}
+                          </Button>
+                          {nearest ? (
+                            <Text size="xs" c="dimmed">
+                              {t.publicGrowthGroups.nearestGroup
+                                .replace('{name}', nearest.name)
+                                .replace('{meters}', String(nearest.meters))}
+                            </Text>
+                          ) : null}
+                        </Group>
+                        {locationError && !locating ? (
+                          <Text size="xs" c="red" mt={4}>
+                            {t.publicGrowthGroups.locationError}
+                          </Text>
+                        ) : null}
+                      </Paper>
+                      <Paper withBorder radius="md" style={{ overflow: 'hidden' }}>
+                        <PublicGCMap
+                          groups={filtered}
+                          center={mapCenter}
+                          themeColor={themeColor}
+                          height={mapHeight}
+                          userLocation={userLocation}
+                        />
+                      </Paper>
+                    </Stack>
                     <Box
                       style={{
                         maxHeight: isDesktop ? mapHeight : undefined,
