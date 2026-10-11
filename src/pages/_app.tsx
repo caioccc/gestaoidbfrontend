@@ -90,6 +90,7 @@ const PUBLIC_ROUTES = [
   '/calendario/[hash]',
   '/formulario/[hash]',
   '/ata/[hash]',
+  '/folder/[hash]',
 ];
 
 // Registro central de papéis por rota (item "Gestão de Acessos"/PROFESSOR_EBD).
@@ -111,6 +112,7 @@ const ROUTE_ROLES: Record<string, string[]> = {
   // Módulos de secretaria/administrativa: PROFESSOR_EBD fica de fora.
   '/cultos': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
   '/atas': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
+  '/folders': ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
 };
 
 const PUBLIC_ROOT_ID = 'public-root';

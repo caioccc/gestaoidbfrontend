@@ -11,8 +11,9 @@ import {
   Group,
   Loader,
   Menu,
-  Paper,
+Paper,
   SegmentedControl,
+  Select,
   Skeleton,
   Stack,
   Table,
@@ -51,7 +52,7 @@ import { useIsMobile } from '../../hooks/useIsMobile';
 import { useAuth } from '../../contexts/AuthContext';
 import { musicApi } from '../../api/music';
 import { formatMusicalKey } from '../../utils/format';
-import type { Song, SongHistoryItem } from '../../types';
+import type { Band, Song, SongHistoryItem } from '../../types';
 
 type Tab = 'player' | 'lyrics' | 'history';
 
@@ -63,8 +64,10 @@ export default function SongDetailPage() {
   const isMobile = useIsMobile();
   const id = Number(router.query.id);
 
-  const [song, setSong] = useState<Song | null>(null);
+const [song, setSong] = useState<Song | null>(null);
   const [history, setHistory] = useState<SongHistoryItem[]>([]);
+  const [bands, setBands] = useState<Band[]>([]);
+  const [historyBand, setHistoryBand] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [tab, setTab] = useState<Tab>('player');
@@ -83,21 +86,25 @@ export default function SongDetailPage() {
     }
   }, [router.query.tab]);
 
-  const load = useCallback(async () => {
+const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
       setSong(await musicApi.song(id));
-      const h = await musicApi.songHistory(id);
+      const h = await musicApi.songHistory(id, { band: historyBand ?? undefined });
       setHistory(h.results);
     } catch (err) {
       fb.fromError(err, t.music.songNotFound);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, historyBand]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    musicApi.bands().then(setBands).catch(() => undefined);
+  }, []);
   const songStatus = song?.chord_status;
 
   useEffect(() => {
@@ -517,7 +524,12 @@ export default function SongDetailPage() {
         ) : null}
 
         {tab === 'history' ? (
-          <HistoryTab items={history} />
+          <HistoryTab
+            items={history}
+            bands={bands}
+            value={historyBand}
+            onChange={setHistoryBand}
+          />
         ) : null}
 
         <SongModal
@@ -531,37 +543,76 @@ export default function SongDetailPage() {
   );
 }
 
-function HistoryTab({ items }: { items: SongHistoryItem[] }) {
+function HistoryTab({
+  items,
+  bands,
+  value,
+  onChange,
+}: {
+  items: SongHistoryItem[];
+  bands: Band[];
+  value: number | null;
+  onChange: (band: number | null) => void;
+}) {
   const { t } = useLanguage();
+  const bandOptions = [
+    { value: 'all', label: t.music.allBands },
+    ...bands.map((b) => ({ value: String(b.id), label: b.name })),
+  ];
   return (
     <Card withBorder>
-      {items.length === 0 ? (
-        <EmptyState
-          variant="center"
-          minHeight={120}
-          icon={<IconHistory size={24} />}
-          title={t.music.noHistory}
+      <Stack gap="md">
+        <Select
+          aria-label={t.music.selectBand}
+          label={t.music.selectBand}
+          data={bandOptions}
+          value={value === null ? 'all' : String(value)}
+          onChange={(v) => onChange(v && v !== 'all' ? Number(v) : null)}
+          maxDropdownHeight={280}
+          allowDeselect={false}
+          w={{ base: '100%', sm: 260 }}
         />
-      ) : (
-        <Table>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>{t.music.date}</Table.Th>
-              <Table.Th>{t.music.setlistsTitle}</Table.Th>
-              <Table.Th>{t.music.transposeLabel}</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {items.map((h, i) => (
-              <Table.Tr key={`${h.kind}-${h.setlist_id ?? i}`}>
-                <Table.Td>{h.date}</Table.Td>
-                <Table.Td>{h.name || '—'}</Table.Td>
-                <Table.Td>{h.key ? formatMusicalKey(h.key) : '—'}</Table.Td>
+        {items.length === 0 ? (
+          <EmptyState
+            variant="center"
+            minHeight={120}
+            icon={<IconHistory size={24} />}
+            title={t.music.noHistory}
+          />
+        ) : (
+          <Table>
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>{t.music.date}</Table.Th>
+                <Table.Th>{t.music.setlistsTitle}</Table.Th>
+                <Table.Th>{t.music.band}</Table.Th>
+                <Table.Th>{t.music.transposeLabel}</Table.Th>
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      )}
+            </Table.Thead>
+            <Table.Tbody>
+              {items.map((h, i) => (
+                <Table.Tr key={`${h.kind}-${h.setlist_id ?? i}`}>
+                  <Table.Td>{h.date}</Table.Td>
+                  <Table.Td>{h.name || '—'}</Table.Td>
+                  <Table.Td>
+                    {h.band_name ? (
+                      <Badge
+                        radius="sm"
+                        style={h.band_color ? { backgroundColor: h.band_color } : undefined}
+                      >
+                        {h.band_name}
+                      </Badge>
+                    ) : (
+                      <Text size="sm" c="dimmed">{t.music.noBand}</Text>
+                    )}
+                  </Table.Td>
+                  <Table.Td>{h.key ? formatMusicalKey(h.key) : '—'}</Table.Td>
+                </Table.Tr>
+              ))}
+            </Table.Tbody>
+          </Table>
+        )}
+      </Stack>
     </Card>
   );
 }

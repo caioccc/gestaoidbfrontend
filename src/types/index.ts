@@ -1030,6 +1030,154 @@ export interface PublicMinutesPayload {
   created_at: string;
 }
 
+export type FolderCultoTipo = 'MENSAL' | 'SEMANAL';
+
+export type FolderCultoServiceType =
+  | 'CELEBRACAO'
+  | 'DOUTRINA'
+  | 'ORACAO'
+  | 'VIGILIA'
+  | 'CEIA'
+  | 'ESCOLA_BIBLICA'
+  | 'JOVENS'
+  | 'OUTRO';
+
+export interface FolderCultoProgramacaoItem {
+  time?: string;
+  label: string;
+}
+
+export interface FolderCultoAnuncioItem {
+  title: string;
+  text: string;
+  highlight?: boolean;
+}
+
+export interface FolderCultoAniversarianteItem {
+  id?: number | null;
+  name: string;
+  day: number;
+  month: number;
+  age?: number | null;
+  phone?: string;
+}
+
+export interface FolderQrItem {
+  enabled: boolean;
+  url: string;
+}
+
+export interface FolderCultoQr {
+  visita: FolderQrItem;
+  oracao: FolderQrItem;
+  agenda: FolderQrItem;
+  cadastro: FolderQrItem;
+}
+
+export type FolderBlockKey =
+  | 'programacao'
+  | 'agenda'
+  | 'avisos'
+  | 'aniversariantes'
+  | 'oracao'
+  | 'anotacoes'
+  | 'ficha_visitante'
+  | 'cadastro'
+  | 'dizimos'
+  | 'links'
+  | 'social'
+  | 'contatos';
+
+export type FolderBlocks = Record<FolderBlockKey, boolean>;
+
+export interface FolderCultoRow {
+  id: number;
+  service_type: FolderCultoServiceType;
+  service_type_display: string;
+  date: string;
+  start_time: string | null;
+  end_time: string | null;
+  title: string;
+  preacher: string;
+  sort_order: number;
+}
+
+export interface FolderCulto {
+  id: number;
+  church: number;
+  tipo: FolderCultoTipo;
+  tipo_display: string;
+  title: string;
+  subtitle: string;
+  service_type: FolderCultoServiceType | '';
+  service_type_display: string;
+  versiculo: string;
+  cover_template: number;
+  cover_template_display: string;
+  theme_color: string;
+  background_color: string;
+  cover_font: string;
+  mensagem_pastoral: string;
+  article_title: string;
+  reference_start: string;
+  reference_end: string;
+  programacao: FolderCultoProgramacaoItem[];
+  anuncios: FolderCultoAnuncioItem[];
+  aniversariantes: FolderCultoAniversarianteItem[];
+  qr: FolderCultoQr;
+  social: Record<string, boolean>;
+  blocks: FolderBlocks;
+  block_order: FolderBlockKey[];
+  rows: FolderCultoRow[];
+  public_hash: string | null;
+  public_url: string;
+  default_qr: Record<string, FolderQrItem>;
+  created_by: number | null;
+  created_by_name: string;
+  updated_by_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicFolderChurch {
+  id: number;
+  slug: string;
+  name: string;
+  city: string;
+  state: string;
+  neighborhood: string;
+  street?: string | null;
+  number?: string | null;
+  logo: string | null;
+  theme_color: string;
+  phone: string;
+  default_pix_key: string;
+  default_pix_type: string;
+}
+
+export interface TrifoldLink {
+  title: string;
+  link_type: string;
+  url: string;
+  whatsapp_number?: string | null;
+}
+
+export interface TrifoldChurch {
+  name?: string;
+  logo?: string | null;
+  phone?: string;
+  city?: string;
+  state?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  theme_color?: string;
+  slug?: string;
+  default_pix_key?: string | null;
+  default_pix_type?: string | null;
+  links?: TrifoldLink[];
+}
+
 export type ChurchLinkType =
   | 'CUSTOM'
   | 'PIX'
@@ -1895,6 +2043,9 @@ export interface SongHistoryItem {
   key: string;
   kind: string;
   setlist_id?: number;
+  band?: number | null;
+  band_name?: string;
+  band_color?: string;
 }
 
 export interface YouTubeSearchResult {

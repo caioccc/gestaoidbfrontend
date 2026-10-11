@@ -258,8 +258,8 @@ export const musicApi = {
   deleteSong: (id: number): Promise<void> =>
     apiClient.delete(`/api/music/songs/${id}/`).then(() => undefined),
 
-  songHistory: (id: number): Promise<{ results: SongHistoryItem[] }> =>
-    apiClient.get(`/api/music/songs/${id}/history/`).then((r) => r.data),
+  songHistory: (id: number, params?: { band?: number | null }): Promise<{ results: SongHistoryItem[] }> =>
+    apiClient.get(`/api/music/songs/${id}/history/`, { params: params ?? {} }).then((r) => r.data),
 
   reprocessSong: (id: number): Promise<{ success: boolean; message: string; song: Song }> =>
     apiClient.post(`/api/music/songs/${id}/reprocess/`).then((r) => r.data),

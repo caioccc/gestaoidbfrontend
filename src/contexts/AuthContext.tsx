@@ -14,6 +14,13 @@ export interface UserSessionChurch {
   parent_church?: number | null;
   is_approved?: boolean;
   accounting_category?: string | null;
+  phone?: string;
+  cep?: string;
+  street?: string;
+  number?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface UserSession {
@@ -84,10 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     const response = await apiClient.post('/api/accounts/login/', { email, password });
-    const { access, user: userData } = response.data;
+    const { access, refresh, user: userData } = response.data;
 
-    // Cookie persistido por 7 dias
+    // Cookies persistidos por 7 dias
     Cookies.set('idb_auth_token', access, { expires: 7, sameSite: 'lax' });
+    Cookies.set('idb_refresh_token', refresh, { expires: 7, sameSite: 'lax' });
     Cookies.set('idb_user_data', JSON.stringify(userData), { expires: 7, sameSite: 'lax' });
 
     setUser(userData);
@@ -107,6 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     Cookies.remove('idb_auth_token');
+    Cookies.remove('idb_refresh_token');
     Cookies.remove('idb_user_data');
     setUser(null);
     router.push('/login');
