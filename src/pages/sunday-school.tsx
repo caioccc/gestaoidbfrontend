@@ -555,7 +555,7 @@ function ClassFormModal({
   }, [opened, editing]);
 
   const save = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || !teacherName.trim()) return;
     setSaving(true);
     const payload: SundaySchoolClassPayload = {
       name: toUpperCamelWords(name),
@@ -573,8 +573,8 @@ function ClassFormModal({
       }
       fb.success(t.sundaySchool.classSaved);
       onSaved();
-    } catch {
-      fb.error(t.sundaySchool.noReportData);
+    } catch (err) {
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -608,6 +608,7 @@ function ClassFormModal({
           label={t.sundaySchool.teacherName}
           value={teacherName}
           onChange={(e) => setTeacherName(e.currentTarget.value)}
+          required
         />
         <TextInput
           label={t.sundaySchool.coTeacherName}
@@ -675,8 +676,8 @@ function AnnounceModal({
       });
       setRows(data.rows);
       setPreparedName(data.class_name);
-    } catch {
-      fb.error(t.sundaySchool.noReportData);
+    } catch (err) {
+      fb.fromError(err, t.common.toast.saveFailed);
     } finally {
       setPreparing(false);
     }

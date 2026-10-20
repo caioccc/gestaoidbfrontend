@@ -44,6 +44,10 @@ const SEGMENT_KEYS: Record<string, string> = {
   songs: 'songsTitle',
   setlists: 'setlistsTitle',
   receipts: 'receipts',
+  visitors: 'visitors',
+  convites: 'invites',
+  folders: 'folders',
+  rosters: 'rostersTitle',
 };
 
 function flatSectionFromPathname(pathname: string): string | null {
@@ -100,6 +104,7 @@ export default function ContentContextHeader() {
   const badge = isSede ? t.churchesPage.sede : t.churchesPage.congregation;
   const sectionLabel =
     ((t.nav as Record<string, string>)[section] ?? (t.music as Record<string, string>)[section]) ??
+    (section === 'folders' ? t.folders.navTitle : undefined) ??
     section;
 
   const rootCrumb = scope
