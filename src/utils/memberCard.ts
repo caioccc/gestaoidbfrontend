@@ -102,6 +102,7 @@ export async function downloadMemberCardPairPng(
   node: HTMLElement,
   name: string
 ): Promise<void> {
+  await awaitCaptureReady();
   const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
   const link = document.createElement('a');
   link.href = dataUrl;
@@ -113,6 +114,7 @@ export async function downloadMemberCardPairPdf(
   node: HTMLElement,
   name: string
 ): Promise<void> {
+  await awaitCaptureReady();
   const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const imgWidth = 120;
@@ -126,6 +128,7 @@ export async function printMemberCardPair(
   node: HTMLElement,
   title: string
 ): Promise<void> {
+  await awaitCaptureReady();
   const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
   const printWindow = window.open('', '_blank', 'width=700,height=900');
   if (!printWindow) return;
@@ -144,12 +147,23 @@ export async function printMemberCardPair(
 const asElements = (nodes: (HTMLElement | null)[]): HTMLElement[] =>
   nodes.filter((n): n is HTMLElement => !!n);
 
+async function awaitCaptureReady(): Promise<void> {
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+  await new Promise((resolve) =>
+    window.requestAnimationFrame(() => resolve(null))
+  );
+}
+
 export async function exportMemberCardPairsPdf(
   nodes: (HTMLElement | null)[],
   fileName: string
 ): Promise<void> {
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const list = asElements(nodes);
+  if (!list.length) throw new Error('Nenhuma carteirinha disponível para captura');
+  await awaitCaptureReady();
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   for (let i = 0; i < list.length; i++) {
     const node = list[i];
     const dataUrl = await toPng(node, { pixelRatio: 2, cacheBust: true });
@@ -203,6 +217,10 @@ export async function exportMemberCardFacesGridPdf(
 ): Promise<void> {
   const fronts = asElements(frontNodes);
   const backs = asElements(backNodes);
+  if (!fronts.length && !backs.length) {
+    throw new Error('Nenhuma carteirinha disponível para captura');
+  }
+  await awaitCaptureReady();
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   await drawFacesPages(pdf, fronts);
   if (backs.length && fronts.length) {
@@ -217,6 +235,8 @@ export async function printMemberCards(
   title: string
 ): Promise<void> {
   const list = asElements(nodes);
+  if (!list.length) throw new Error('Nenhuma carteirinha disponível para captura');
+  await awaitCaptureReady();
   const urls: string[] = [];
   for (const node of list) {
     urls.push(await toPng(node, { pixelRatio: 2, cacheBust: true }));

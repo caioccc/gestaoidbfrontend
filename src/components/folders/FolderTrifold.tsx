@@ -76,8 +76,11 @@ const TRIFOLD_THEME_CSS = `
 
 const sanitizeCache = new Map<string, Promise<string>>();
 
-function useSanitizedHtml(html: string): string {
-  const [clean, setClean] = useState('');
+function useSanitizedHtml(html: string): { clean: string; resolved: boolean } {
+  const [state, setState] = useState<{ clean: string; resolved: boolean }>({
+    clean: '',
+    resolved: false,
+  });
   useEffect(() => {
     let active = true;
     const key = html || '';
@@ -87,13 +90,13 @@ function useSanitizedHtml(html: string): string {
       sanitizeCache.set(key, job);
     }
     job.then((value) => {
-      if (active) setClean(value);
+      if (active) setState({ clean: value, resolved: true });
     });
     return () => {
       active = false;
     };
   }, [html]);
-  return clean;
+  return state;
 }
 
 export interface TrifoldFolderData {
@@ -1078,7 +1081,29 @@ const FolderTrifold = forwardRef<HTMLDivElement, FolderTrifoldProps>(
         ),
       [folder.cover_template, themeColor, folder.background_color, folder.cover_font]
     );
-    const cleanMessage = useSanitizedHtml(folder.mensagem_pastoral);
+    const { clean: cleanMessage, resolved: messageResolved } =
+      useSanitizedHtml(folder.mensagem_pastoral);
+    const [fontsSettled, setFontsSettled] = useState(false);
+    useEffect(() => {
+      let active = true;
+      const settle = () => {
+        if (!document.fonts?.ready) {
+          if (active) setFontsSettled(true);
+          return;
+        }
+        // Dois ciclos de `ready`: o primeiro pode resolver antes das fontes
+        // do próprio trifold entrarem em carregamento no primeiro mount.
+        document.fonts.ready.then(() => {
+          document.fonts?.ready.then(() => {
+            if (active) setFontsSettled(true);
+          });
+        });
+      };
+      settle();
+      return () => {
+        active = false;
+      };
+    }, []);
     const qrs = useMemo(() => qrEntries(folder, t), [folder, t]);
     const blocks = useMemo(() => resolveBlocks(folder.blocks), [folder.blocks]);
     const blockOrder = useMemo(
@@ -1113,6 +1138,7 @@ const FolderTrifold = forwardRef<HTMLDivElement, FolderTrifoldProps>(
       outer0: [],
     });
     const [overflow, setOverflow] = useState(false);
+    const [measured, setMeasured] = useState(false);
     const measureRefs = useRef(new Map<FolderBlockKey, HTMLDivElement | null>());
     const measureLayerRef = useRef<HTMLDivElement | null>(null);
 
@@ -1127,7 +1153,10 @@ const FolderTrifold = forwardRef<HTMLDivElement, FolderTrifoldProps>(
       const next = computeAssignment(heights, activeKeys);
       setAssignment(next.assignment);
       setOverflow(next.overflow);
-    }, [measureKey, folder, church, qrs, t, locale]);
+      setMeasured(true);
+    }, [measureKey, folder, church, qrs, t, locale, fontsSettled]);
+
+    const ready = messageResolved && fontsSettled && measured;
 
     useEffect(() => {
       onOverflowChange?.(overflow);
@@ -1184,6 +1213,7 @@ const FolderTrifold = forwardRef<HTMLDivElement, FolderTrifoldProps>(
     return (
       <div
         ref={setOuterRef}
+        data-folder-ready={ready ? '1' : undefined}
         style={{
           width: exportMode ? SHEET_W : '100%',
           maxWidth: 'none',

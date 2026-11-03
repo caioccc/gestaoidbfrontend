@@ -80,10 +80,34 @@ export async function generateFolderPdf(node: HTMLElement, title: string): Promi
   }
 }
 
+// Espera o FolderTrifold sinalizar prontidão (mensagem sanitizada, blocos
+// alocados e fontes assentadas) antes de clonar o nó para captura.
+function waitForFolderReady(node: HTMLElement, timeoutMs = 10000): Promise<void> {
+  const started = Date.now();
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      if (node.querySelector('[data-folder-ready="1"]')) {
+        resolve();
+        return;
+      }
+      if (Date.now() - started > timeoutMs) {
+        reject(new Error('Folder não ficou pronto para exportação'));
+        return;
+      }
+      window.setTimeout(check, 50);
+    };
+    check();
+  });
+}
+
 // Gera o PDF do folder trifold (sanfonado): duas páginas A4 paisagem
 // full-bleed, uma por folha (LADO A externo / LADO B interno). Cada folha
 // é um elemento `[data-folder-sheet]` renderizado sem as guias de dobra.
 export async function generateTrifoldPdf(node: HTMLElement, title: string): Promise<void> {
+  await waitForFolderReady(node);
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
   const clone = node.cloneNode(true) as HTMLElement;
   clone.style.position = 'fixed';
   clone.style.top = '0';

@@ -13,6 +13,7 @@ import {
 import { useLanguage } from '../i18n';
 import type { CardConfig, Member } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
+import { useFeedback } from '../hooks/useFeedback';
 import {
   exportMemberCardFacesGridPdf,
   exportMemberCardPairsPdf,
@@ -37,6 +38,7 @@ export default function MemberCardBatchModal({
   churchContact,
 }: MemberCardBatchModalProps) {
   const { t } = useLanguage();
+  const fb = useFeedback();
   const [busy, setBusy] = useState<'one' | 'grid' | 'print' | null>(null);
   const pairCells = useRef(new Map<number, HTMLDivElement>());
   const frontCells = useRef(new Map<number, HTMLDivElement>());
@@ -65,16 +67,19 @@ export default function MemberCardBatchModal({
     setBusy(kind);
     try {
       await fn();
-    } catch {
-      // nada: usuário pode tentar novamente
+    } catch (err) {
+      fb.fromError(err, t.common.toast.downloadFailed);
     } finally {
       setBusy(null);
     }
   };
 
-  const pairs = members.map((m) => pairCells.current.get(m.id) ?? null);
-  const fronts = members.map((m) => frontCells.current.get(m.id) ?? null);
-  const backs = members.map((m) => backCells.current.get(m.id) ?? null);
+  const collectPairs = () =>
+    members.map((m) => pairCells.current.get(m.id) ?? null);
+  const collectFronts = () =>
+    members.map((m) => frontCells.current.get(m.id) ?? null);
+  const collectBacks = () =>
+    members.map((m) => backCells.current.get(m.id) ?? null);
 
   return (
     <Modal
@@ -134,7 +139,7 @@ export default function MemberCardBatchModal({
             disabled={members.length === 0}
             onClick={() =>
               run('one', () =>
-                exportMemberCardPairsPdf(pairs, fileName())
+                exportMemberCardPairsPdf(collectPairs(), fileName())
               )
             }
             data-testid="batch-pdf-one"
@@ -148,7 +153,11 @@ export default function MemberCardBatchModal({
             disabled={members.length === 0}
             onClick={() =>
               run('grid', () =>
-                exportMemberCardFacesGridPdf(fronts, backs, fileName())
+                exportMemberCardFacesGridPdf(
+                  collectFronts(),
+                  collectBacks(),
+                  fileName()
+                )
               )
             }
             data-testid="batch-pdf-grid"
@@ -161,7 +170,9 @@ export default function MemberCardBatchModal({
             loading={busy === 'print'}
             disabled={members.length === 0}
             onClick={() =>
-              run('print', () => printMemberCards(pairs, t.cardBatch.title))
+              run('print', () =>
+                printMemberCards(collectPairs(), t.cardBatch.title)
+              )
             }
             data-testid="batch-print"
           >
