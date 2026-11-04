@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Paper,
-  Popover,
   Group,
   Text,
   Button,
@@ -206,7 +205,7 @@ export default function CalendarEventsBoard({
   const [hiddenCategories, setHiddenCategories] = useState<CalendarEventCategory[]>(
     []
   );
-  const [overflowDay, setOverflowDay] = useState<string | null>(null);
+  const [overflowDate, setOverflowDate] = useState<Date | null>(null);
   const isMobile = useIsMobile();
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   // Rascunho edito dentro do drawer; so vira filtro real em "Aplicar filtros".
@@ -344,6 +343,8 @@ export default function CalendarEventsBoard({
     },
     [events, categoryLabel, isCategoryVisible]
   );
+
+  const overflowItems = overflowDate ? itemsForDate(overflowDate) : [];
 
   const form = useForm<{
     title: string;
@@ -613,54 +614,21 @@ export default function CalendarEventsBoard({
     );
   };
 
-  const renderOverflowPopover = (day: number, items: BoardItem[]) => {
+  const renderOverflowBadge = (day: number, items: BoardItem[]) => {
     if (items.length <= MAX_BADGES_PER_CELL) return null;
-    const key = `${year}-${month}-${day}`;
     const hidden = items.slice(MAX_BADGES_PER_CELL);
     return (
-      <Popover
-        key={key}
-        opened={overflowDay === key}
-        onChange={(next) => setOverflowDay(next ? key : null)}
-        width={280}
-        shadow="md"
-        withinPortal
+      <Badge
+        size="xs"
+        variant="default"
+        color="gray"
+        radius="xl"
+        style={{ cursor: 'pointer', alignSelf: 'center' }}
+        onClick={() => setOverflowDate(new Date(year, month, day))}
+        data-testid={`calendar-overflow-${day}`}
       >
-        <Popover.Target>
-          <Badge
-            size="xs"
-            variant="default"
-            color="gray"
-            radius="xl"
-            style={{ cursor: 'pointer', alignSelf: 'center' }}
-            data-testid={`calendar-overflow-${day}`}
-          >
-            +{hidden.length}
-          </Badge>
-        </Popover.Target>
-        <Popover.Dropdown onClick={() => setOverflowDay(null)}>
-          <Text size="xs" fw={700} c="dimmed" mb={4}>
-            {`${day}/${month + 1} — ${t.calendarEvents.allEvents}`}
-          </Text>
-          <Stack gap={6}>
-            {items.map((b) => (
-              <Group key={b.key} gap={6} wrap="nowrap" style={{ cursor: 'pointer' }}>
-                <Badge size="xs" color={b.color} variant="filled" style={{ flexShrink: 0 }}>
-                  {b.time ? b.time.slice(0, 5) : '—'}
-                </Badge>
-                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
-                  <Text size="sm" fw={500} truncate>
-                    {b.title}
-                  </Text>
-                  <Text size="xs" c="dimmed" truncate>
-                    {categoryLabel(b.ev.category)}
-                  </Text>
-                </Stack>
-              </Group>
-            ))}
-          </Stack>
-        </Popover.Dropdown>
-      </Popover>
+        +{hidden.length}
+      </Badge>
     );
   };
 
@@ -1188,7 +1156,7 @@ export default function CalendarEventsBoard({
                       <Text size="sm" fw={todayCell ? 800 : 600} ta="center">
                         {day}
                       </Text>
-                      {renderOverflowPopover(day, items)}
+                      {renderOverflowBadge(day, items)}
                     </Group>
                     <Stack gap={2} px={2}>
                       {renderEventBadges(items)}
@@ -1567,6 +1535,54 @@ export default function CalendarEventsBoard({
             )}
           </Stack>
         )}
+      </Modal>
+
+      <Modal
+        opened={!!overflowDate}
+        onClose={() => setOverflowDate(null)}
+        title={
+          overflowDate
+            ? `${overflowDate.getDate()}/${overflowDate.getMonth() + 1} — ${t.calendarEvents.allEvents}`
+            : t.calendarEvents.allEvents
+        }
+        centered
+        size="md"
+        data-testid="calendar-day-events-modal"
+      >
+        <ScrollArea.Autosize mah={420} scrollbars="y">
+          <Stack gap={8}>
+            {overflowItems.length === 0 ? (
+              <Text size="sm" c="dimmed">
+                {t.calendarEvents.noEventsDay}
+              </Text>
+            ) : (
+              overflowItems.map((b) => (
+                <Group
+                  key={b.key}
+                  gap={8}
+                  wrap="nowrap"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => {
+                    setOverflowDate(null);
+                    setDetail(b.ev);
+                  }}
+                >
+                  <Badge size="xs" color={b.color} variant="filled" style={{ flexShrink: 0 }}>
+                    {b.time ? b.time.slice(0, 5) : '—'}
+                  </Badge>
+                  <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                    <Text size="sm" fw={500} truncate>
+                      {b.title}
+                    </Text>
+                    <Text size="xs" c="dimmed" truncate>
+                      {categoryLabel(b.ev.category)}
+                    </Text>
+                  </Stack>
+                </Group>
+              ))
+            )}
+          </Stack>
+        </ScrollArea.Autosize>
       </Modal>
 
       <Modal

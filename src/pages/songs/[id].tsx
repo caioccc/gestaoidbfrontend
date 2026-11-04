@@ -33,6 +33,8 @@ import {
   IconLock,
   IconPencil,
   IconRefresh,
+  IconStar,
+  IconStarFilled,
   IconTrash,
   IconUsersGroup,
 } from '@tabler/icons-react';
@@ -141,6 +143,22 @@ const load = useCallback(async () => {
     }
   };
 
+  const toggleHighlight = async () => {
+    if (!song) return;
+    const next = !song.is_highlighted;
+    try {
+      if (next) {
+        await musicApi.highlightSong(song.id);
+      } else {
+        await musicApi.unhighlightSong(song.id);
+      }
+      setSong({ ...song, is_highlighted: next });
+      fb.success(next ? t.music.highlightAdded : t.music.highlightRemoved);
+    } catch (err) {
+      fb.fromError(err, t.music.highlightFailed);
+    }
+  };
+
     if (loading || !song) {
       return (
         <AuthGuard roles={['PASTOR', 'SECRETARIA', 'LOUVOR', 'MUSICO']}>
@@ -194,6 +212,15 @@ const load = useCallback(async () => {
                 </Tooltip>
               </Menu.Target>
               <Menu.Dropdown>
+                <Menu.Item
+                  leftSection={song.is_highlighted
+                    ? <IconStarFilled size={16} color="var(--mantine-color-yellow-6)" />
+                    : <IconStar size={16} />}
+                  onClick={toggleHighlight}
+                >
+                  {song.is_highlighted ? t.music.unhighlightSong : t.music.highlightSong}
+                </Menu.Item>
+                <Menu.Divider />
                 {song.chord_status === 'COMPLETED' || song.chord_status === 'MANUAL' ? (
                   <Menu.Item
                     leftSection={<IconRefresh size={16} />}

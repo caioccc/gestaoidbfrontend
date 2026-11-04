@@ -34,6 +34,8 @@ import {
   IconPlus,
   IconSearch,
   IconStack2,
+  IconStar,
+  IconStarFilled,
   IconTable,
   IconTrash,
   IconUsersGroup,
@@ -44,6 +46,7 @@ import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import SongModal from '../components/SongModal';
+import SongHighlightsCarousel from '../components/SongHighlightsCarousel';
 import SongsBulkAddModal from '../components/SongsBulkAddModal';
 import BandModal from '../components/BandModal';
 import FilterDrawer from '../components/FilterDrawer';
@@ -67,6 +70,7 @@ type SongActionCallbacks = {
   onHistory: (song: Song) => void;
   onEdit: (song: Song) => void;
   onDelete: (song: Song) => void;
+  onToggleHighlight: (song: Song) => void;
 };
 
 const VIEW_MODE_STORAGE_KEY = 'gestao_idb_songs_view_mode';
@@ -86,6 +90,7 @@ const GALLERY_STATUS_CLASS: Partial<Record<ChordStatus, string>> = {
 };
 
 const ORDERING_OPTIONS = [
+  { value: 'highlighted', translationKey: 'orderHighlights' },
   { value: 'random', translationKey: 'orderRandom' },
   { value: 'times_played', translationKey: 'orderMostPlayed' },
   { value: '-times_played', translationKey: 'orderLeastPlayed' },
@@ -196,7 +201,14 @@ function SongBandStatsText({ stats, size = 'xs' }: {
   );
 }
 
-function SongActionMenu({ song, onHistory, onEdit, onDelete, appearance = 'default' }: {
+function SongActionMenu({
+  song,
+  onHistory,
+  onEdit,
+  onDelete,
+  onToggleHighlight,
+  appearance = 'default',
+}: {
   song: Song;
   /** `overlay` usa o mesmo botão circular translúcido das ações da galeria. */
   appearance?: 'default' | 'overlay';
@@ -222,6 +234,15 @@ function SongActionMenu({ song, onHistory, onEdit, onDelete, appearance = 'defau
             {target}
           </Menu.Target>
           <Menu.Dropdown>
+            <Menu.Item
+              leftSection={song.is_highlighted
+                ? <IconStarFilled size={16} color="var(--mantine-color-yellow-6)" />
+                : <IconStar size={16} />}
+              onClick={() => onToggleHighlight(song)}
+            >
+              {song.is_highlighted ? t.music.unhighlightSong : t.music.highlightSong}
+            </Menu.Item>
+            <Menu.Divider />
             {song.can_edit ? (
               <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => onEdit(song)}>
                 {t.music.editSong}
@@ -242,7 +263,7 @@ function SongActionMenu({ song, onHistory, onEdit, onDelete, appearance = 'defau
   );
 }
 
-function SongTableActions({ song, onPlay, onEdit, onDelete }: {
+function SongTableActions({ song, onPlay, onEdit, onDelete, onToggleHighlight }: {
   song: Song;
 } & Omit<SongActionCallbacks, 'onHistory'>) {
   const { t } = useLanguage();
@@ -250,6 +271,16 @@ function SongTableActions({ song, onPlay, onEdit, onDelete }: {
 
   return (
     <Group gap={2} wrap="nowrap" onClick={(event) => event.stopPropagation()}>
+      <Tooltip label={song.is_highlighted ? t.music.unhighlightSong : t.music.highlightSong}>
+        <ActionIcon
+          variant="subtle"
+          color="yellow"
+          size="sm"
+          onClick={() => onToggleHighlight(song)}
+        >
+          {song.is_highlighted ? <IconStarFilled size={14} /> : <IconStar size={14} />}
+        </ActionIcon>
+      </Tooltip>
       {ready ? (
         <Tooltip label={t.music.playerGo}>
           <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => onPlay(song)}>
@@ -282,6 +313,7 @@ function SongGalleryView({
   onHistory,
   onEdit,
   onDelete,
+  onToggleHighlight,
 }: {
   songs: Song[];
   userId?: number;
@@ -450,6 +482,7 @@ function SongGalleryView({
                   onHistory={onHistory}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onToggleHighlight={onToggleHighlight}
                   appearance="overlay"
                 />
               </div>
@@ -473,7 +506,7 @@ function SongGalleryView({
   );
 }
 
-function SongListView({ songs, userId, onPlay, onHistory, onEdit, onDelete }: {
+function SongListView({ songs, userId, onPlay, onHistory, onEdit, onDelete, onToggleHighlight }: {
   songs: Song[];
   userId?: number;
 } & SongActionCallbacks) {
@@ -553,7 +586,13 @@ function SongListView({ songs, userId, onPlay, onHistory, onEdit, onDelete }: {
                     </ActionIcon>
                   </Tooltip>
                 ) : null}
-                <SongActionMenu song={song} onHistory={onHistory} onEdit={onEdit} onDelete={onDelete} />
+                <SongActionMenu
+                  song={song}
+                  onHistory={onHistory}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onToggleHighlight={onToggleHighlight}
+                />
               </Group>
             </Stack>
           </Group>
@@ -570,6 +609,7 @@ function SongTableView({
   onPlay,
   onEdit,
   onDelete,
+  onToggleHighlight,
 }: {
   songs: Song[];
   userId?: number;
@@ -682,6 +722,7 @@ function SongTableView({
                     onPlay={onPlay}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onToggleHighlight={onToggleHighlight}
                   />
                 </Table.Td>
               </Table.Tr>
@@ -701,6 +742,7 @@ export default function SongsPage() {
   const { canManageMusic, canViewMusic, isAdmin } = useRoleHelpers(user);
 
   const [songs, setSongs] = useState<Song[]>([]);
+  const [highlights, setHighlights] = useState<Song[]>([]);
   const [total, setTotal] = useState(0);
   const [bands, setBands] = useState<Band[]>([]);
   const [loading, setLoading] = useState(true);
@@ -795,11 +837,23 @@ export default function SongsPage() {
     }
   }, []);
 
+  const loadHighlights = useCallback(async () => {
+    try {
+      setHighlights(await musicApi.songHighlights());
+    } catch {
+      setHighlights([]);
+    }
+  }, []);
+
   useEffect(() => { void load(); }, [load]);
 
   useEffect(() => {
     void loadBands();
   }, [loadBands]);
+
+  useEffect(() => {
+    void loadHighlights();
+  }, [loadHighlights]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -844,6 +898,7 @@ export default function SongsPage() {
       await musicApi.deleteSong(song.id);
       fb.success(t.music.songDeleted);
       void load();
+      void loadHighlights();
     } catch (err) {
       fb.fromError(err, t.music.songDeleteFailed);
     }
@@ -851,6 +906,29 @@ export default function SongsPage() {
 
   const deleteSongAction = (song: Song) => {
     void removeSong(song);
+  };
+
+  const toggleHighlight = async (song: Song) => {
+    const next = !song.is_highlighted;
+    try {
+      if (next) {
+        await musicApi.highlightSong(song.id);
+      } else {
+        await musicApi.unhighlightSong(song.id);
+      }
+      setSongs((prev) => prev.map((item) => (
+        item.id === song.id ? { ...item, is_highlighted: next } : item
+      )));
+      void loadHighlights();
+      if (ordering === 'highlighted') void load();
+      fb.success(next ? t.music.highlightAdded : t.music.highlightRemoved);
+    } catch (err) {
+      fb.fromError(err, t.music.highlightFailed);
+    }
+  };
+
+  const toggleHighlightAction = (song: Song) => {
+    void toggleHighlight(song);
   };
 
   const viewModeData = [
@@ -963,6 +1041,12 @@ export default function SongsPage() {
             </Group>
           )}
         </PageHeader>
+
+        <SongHighlightsCarousel
+          songs={highlights}
+          onOpen={openSong}
+          onToggleHighlight={toggleHighlightAction}
+        />
 
         {isCompact ? (
           <Box mb="md">
@@ -1104,6 +1188,7 @@ export default function SongsPage() {
                 onHistory={openHistory}
                 onEdit={openEdit}
                 onDelete={deleteSongAction}
+                onToggleHighlight={toggleHighlightAction}
               />
             ) : null}
 
@@ -1115,6 +1200,7 @@ export default function SongsPage() {
                 onHistory={openHistory}
                 onEdit={openEdit}
                 onDelete={deleteSongAction}
+                onToggleHighlight={toggleHighlightAction}
               />
             ) : null}
 
@@ -1126,6 +1212,7 @@ export default function SongsPage() {
                 onPlay={openSong}
                 onEdit={openEdit}
                 onDelete={deleteSongAction}
+                onToggleHighlight={toggleHighlightAction}
               />
             ) : null}
 
@@ -1236,7 +1323,10 @@ export default function SongsPage() {
           opened={modalOpen}
           onClose={() => setModalOpen(false)}
           editing={editingSong}
-          onSaved={() => void load()}
+          onSaved={() => {
+            void load();
+            void loadHighlights();
+          }}
         />
 
         {isAdmin ? (

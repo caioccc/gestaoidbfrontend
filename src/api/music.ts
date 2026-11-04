@@ -249,6 +249,15 @@ export const musicApi = {
   song: (id: number): Promise<Song> =>
     apiClient.get(`/api/music/songs/${id}/`).then((r) => r.data),
 
+  songHighlights: (): Promise<Song[]> =>
+    apiClient.get('/api/music/songs/highlights/').then((r) => r.data),
+
+  highlightSong: (id: number): Promise<{ is_highlighted: boolean }> =>
+    apiClient.post(`/api/music/songs/${id}/highlight/`).then((r) => r.data),
+
+  unhighlightSong: (id: number): Promise<{ is_highlighted: boolean }> =>
+    apiClient.delete(`/api/music/songs/${id}/highlight/`).then((r) => r.data),
+
   createSong: (payload: SongPayload): Promise<Song> =>
     apiClient.post('/api/music/songs/', payload).then((r) => r.data),
 

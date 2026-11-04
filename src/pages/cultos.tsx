@@ -16,7 +16,7 @@ import {
   Textarea,
   ThemeIcon,
 } from '@mantine/core';
-import { DateInput, DatePickerInput, TimeInput } from '@mantine/dates';
+import { DateInput, DatePickerInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import {
   IconAdjustmentsHorizontal,
@@ -40,7 +40,7 @@ import { accountsApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { useIsCompactList } from '../hooks/useListBreakpoint';
 import { useFeedback } from '../hooks/useFeedback';
-import { formatBRL, toSentenceCase, toUpperCamelWords } from '../utils/format';
+import { formatBRL, maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import type { WorshipService, WorshipServiceType } from '../types';
 
 function formatISODate(iso: string | null): string {
@@ -177,6 +177,10 @@ scripture: '',
     initialValues: emptyValues(),
     validate: {
       date: (v) => (v ? null : t.cultosPage.date),
+      time: (v) =>
+        v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)
+          ? t.cultosPage.timeInvalid
+          : null,
       service_type: (v) => (v ? null : t.cultosPage.type),
     },
   });
@@ -596,10 +600,14 @@ scripture: values.scripture,
                   error={form.errors.date}
                   data-testid="service-date"
                 />
-                <TimeInput
+                <TextInput
                   label={t.cultosPage.time}
-                  value={form.values.time}
-                  onChange={(e) => form.setFieldValue('time', e.currentTarget.value)}
+                  placeholder="19:00"
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={maskTime(form.values.time)}
+                  onChange={(e) => form.setFieldValue('time', maskTime(e.currentTarget.value))}
+                  error={form.errors.time}
                   data-testid="service-time"
                 />
               </Group>

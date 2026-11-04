@@ -2008,6 +2008,8 @@ export interface Song {
   created_by: number | null;
   created_by_name: string;
   can_edit: boolean;
+  /** Destaque pessoal do usuário autenticado. */
+  is_highlighted: boolean;
   created_at: string;
 }
 
