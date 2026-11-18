@@ -669,21 +669,43 @@ export interface Member {
   state: string;
   cep: string;
   relatives: MemberRelative[];
+  how_known?: string;
+  wants_visit?: boolean;
   public_hash?: string | null;
   discipler?: number | null;
   discipler_name?: string;
   discipler_phone?: string;
   discipler_photo?: string | null;
   discipler_is_sentinel?: boolean;
-      discipler_assigned_at?: string | null;
-      source_hash?: string;
-      user?: number | null;
-      user_email?: string;
-      stage_entered_at?: string | null;
-    sla_state?: VisitorSlaState | null;
-    sla_days_waiting?: number | null;
-    created_at: string;
-    updated_at: string;
+  discipler_assigned_at?: string | null;
+  source_hash?: string;
+  user?: number | null;
+  user_email?: string;
+  stage_entered_at?: string | null;
+  sla_state?: VisitorSlaState | null;
+  sla_days_waiting?: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicVisitorMeta {
+  church_name: string;
+  church_city: string;
+  church_state: string;
+}
+
+export interface PublicVisitorPayload {
+  name: string;
+  phone: string;
+  how_known?: string;
+  wants_visit?: boolean;
+  cep?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
 }
 
 export interface DiscipleOption {
@@ -1188,6 +1210,7 @@ export type ChurchLinkType =
   | 'CALENDAR'
   | 'MEMBERSHIP'
   | 'PRAYER'
+  | 'VISITOR'
   | 'GROWTH_GROUPS';
 
 export type ChurchPixAmountMode = 'OPEN' | 'FIXED' | 'GRID';

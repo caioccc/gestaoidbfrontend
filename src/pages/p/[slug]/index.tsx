@@ -17,20 +17,20 @@ import {
   useMantineColorScheme,
 } from '@mantine/core';
 import { IconCopy, IconBuildingChurch, IconExternalLink } from '@tabler/icons-react';
-import { publicLinksApi } from '../../api/accounts';
-import { useLanguage } from '../../i18n';
-import { LinkTypeIcon } from '../../components/linkIcons';
-import { copyToClipboard } from '../../utils/share';
-import { buildPixPayload } from '../../utils/pix';
-import QrShareCard from '../../components/QrShareCard';
-import { SkeletonPublicHeader, SkeletonPublicLinkRows } from '../../components/LoadingSkeleton';
-import PrayerRequestPublicModal from '../../components/PrayerRequestPublicModal';
+import { publicLinksApi } from '../../../api/accounts';
+import { useLanguage } from '../../../i18n';
+import { LinkTypeIcon } from '../../../components/linkIcons';
+import { copyToClipboard } from '../../../utils/share';
+import { buildPixPayload } from '../../../utils/pix';
+import QrShareCard from '../../../components/QrShareCard';
+import { SkeletonPublicHeader, SkeletonPublicLinkRows } from '../../../components/LoadingSkeleton';
+import PrayerRequestPublicModal from '../../../components/PrayerRequestPublicModal';
 import type {
   PublicChurchLink,
   PublicChurchLinkSystem,
   PublicChurchLinksPayload,
-} from '../../types';
-import { useFeedback } from '../../hooks/useFeedback';
+} from '../../../types';
+import { useFeedback } from '../../../hooks/useFeedback';
 
 export default function PublicLinksPage() {
   const { t } = useLanguage();
@@ -95,6 +95,7 @@ export default function PublicLinksPage() {
     const isPix = link.link_type === 'PIX';
     const isMaps = link.link_type === 'MAPS';
     const isPrayer = link.link_type === 'PRAYER';
+    const isVisitor = link.link_type === 'VISITOR';
     const isSystem = !('id' in link);
 
     const content = (
@@ -150,7 +151,7 @@ export default function PublicLinksPage() {
     };
 
     const buttonProps =
-      isSystem || isPix || isMaps || isPrayer
+      isSystem || isPix || isMaps || isPrayer || isVisitor
         ? {}
         : {
             onClick: (e: React.MouseEvent) => {
@@ -170,13 +171,22 @@ export default function PublicLinksPage() {
         style={buttonStyles}
         {...(isPrayer
           ? { onClick: () => openPrayer(link as PublicChurchLink) }
-          : isSystem
-            ? { onClick: () => openSystemLink(link as PublicChurchLinkSystem) }
-            : isPix
-              ? { onClick: () => openPix(link as PublicChurchLink) }
-              : isMaps
-                ? { onClick: () => openMaps(link as PublicChurchLink) }
-                : buttonProps)}
+          : isVisitor
+            ? {
+                onClick: () => {
+                  if ('id' in link) {
+                    publicLinksApi.click((link as PublicChurchLink).id).catch(() => undefined);
+                  }
+                  router.push(`/p/${slug}/visitante`);
+                },
+              }
+            : isSystem
+              ? { onClick: () => openSystemLink(link as PublicChurchLinkSystem) }
+              : isPix
+                ? { onClick: () => openPix(link as PublicChurchLink) }
+                : isMaps
+                  ? { onClick: () => openMaps(link as PublicChurchLink) }
+                  : buttonProps)}
       >
         {content}
       </Button>

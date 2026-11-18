@@ -83,6 +83,7 @@ const FINANCE_ROLES = ['TESOUREIRO', 'PASTOR', 'ADMIN'];
 
 const PUBLIC_ROUTES = [
   '/p/[slug]',
+  '/p/[slug]/visitante',
   '/gc/[slug]',
   '/convite/[token]',
   '/perfil/[hash]',

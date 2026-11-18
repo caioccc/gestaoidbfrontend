@@ -11,7 +11,7 @@ import {
   ThemeIcon,
   Tooltip,
 } from '@mantine/core';
-import { IconGripVertical, IconPencil, IconTrash } from '@tabler/icons-react';
+import { IconGripVertical, IconPencil, IconQrcode, IconTrash } from '@tabler/icons-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { LinkTypeIcon } from './linkIcons';
@@ -23,6 +23,7 @@ interface SortableLinkRowProps {
   onEdit: (link: ChurchPublicLink) => void;
   onDelete: (link: ChurchPublicLink) => void;
   onToggleActive: (link: ChurchPublicLink, active: boolean) => void;
+  onVisitorQr?: (link: ChurchPublicLink) => void;
 }
 
 export default function SortableLinkRow({
@@ -30,6 +31,7 @@ export default function SortableLinkRow({
   onEdit,
   onDelete,
   onToggleActive,
+  onVisitorQr,
 }: SortableLinkRowProps) {
   const { t } = useLanguage();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -98,6 +100,13 @@ export default function SortableLinkRow({
             onChange={(event) => onToggleActive(link, event.currentTarget.checked)}
             aria-label={t.linksPage.activeLabel}
           />
+          {link.link_type === 'VISITOR' && onVisitorQr && (
+            <Tooltip label={t.linksPage.visitorQrTitle}>
+              <ActionIcon variant="subtle" color="teal" onClick={() => onVisitorQr(link)}>
+                <IconQrcode size={16} />
+              </ActionIcon>
+            </Tooltip>
+          )}
           <Tooltip label={t.common.edit}>
             <ActionIcon variant="subtle" color="blue" onClick={() => onEdit(link)}>
               <IconPencil size={16} />

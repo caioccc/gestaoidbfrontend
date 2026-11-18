@@ -16,6 +16,10 @@ export function buildLinksUrl(slug: string): string {
   return absoluteUrl(`/p/${slug}`);
 }
 
+export function buildVisitanteUrl(slug: string): string {
+  return absoluteUrl(`/p/${slug}/visitante`);
+}
+
 export async function copyToClipboard(text: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);

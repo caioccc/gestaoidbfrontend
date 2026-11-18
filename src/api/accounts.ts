@@ -500,6 +500,19 @@ export const accountsApi = {
       .post(`/api/accounts/public/churches/${slug}/prayer-requests/`, payload)
       .then((r) => r.data),
 
+  publicVisitorMeta: (slug: string): Promise<import('../types').PublicVisitorMeta> =>
+    apiClient
+      .get(`/api/accounts/public/churches/${slug}/visitantes/`)
+      .then((r) => r.data),
+
+  publicCreateVisitor: (
+    slug: string,
+    payload: import('../types').PublicVisitorPayload,
+  ): Promise<{ id: number; name: string }> =>
+    apiClient
+      .post(`/api/accounts/public/churches/${slug}/visitantes/`, payload)
+      .then((r) => r.data),
+
   sundaySchoolClasses: (): Promise<SundaySchoolClass[]> =>
     apiClient.get('/api/accounts/sunday-school/classes/').then((r) => r.data),
 

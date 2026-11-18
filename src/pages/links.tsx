@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Button,
@@ -32,6 +32,7 @@ import {
 import {
   IconLink,
   IconCopy,
+  IconDownload,
   IconPlus,
   IconExternalLink,
   IconTrash,
@@ -48,8 +49,9 @@ import {
 } from '../components/LoadingSkeleton';
 import { churchLinksApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
-import { buildLinksUrl, copyToClipboard } from '../utils/share';
+import { buildLinksUrl, buildVisitanteUrl, copyToClipboard } from '../utils/share';
 import { useFeedback } from '../hooks/useFeedback';
+import QrShareCard, { downloadQrPng } from '../components/QrShareCard';
 import type { ChurchLinksConfig, ChurchPublicLink } from '../types';
 
 const PIX_TYPES = ['CNPJ', 'CPF', 'Telefone', 'E-mail', 'Chave Aleatória'];
@@ -65,6 +67,8 @@ export default function LinksPage() {
   const [toDelete, setToDelete] = useState<ChurchPublicLink | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [visitorQrOpen, setVisitorQrOpen] = useState(false);
+  const visitorQrRef = useRef<SVGSVGElement>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -195,6 +199,7 @@ export default function LinksPage() {
   };
 
   const publicUrl = config ? buildLinksUrl(config.slug) : '';
+  const visitorUrl = config ? buildVisitanteUrl(config.slug) : '';
 
   const defaultPix = useMemo(
     () => ({
@@ -370,6 +375,11 @@ export default function LinksPage() {
                           onEdit={openEdit}
                           onToggleActive={toggleActive}
                           onDelete={setToDelete}
+                          onVisitorQr={
+                            link.link_type === 'VISITOR' && config
+                              ? () => setVisitorQrOpen(true)
+                              : undefined
+                          }
                         />
                       ))}
                     </Stack>
@@ -403,6 +413,42 @@ export default function LinksPage() {
               {t.common.delete}
             </Button>
           </Group>
+        </Modal>
+
+        <Modal
+          opened={visitorQrOpen}
+          onClose={() => setVisitorQrOpen(false)}
+          title={t.linksPage.visitorQrTitle}
+          centered
+        >
+          <Stack align="center" gap="sm">
+            <Text size="sm" c="dimmed" ta="center">
+              {t.linksPage.visitorQrHint}
+            </Text>
+            {visitorUrl ? <QrShareCard ref={visitorQrRef} url={visitorUrl} /> : null}
+            <Text size="xs" c="dimmed" ta="center" style={{ wordBreak: 'break-all', maxWidth: 320 }}>
+              {visitorUrl}
+            </Text>
+            <Group justify="center">
+              <Button
+                variant="default"
+                leftSection={<IconCopy size={16} />}
+                onClick={async () => {
+                  if (!visitorUrl) return;
+                  await copyToClipboard(visitorUrl);
+                  fb.success(t.linksPage.linkCopied);
+                }}
+              >
+                {t.linksPage.copyVisitorLink || t.linksPage.copyLink}
+              </Button>
+              <Button
+                leftSection={<IconDownload size={16} />}
+                onClick={() => downloadQrPng(visitorQrRef.current, 'qrcode-visitante.png')}
+              >
+                {t.linksPage.downloadVisitorQr}
+              </Button>
+            </Group>
+          </Stack>
         </Modal>
       </Layout>
     </AuthGuard>
