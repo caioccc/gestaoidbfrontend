@@ -7,11 +7,6 @@ export default function Document() {
       <Head>
         <ColorSchemeScript defaultColorScheme="light" />
 
-        <meta
-          name="description"
-          content="Plataforma de gestão integrada para a Igreja de Deus no Brasil: secretaria, membresia, tesouraria, liturgia e prestação de contas oficial da Convenção Regional."
-        />
-        <meta name="theme-color" content="#1c4ed8" />
         <meta name="msapplication-TileColor" content="#1c4ed8" />
         <meta name="msapplication-TileImage" content="/ms-icon-144x144.png" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
@@ -33,25 +28,6 @@ export default function Document() {
 
         <link rel="manifest" href="/manifest.json" />
 
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Gestão IDB" />
-        <meta
-          property="og:title"
-          content="Gestão IDB — Gestão eclesiástica completa para a Igreja de Deus no Brasil"
-        />
-        <meta
-          property="og:description"
-          content="Centralize membresia, atas, relatórios de culto, tesouraria e livro-caixa oficial da Convenção Regional em um só lugar."
-        />
-        <meta property="og:image" content="/images/og-image.png" />
-
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Gestão IDB" />
-        <meta
-          name="twitter:description"
-          content="Sistema de gestão integrado para as congregações da Igreja de Deus no Brasil."
-        />
-        <meta name="twitter:image" content="/images/og-image.png" />
       </Head>
       <body>
         <Main />

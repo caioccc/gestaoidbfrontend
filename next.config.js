@@ -10,6 +10,14 @@ module.exports = {
       },
     ],
   },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/robots.txt', destination: '/api/seo/robots' },
+        { source: '/sitemap.xml', destination: '/api/seo/sitemap' },
+      ],
+    };
+  },
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if

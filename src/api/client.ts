@@ -1,6 +1,19 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    silentAuth?: boolean;
+  }
+  interface InternalAxiosRequestConfig {
+    silentAuth?: boolean;
+  }
+}
+
+interface SilentAuthRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8000',
 });
@@ -60,25 +73,23 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const config = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+    const config = error.config as SilentAuthRequestConfig | undefined;
     const url: string = config?.url ?? '';
+    const silent = !!config?.silentAuth;
 
-    // 401 do próprio login (credenciais inválidas) ou do refresh: não renova.
     if (url.includes('/login/')) {
       return Promise.reject(error);
     }
     if (url.includes(REFRESH_URL)) {
       clearSession();
-      redirectToLogin();
+      if (!silent) redirectToLogin();
       return Promise.reject(error);
     }
 
     const refreshToken = Cookies.get('idb_refresh_token');
     if (!config || config._retry || !refreshToken) {
       clearSession();
-      redirectToLogin();
+      if (!silent) redirectToLogin();
       return Promise.reject(error);
     }
 
@@ -88,7 +99,7 @@ apiClient.interceptors.response.use(
       return apiClient.request(config);
     } catch (e) {
       clearSession();
-      redirectToLogin();
+      if (!silent) redirectToLogin();
       return Promise.reject(e);
     }
   }

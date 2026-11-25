@@ -6,6 +6,8 @@ import '@mantine/dropzone/styles.css';
 import '@mantine/carousel/styles.css';
 import '@mantine/tiptap/styles.css';
 import 'mantine-datatable/styles.css';
+import '../styles/landing.css';
+import { inter, jakarta } from '../styles/fonts';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import 'dayjs/locale/pt-br';
@@ -34,7 +36,6 @@ import AuthGuard from '../components/AuthGuard';
 const theme = createTheme({
   primaryColor: 'blue',
   defaultRadius: 'md',
-  fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   components: {
     Select: { defaultProps: { comboboxProps: { hideDetached: false } } },
     MultiSelect: { defaultProps: { comboboxProps: { hideDetached: false } } },
@@ -182,29 +183,37 @@ function RouteGate({
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
-      <Head>
-        <title>Gestão IDB - Sistema Integrado de Gestão Eclesial</title>
-        <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
-      </Head>
-      {/* `limit={3}` evita a pilha de 5 toasts em acoes em lote (importacao,
-          exclusao em lote): os extras entram em fila em vez de cobrir a tela.
-          `pauseResetOnHover="notification"` faz cada toast contar o tempo
-          quando o cursor esta sobre ele, e nao todos ao mesmo tempo. */}
-      <Notifications
-        position="top-right"
-        limit={3}
-        autoClose={3000}
-        pauseResetOnHover="notification"
-        containerWidth={380}
-      />
-      <LanguageProvider>
-        <AppContent>
-          <AuthProvider>
-            <RouteGate Component={Component} pageProps={pageProps} />
-          </AuthProvider>
-        </AppContent>
-      </LanguageProvider>
-    </MantineProvider>
+    <div className={`${inter.variable} ${jakarta.variable}`}>
+      <MantineProvider theme={theme} defaultColorScheme="light">
+        <Head>
+          <title>Gestão IDB - Sistema Integrado de Gestão Eclesial</title>
+          <meta
+            name="description"
+            content="Plataforma de gestão integrada para a Igreja de Deus no Brasil: secretaria, membresia, tesouraria, liturgia e prestação de contas oficial da Convenção Regional."
+            key="description"
+          />
+          <meta name="theme-color" content="#1c4ed8" key="theme-color" />
+          <meta name="viewport" content="minimum-scale=1, initial-scale=1, width=device-width" />
+        </Head>
+        {/* `limit={3}` evita a pilha de 5 toasts em acoes em lote (importacao,
+            exclusao em lote): os extras entram em fila ao inves de cobrir a tela.
+            `pauseResetOnHover="notification"` faz cada toast contar o tempo
+            quando o cursor esta sobre ele, e nao todos ao mesmo tempo. */}
+        <Notifications
+          position="top-right"
+          limit={3}
+          autoClose={3000}
+          pauseResetOnHover="notification"
+          containerWidth={380}
+        />
+        <LanguageProvider>
+          <AppContent>
+            <AuthProvider>
+              <RouteGate Component={Component} pageProps={pageProps} />
+            </AuthProvider>
+          </AppContent>
+        </LanguageProvider>
+      </MantineProvider>
+    </div>
   );
 }

@@ -287,8 +287,10 @@ export const accountsApi = {
   getProfile: (): Promise<any> =>
     apiClient.get('/api/accounts/profile/').then((r) => r.data),
 
-  me: (): Promise<{ user: User }> =>
-    apiClient.get('/api/accounts/me/').then((r) => r.data),
+  me: (options?: { silent?: boolean }): Promise<{ user: User }> =>
+    apiClient
+      .get('/api/accounts/me/', options?.silent ? { silentAuth: true } : undefined)
+      .then((r) => r.data),
 
   updateProfile: (payload: Record<string, any>): Promise<any> =>
     apiClient.put('/api/accounts/profile/', payload).then((r) => r.data),

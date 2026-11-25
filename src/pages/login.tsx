@@ -17,11 +17,12 @@ import AuthShell from '../components/AuthShell';
 import { useLanguage } from '../i18n';
 import { useFeedback } from '../hooks/useFeedback';
 import { useAuth } from '../contexts/AuthContext';
+import { resolvePostLoginRoute } from '../utils/authRedirect';
 
 export default function LoginPage() {
   const { t } = useLanguage();
   const fb = useFeedback();
-  const { login } = useAuth();
+  const { login, user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +37,11 @@ export default function LoginPage() {
       setPending(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || loading) return;
+    router.replace(resolvePostLoginRoute(user));
+  }, [isAuthenticated, isLoading, loading, router, user]);
 
   const form = useForm({
     initialValues: { email: '', password: '' },

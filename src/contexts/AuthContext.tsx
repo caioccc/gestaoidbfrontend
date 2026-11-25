@@ -3,6 +3,7 @@ import Cookies from 'js-cookie';
 import { useRouter } from 'next/router';
 import apiClient from '../api/client';
 import { accountsApi } from '../api/accounts';
+import { resolvePostLoginRoute } from '../utils/authRedirect';
 import type { Role } from '../types';
 
 export interface UserSessionChurch {
@@ -61,29 +62,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const token = Cookies.get('idb_auth_token');
     const storedUser = Cookies.get('idb_user_data');
-    if (token && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        Cookies.remove('idb_auth_token');
-        Cookies.remove('idb_user_data');
-      }
-    }
-    setIsLoading(false);
 
-    // Atualiza a sessão com dados frescos (ex.: can_manage_churches) mesmo que
-    // o cookie carregado tenha sido gravado por uma versão anterior do backend.
-    let active = true;
-    if (token) {
-      accountsApi
-        .me()
-        .then(({ user }) => {
-          if (!active) return;
-          Cookies.set('idb_user_data', JSON.stringify(user), { expires: 7, sameSite: 'lax' });
-          setUser(user);
-        })
-        .catch(() => undefined);
+    if (!token || !storedUser) {
+      setIsLoading(false);
+      return;
     }
+
+    try {
+      setUser(JSON.parse(storedUser));
+    } catch {
+      Cookies.remove('idb_auth_token');
+      Cookies.remove('idb_refresh_token');
+      Cookies.remove('idb_user_data');
+      setIsLoading(false);
+      return;
+    }
+
+    let active = true;
+    accountsApi
+      .me({ silent: true })
+      .then(({ user }) => {
+        if (!active) return;
+        Cookies.set('idb_user_data', JSON.stringify(user), { expires: 7, sameSite: 'lax' });
+        setUser(user);
+      })
+      .catch(() => {
+        if (!active) return;
+        Cookies.remove('idb_auth_token');
+        Cookies.remove('idb_refresh_token');
+        Cookies.remove('idb_user_data');
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
     return () => {
       active = false;
     };
@@ -99,18 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     Cookies.set('idb_user_data', JSON.stringify(userData), { expires: 7, sameSite: 'lax' });
 
     setUser(userData);
-    if (userData.is_staff) {
-      router.push('/admin/churches');
-    } else if (
-      userData.role === 'MUSICO' ||
-      userData.role === 'LOUVOR' ||
-      userData.role === 'INTERCESSAO' ||
-      userData.role === 'PROFESSOR_EBD'
-    ) {
-      router.push('/calendar');
-    } else {
-      router.push('/dashboard');
-    }
+    router.push(resolvePostLoginRoute(userData));
   };
 
   const logout = () => {
