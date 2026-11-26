@@ -33,12 +33,19 @@ import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useLanguage } from '../i18n';
 import type {
   Member,
+  MemberLocationMember,
+  MemberLocationMissingItem,
   MemberLocationsPayload,
   MemberStatus,
   MinistryArea,
 } from '../types';
 
 type StatusFilter = 'ALL' | MemberStatus;
+
+const isChurchItem = (item: MemberLocationMissingItem) => item.kind === 'church';
+
+const isGeocodableMissing = (item: MemberLocationMissingItem) =>
+  item.reason !== 'no_address' && item.reason !== 'not_found';
 
 export default function MemberLocationsTab() {
   const { t } = useLanguage();
@@ -53,6 +60,7 @@ export default function MemberLocationsTab() {
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [editing, setEditing] = useState<Member | null>(null);
   const [geocodingIds, setGeocodingIds] = useState<number[]>([]);
+  const [churchGeocoding, setChurchGeocoding] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const loadSeqRef = useRef(0);
   const batchStartedRef = useRef(false);
@@ -110,10 +118,10 @@ export default function MemberLocationsTab() {
     batchStartedRef.current = true;
     const ids = data.missing
       .filter(
-        (member) =>
-          member.reason !== 'no_address' && member.reason !== 'not_found'
+        (item): item is MemberLocationMember =>
+          !isChurchItem(item) && isGeocodableMissing(item)
       )
-      .map((member) => member.id)
+      .map((item) => item.id)
       .slice(0, 12);
     if (!ids.length) return;
     let active = true;
@@ -154,10 +162,11 @@ export default function MemberLocationsTab() {
         ),
       }))
       .filter((point) => point.members.length > 0);
-    const missing = data.missing.filter(
-      (member) =>
-        statusMatches(member.status) &&
-        matchesQuery(member.name, member.address)
+    const missing = data.missing.filter((item) =>
+      isChurchItem(item)
+        ? matchesQuery(item.name, item.address)
+        : statusMatches(item.status) &&
+          matchesQuery(item.name, item.address)
     );
     return { ...data, points, missing };
   }, [data, search, status]);
@@ -180,14 +189,28 @@ export default function MemberLocationsTab() {
     return saved;
   };
 
-  const pendingIds = (data?.missing || [])
-    .filter(
-      (member) =>
-        member.reason !== 'no_address' && member.reason !== 'not_found'
-    )
-    .map((member) => member.id);
+  const pendingItems = (data?.missing || []).filter(isGeocodableMissing);
+  const pendingIds = pendingItems
+    .filter((item): item is MemberLocationMember => !isChurchItem(item))
+    .map((item) => item.id);
+  const churchPending = pendingItems.some(isChurchItem);
+  const pendingCount = pendingIds.length + (churchPending ? 1 : 0);
 
-  const geocodeOne = async (id: number) => {
+  const geocodeOne = async (item: MemberLocationMissingItem) => {
+    if (isChurchItem(item)) {
+      if (churchGeocoding) return;
+      setChurchGeocoding(true);
+      try {
+        await accountsApi.geocodeChurch(true);
+        await load();
+      } catch {
+        return;
+      } finally {
+        setChurchGeocoding(false);
+      }
+      return;
+    }
+    const id = item.id;
     if (geocodingIds.includes(id)) return;
     setGeocodingIds((ids) => [...ids, id]);
     try {
@@ -197,15 +220,16 @@ export default function MemberLocationsTab() {
     } catch {
       return;
     } finally {
-      setGeocodingIds((ids) => ids.filter((item) => item !== id));
+      setGeocodingIds((ids) => ids.filter((current) => current !== id));
     }
   };
 
   const geocodePendingBatch = async () => {
-    if (batchRunning || !pendingIds.length) return;
+    if (batchRunning || !pendingCount) return;
     setBatchRunning(true);
     try {
-      await accountsApi.geocodeMembers(pendingIds);
+      if (churchPending) await accountsApi.geocodeChurch();
+      if (pendingIds.length) await accountsApi.geocodeMembers(pendingIds);
       await load();
       await refreshMembers();
     } catch {
@@ -352,12 +376,12 @@ export default function MemberLocationsTab() {
                 variant="light"
                 leftSection={<IconRefresh size={14} />}
                 loading={batchRunning}
-                disabled={!pendingIds.length}
+                disabled={!pendingCount}
                 onClick={geocodePendingBatch}
               >
                 {t.memberMap.geocodePending.replace(
                   '{count}',
-                  String(pendingIds.length)
+                  String(pendingCount)
                 )}
               </Button>
             </Paper>
@@ -401,68 +425,94 @@ export default function MemberLocationsTab() {
               </Text>
             ) : (
               <Stack gap="xs">
-                {filtered.missing.map((member) => (
-                  <Group
-                    key={member.id}
-                    justify="space-between"
-                    wrap="wrap"
-                    gap="xs"
-                  >
-                    <div>
-                      <Text size="sm" fw={500}>
-                        {member.name}
-                      </Text>
-                      <Text size="xs" c="dimmed">
-                        {member.address || '-'}
-                      </Text>
-                      {member.reason && (
-                        <Text size="xs" c="orange">
-                          {member.reason === 'no_address'
-                            ? t.memberMap.reasonNoAddress
-                            : member.reason === 'not_found'
-                              ? t.memberMap.reasonNotFound
-                              : member.reason === 'pending'
-                                ? t.memberMap.reasonPending
-                                : member.reason === 'error'
-                                  ? t.memberMap.reasonError
-                                  : t.memberMap.reasonQuota}
+                {filtered.missing.map((item) => {
+                  const isChurch = isChurchItem(item);
+                  const itemName = isChurch
+                    ? t.memberMap.churchPoint
+                    : item.name;
+                  const detail = isChurch
+                    ? [item.name, item.address].filter(Boolean).join(' · ') || '-'
+                    : item.address || '-';
+                  const geocodeLabel = isChurch
+                    ? t.memberMap.geocodeChurch
+                    : t.memberMap.geocodeMember;
+                  return (
+                    <Group
+                      key={item.id}
+                      justify="space-between"
+                      wrap="wrap"
+                      gap="xs"
+                    >
+                      <div>
+                        <Text size="sm" fw={500}>
+                          {itemName}
                         </Text>
-                      )}
-                    </div>
-                    <Group gap="xs" wrap="nowrap">
-                      <Badge
-                        size="sm"
-                        variant="light"
-                        color={member.status === 'ACTIVE' ? 'teal' : 'gray'}
-                      >
-                        {member.status_display}
-                      </Badge>
-                      <Tooltip label={t.memberMap.geocodeMember}>
-                        <ActionIcon
-                          variant="subtle"
-                          color="grape"
-                          aria-label={`${t.memberMap.geocodeMember}: ${member.name}`}
-                          data-testid={`member-location-geocode-${member.id}`}
-                          loading={geocodingIds.includes(member.id)}
-                          onClick={() => geocodeOne(member.id)}
+                        <Text size="xs" c="dimmed">
+                          {detail}
+                        </Text>
+                        {item.reason && (
+                          <Text size="xs" c="orange">
+                            {item.reason === 'no_address'
+                              ? t.memberMap.reasonNoAddress
+                              : item.reason === 'not_found'
+                                ? t.memberMap.reasonNotFound
+                                : item.reason === 'pending'
+                                  ? t.memberMap.reasonPending
+                                  : item.reason === 'error'
+                                    ? t.memberMap.reasonError
+                                    : t.memberMap.reasonQuota}
+                          </Text>
+                        )}
+                      </div>
+                      <Group gap="xs" wrap="nowrap">
+                        <Badge
+                          size="sm"
+                          variant="light"
+                          color={
+                            isChurch
+                              ? 'grape'
+                              : item.status === 'ACTIVE'
+                                ? 'teal'
+                                : 'gray'
+                          }
                         >
-                          <IconRefresh size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t.memberMap.editPoint}>
-                        <ActionIcon
-                          variant="subtle"
-                          color="blue"
-                          aria-label={`${t.memberMap.editPoint}: ${member.name}`}
-                          data-testid={`member-location-edit-${member.id}`}
-                          onClick={() => openEdit(member.id)}
-                        >
-                          <IconMapPin size={16} />
-                        </ActionIcon>
-                      </Tooltip>
+                          {isChurch ? itemName : item.status_display}
+                        </Badge>
+                        <Tooltip label={geocodeLabel}>
+                          <ActionIcon
+                            variant="subtle"
+                            color="grape"
+                            aria-label={`${geocodeLabel}: ${item.name}`}
+                            data-testid={`member-location-geocode-${
+                              isChurch ? 'church' : item.id
+                            }`}
+                            loading={
+                              isChurch
+                                ? churchGeocoding
+                                : geocodingIds.includes(item.id)
+                            }
+                            onClick={() => geocodeOne(item)}
+                          >
+                            <IconRefresh size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                        {!isChurch && (
+                          <Tooltip label={t.memberMap.editPoint}>
+                            <ActionIcon
+                              variant="subtle"
+                              color="blue"
+                              aria-label={`${t.memberMap.editPoint}: ${item.name}`}
+                              data-testid={`member-location-edit-${item.id}`}
+                              onClick={() => openEdit(item.id)}
+                            >
+                              <IconMapPin size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </Group>
                     </Group>
-                  </Group>
-                ))}
+                  );
+                })}
               </Stack>
             )}
           </Paper>

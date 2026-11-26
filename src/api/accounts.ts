@@ -882,6 +882,11 @@ export const accountsApi = {
       })
       .then((r) => r.data),
 
+  geocodeChurch: (force = false): Promise<MemberGeocodeResult> =>
+    apiClient
+      .post('/api/accounts/church/geocode/', { force })
+      .then((r) => r.data),
+
   calendarPublicLink: (): Promise<CalendarPublicLink> =>
     apiClient.get('/api/accounts/calendar/public-link/').then((r) => r.data),
 

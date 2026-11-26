@@ -375,6 +375,9 @@ export default function MemberLocationsMap({
           <Text size="xs" c={INACTIVE_COLOR}>
             {t.memberMap.legendInactive}
           </Text>
+          <Text size="xs" c={CHURCH_COLOR}>
+            {t.memberMap.churchPoint}
+          </Text>
         </Group>
       </Group>
       {geocodeError && (

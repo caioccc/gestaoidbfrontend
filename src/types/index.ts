@@ -747,6 +747,20 @@ export interface MemberLocationMember {
   reason?: 'no_address' | 'not_found' | 'pending' | 'error' | 'quota';
 }
 
+export interface ChurchLocationMissing {
+  id: 'church';
+  kind: 'church';
+  name: string;
+  status: MemberStatus;
+  status_display: string;
+  address: string;
+  reason?: 'no_address' | 'pending' | 'not_found' | 'error' | 'quota';
+}
+
+export type MemberLocationMissingItem =
+  | (MemberLocationMember & { kind?: 'member' })
+  | ChurchLocationMissing;
+
 export interface MemberLocationPoint {
   key: string;
   latitude: number;
@@ -765,7 +779,7 @@ export interface MemberLocationsPayload {
     address: string;
   };
   points: MemberLocationPoint[];
-  missing: MemberLocationMember[];
+  missing: MemberLocationMissingItem[];
   counts: {
     members: number;
     points: number;
@@ -785,7 +799,7 @@ export type MemberGeocodeStatus =
   | 'error';
 
 export interface MemberGeocodeResult {
-  id: number;
+  id: number | 'church';
   status: MemberGeocodeStatus;
   latitude?: number | null;
   longitude?: number | null;
