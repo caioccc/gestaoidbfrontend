@@ -628,6 +628,45 @@ export interface MinistryArea {
   created_at: string;
 }
 
+export type RegistrationIssueCode =
+  | 'name_duplicate'
+  | 'cpf_duplicate'
+  | 'rg_duplicate'
+  | 'phone_duplicate'
+  | 'missing_fields'
+  | 'phone_missing'
+  | 'father_not_registered'
+  | 'mother_not_registered'
+  | 'relative_not_registered'
+  | 'name_exists'
+  | 'cpf_exists'
+  | 'email_exists'
+  | 'father_without_registration'
+  | 'mother_without_registration'
+  | 'relatives_without_registration';
+
+export type RegistrationIssueSeverity = 'critical' | 'alert';
+
+export interface RegistrationAnalysisMatch {
+  id: number;
+  name: string;
+  card_number: string | null;
+}
+
+export interface RegistrationIssue {
+  code: RegistrationIssueCode;
+  severity: RegistrationIssueSeverity;
+  fields?: string[];
+  names?: string[];
+  matches?: RegistrationAnalysisMatch[];
+}
+
+export interface RegistrationAnalysis {
+  has_issues: boolean;
+  has_critical: boolean;
+  issues: RegistrationIssue[];
+}
+
 export interface Member {
   id: number;
   church: number;
@@ -672,6 +711,7 @@ export interface Member {
   how_known?: string;
   wants_visit?: boolean;
   public_hash?: string | null;
+  qr_hash?: string | null;
   discipler?: number | null;
   discipler_name?: string;
   discipler_phone?: string;
@@ -684,6 +724,7 @@ export interface Member {
   stage_entered_at?: string | null;
   sla_state?: VisitorSlaState | null;
   sla_days_waiting?: number | null;
+  analysis?: RegistrationAnalysis;
   created_at: string;
   updated_at: string;
 }
@@ -719,18 +760,31 @@ export interface PublicCardPayload {
   card_number: string;
   photo: string | null;
   birth_date: string | null;
+  baptism_date: string | null;
+  cpf: string;
+  profession: string;
+  phone: string;
+  street: string;
+  number: string;
+  neighborhood: string;
+  city: string;
+  state: string;
   status: MemberStatus;
+  public_hash?: string | null;
+  qr_hash?: string | null;
   church_name: string;
   church_city: string;
   church_state: string;
   church_phone: string;
+  church_street: string;
+  church_number: string;
+  church_neighborhood: string;
   card_primary_color: string;
   card_secondary_color: string;
   card_valid_until: string | null;
   card_front_phrase: string;
   card_back_phrase: string;
   card_theme?: CardTheme;
-  public_hash?: string | null;
 }
 
 export interface PublicMemberProfile {
@@ -753,19 +807,98 @@ export interface PublicMemberProfile {
   };
 }
 
+export interface PublicQrValidation {
+  kind: string;
+  code: string;
+  valid: boolean;
+  context?: string | null;
+  checked_at: string;
+  qr_url: string;
+  subject: {
+    name: string;
+    photo: string | null;
+    church_name: string;
+    church_city: string;
+    church_state: string;
+    card_number: string;
+    status: MemberStatus;
+    status_display: string;
+    role_title: string;
+    valid_until: string | null;
+    cpf: string;
+    street: string;
+    number: string;
+    complement: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+    phone: string;
+  };
+}
+
+export interface MemberQrRegenerateResponse {
+  hash: string;
+  code: string;
+  url: string;
+}
+
+export interface PublicFormPrefillRelative {
+  name: string;
+  kinship: Kinship | '';
+  birth_date: string | null;
+  phone: string;
+}
+
+export interface PublicFormPrefill {
+  name: string;
+  phone: string;
+  email: string;
+  birth_date: string | null;
+  cpf: string;
+  rg: string;
+  born_in_city: string;
+  born_in_state: string;
+  profession: string;
+  education_level: string | null;
+  marital_status: string | null;
+  marriage_date: string | null;
+  father_name: string;
+  mother_name: string;
+  church_entry: string | null;
+  church_entry_other: string;
+  street: string;
+  number: string;
+  complement: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  cep: string;
+  notes: string;
+  photo: string | null;
+  relatives: PublicFormPrefillRelative[];
+}
+
 export interface PublicFormMeta {
   type: 'member' | 'candidate';
+  mode: 'member' | 'completion' | 'candidate';
   church_name: string;
   church_city: string;
   church_state: string;
   church_phone: string;
   member_name?: string | null;
   card_number?: string | null;
+  prefill?: PublicFormPrefill | null;
+}
+
+export interface PublicFormCompletionLink {
+  hash: string;
+  url: string;
 }
 
 export interface PublicSubmissionResult {
   id: number;
   status: string;
+  mode?: 'member' | 'completion' | 'candidate';
 }
 
 export type MemberSubmissionStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -813,6 +946,7 @@ export interface MemberSubmission {
   created_at: string;
   updated_at: string;
   reviewed_at: string | null;
+  analysis?: RegistrationAnalysis;
 }
 
 export interface AccountingCategoryOption {

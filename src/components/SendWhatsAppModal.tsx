@@ -24,6 +24,7 @@ interface SendWhatsAppModalProps {
   defaultCategory?: MessageTemplateCategory;
   churchName?: string;
   churchCity?: string;
+  initialMessage?: string;
   onSent?: (memberId: number) => void;
 }
 
@@ -34,6 +35,7 @@ export default function SendWhatsAppModal({
   defaultCategory,
   churchName = '',
   churchCity = '',
+  initialMessage,
   onSent,
 }: SendWhatsAppModalProps) {
   const { t } = useLanguage();
@@ -69,7 +71,7 @@ export default function SendWhatsAppModal({
         const first = list.find(
           (m) => m.is_active && (!defaultCategory || m.category === defaultCategory)
         );
-        if (first) {
+        if (first && !initialMessage) {
           setSelectedId(String(first.id));
           setMessage(
             renderWhatsAppMessage(
@@ -89,12 +91,12 @@ export default function SendWhatsAppModal({
 
   useEffect(() => {
     if (!opened) return;
-    setMessage('');
-    setDirty(false);
+    setMessage(initialMessage || '');
+    setDirty(!!initialMessage);
     setSelectedId(null);
     loadTemplates();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opened, member?.id]);
+  }, [opened, member?.id, initialMessage]);
 
   const pickTemplate = (value: string | null) => {
     setSelectedId(value);

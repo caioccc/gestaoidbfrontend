@@ -20,6 +20,7 @@ import {
   Member,
   MemberDocument,
   MemberInvite,
+  MemberQrRegenerateResponse,
   MemberImportInspection,
   MemberImportResult,
   MemberSubmission,
@@ -29,11 +30,13 @@ import {
   MeetingType,
   PendingChurch,
   PublicCardPayload,
+  PublicFormCompletionLink,
   PublicFormMeta,
   PublicInviteMeta,
   PublicInviteSignupResult,
   PublicMinutesPayload,
   PublicMemberProfile,
+  PublicQrValidation,
   PublicSubmissionResult,
   ResponsibleUserPayload,
   Role,
@@ -398,6 +401,20 @@ export const accountsApi = {
   ): Promise<PreparedWhatsApp> =>
     apiClient
       .post(`/api/accounts/members/${id}/prepare-whatsapp/`, payload)
+      .then((r) => r.data),
+
+  formCompletionLink: (
+    id: number,
+    regenerate = false,
+  ): Promise<PublicFormCompletionLink> =>
+    (regenerate
+      ? apiClient.post(`/api/accounts/members/${id}/form-completion-link/`)
+      : apiClient.get(`/api/accounts/members/${id}/form-completion-link/`)
+    ).then((r) => r.data),
+
+  regenerateQr: (id: number): Promise<MemberQrRegenerateResponse> =>
+    apiClient
+      .post(`/api/accounts/members/${id}/qr/regenerate/`)
       .then((r) => r.data),
 
   setMemberStage: (id: number, stage: string): Promise<{ id: number; lifecycle_stage: string }> =>
@@ -1106,6 +1123,15 @@ export const publicCardApi = {
   get: (hash: string): Promise<PublicCardPayload> =>
     apiClient
       .get(`/api/accounts/public/card/${hash}/`)
+      .then((r) => r.data),
+};
+
+export const publicQrApi = {
+  validate: (code: string, context?: string | null): Promise<PublicQrValidation> =>
+    apiClient
+      .get(`/api/accounts/public/qr/${encodeURIComponent(code)}/validate/`, {
+        params: context ? { context } : undefined,
+      })
       .then((r) => r.data),
 };
 

@@ -24,6 +24,7 @@ import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
 import RelativesFormSection from './RelativesFormSection';
+import RegistrationAnalysisBadges from './RegistrationAnalysisBadges';
 import { useLanguage } from '../i18n';
 import { useAuth, useRoleHelpers } from '../contexts/AuthContext';
 import { accountsApi } from '../api/accounts';
@@ -64,7 +65,6 @@ export interface MemberFormValues {
   birth_date: Date | null;
   baptism_date: Date | null;
   cpf: string;
-  rg: string;
   born_in_city: string;
   born_in_state: string;
   profession: string;
@@ -97,7 +97,6 @@ const EMPTY_FORM: MemberFormValues = {
   birth_date: null,
   baptism_date: null,
   cpf: '',
-  rg: '',
   born_in_city: '',
   born_in_state: '',
   profession: '',
@@ -178,7 +177,6 @@ export default function MemberFormModal({
     birth_date: isoToDate(m.birth_date || ''),
     baptism_date: isoToDate(m.baptism_date || ''),
     cpf: m.cpf || '',
-    rg: m.rg || '',
     born_in_city: m.born_in_city || '',
     born_in_state: m.born_in_state || '',
     profession: m.profession || '',
@@ -368,7 +366,6 @@ export default function MemberFormModal({
     birth_date: toISO(form.values.birth_date) ?? null,
     baptism_date: toISO(form.values.baptism_date) ?? null,
     cpf: form.values.cpf.trim(),
-    rg: form.values.rg.trim(),
     born_in_city: toUpperCamelWords(form.values.born_in_city.trim()),
     born_in_state: form.values.born_in_state.trim().toUpperCase(),
     profession: toUpperCamelWords(form.values.profession.trim()),
@@ -482,7 +479,7 @@ export default function MemberFormModal({
       birth_date: toISO(form.values.birth_date) ?? null,
       baptism_date: toISO(form.values.baptism_date) ?? null,
       cpf: form.values.cpf,
-      rg: form.values.rg,
+      rg: member?.rg || '',
       born_in_city: form.values.born_in_city,
       born_in_state: form.values.born_in_state,
       profession: form.values.profession,
@@ -524,6 +521,7 @@ export default function MemberFormModal({
     t.membersPage.stepMinistry,
     t.membersPage.stepFamily,
     t.membersPage.stepCard,
+    ...(viewOnly ? [t.analysis.title] : []),
   ];
 
   return (
@@ -614,12 +612,6 @@ export default function MemberFormModal({
                           onAccept={(value: string) =>
                             form.setFieldValue('cpf', value)
                           }
-                        />
-                        <TextInput
-                          label={t.membersPage.rg}
-                          readOnly={viewOnly}
-                          data-testid="member-rg"
-                          {...form.getInputProps('rg')}
                         />
                       </SimpleGrid>
                       <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -910,6 +902,25 @@ export default function MemberFormModal({
               />
             </Stack>
           </Stepper.Step>
+          {viewOnly ? (
+            <Stepper.Step label={t.analysis.title}>
+              <Stack gap="md" pt="xs">
+                <Text size="sm" c="dimmed">
+                  {t.analysis.informational}
+                </Text>
+                {member?.analysis?.issues?.length ? (
+                  <RegistrationAnalysisBadges
+                    analysis={member.analysis}
+                    size="sm"
+                  />
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    {t.analysis.noIssues}
+                  </Text>
+                )}
+              </Stack>
+            </Stepper.Step>
+          ) : null}
         </Stepper>
 
         {viewOnly ? (
@@ -924,7 +935,7 @@ export default function MemberFormModal({
                 >
                   {t.membersPage.back}
                 </Button>
-                {step < 3 ? (
+                {step < stepTitles.length - 1 ? (
                   <Button onClick={() => setStep((current) => current + 1)} data-testid="member-view-next">
                     {t.membersPage.next}
                   </Button>

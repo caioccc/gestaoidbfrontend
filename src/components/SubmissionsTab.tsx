@@ -41,7 +41,9 @@ import { formatDate } from '../utils/format';
 import { buildFormUrl, copyToClipboard } from '../utils/share';
 import ShareLinkModal from './ShareLinkModal';
 import MobileItemCard from './MobileItemCard';
+import RegistrationAnalysisBadges from './RegistrationAnalysisBadges';
 import { SkeletonResponsiveTable } from './LoadingSkeleton';
+
 import type { MemberSubmission, MemberSubmissionStatus } from '../types';
 
 type Filter = MemberSubmissionStatus | 'ALL';
@@ -703,7 +705,17 @@ function SubmissionsDataModal({
       size="md"
     >
       {item && (
-        <Table withColumnBorders>
+        <>
+          {item.analysis?.issues?.length ? (
+            <Stack gap="xs" mb="sm">
+              <Text size="sm" fw={600}>
+                {t.analysis.title}
+              </Text>
+              <RegistrationAnalysisBadges analysis={item.analysis} size="sm" />
+            </Stack>
+          ) : null}
+          <Table withColumnBorders>
+
           <Table.Tbody>
             {DATA_LABEL_KEYS.map(([field, ref]) => {
               const value = item.data?.[field as keyof typeof item.data];
@@ -772,9 +784,11 @@ function SubmissionsDataModal({
                 </Table.Tr>
               ))}
           </Table.Tbody>
-        </Table>
+          </Table>
+        </>
       )}
       <Group justify="flex-end" mt="md">
+
         <Button variant="default" onClick={onClose}>
           {t.memberCard.close}
         </Button>

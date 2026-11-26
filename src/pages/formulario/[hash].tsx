@@ -44,7 +44,7 @@ import {
   toSentenceCase,
   toUpperCamelWords,
 } from '../../utils/format';
-import type { Kinship, PublicFormMeta } from '../../types';
+import type { Kinship, PublicFormMeta, PublicFormPrefill } from '../../types';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface RelativeForm {
@@ -61,7 +61,6 @@ interface FormValues {
   email: string;
   birth_date: Date | null;
   cpf: string;
-  rg: string;
   born_in_city: string;
   born_in_state: string;
   profession: string;
@@ -90,7 +89,6 @@ const EMPTY_FORM: FormValues = {
   email: '',
   birth_date: null,
   cpf: '',
-  rg: '',
   born_in_city: '',
   born_in_state: '',
   profession: '',
@@ -125,6 +123,40 @@ const toDateValue = (
   if (value instanceof Date) return value;
   return typeof value === 'string' ? isoToDate(value) : null;
 };
+
+const buildCompletionValues = (prefill: PublicFormPrefill): FormValues => ({
+  ...EMPTY_FORM,
+  photo: prefill.photo || null,
+  name: prefill.name || '',
+  phone: maskPhone(prefill.phone || ''),
+  email: prefill.email || '',
+  birth_date: toDateValue(prefill.birth_date),
+  cpf: maskCpf(prefill.cpf || ''),
+  born_in_city: prefill.born_in_city || '',
+  born_in_state: prefill.born_in_state || '',
+  profession: prefill.profession || '',
+  education_level: prefill.education_level || null,
+  marital_status: prefill.marital_status || null,
+  marriage_date: toDateValue(prefill.marriage_date),
+  father_name: prefill.father_name || '',
+  mother_name: prefill.mother_name || '',
+  church_entry: prefill.church_entry || null,
+  church_entry_other: prefill.church_entry_other || '',
+  street: prefill.street || '',
+  number: prefill.number || '',
+  complement: prefill.complement || '',
+  neighborhood: prefill.neighborhood || '',
+  city: prefill.city || '',
+  state: prefill.state || '',
+  cep: maskCep(prefill.cep || ''),
+  notes: prefill.notes || '',
+  relatives: (prefill.relatives || []).map((relative) => ({
+    name: relative.name || '',
+    kinship: (relative.kinship || '') as Kinship | '',
+    birth_date: toDateValue(relative.birth_date),
+    phone: maskPhone(relative.phone || ''),
+  })),
+});
 
 export default function PublicMemberFormPage() {
   const { t, locale } = useLanguage();
@@ -162,7 +194,9 @@ export default function PublicMemberFormPage() {
       .then((data) => {
         if (!active) return;
         setMeta(data);
-        if (data.type === 'member' && data.member_name) {
+        if (data.mode === 'completion' && data.prefill) {
+          form.setValues(buildCompletionValues(data.prefill));
+        } else if (data.type === 'member' && data.member_name) {
           form.setFieldValue('name', data.member_name);
         }
       })
@@ -317,7 +351,7 @@ export default function PublicMemberFormPage() {
     email: form.values.email.trim(),
     birth_date: toISO(form.values.birth_date) ?? null,
     cpf: form.values.cpf.trim(),
-    rg: form.values.rg.trim(),
+    rg: meta?.mode === 'completion' ? (meta.prefill?.rg || '') : '',
     born_in_city: toUpperCamelWords(form.values.born_in_city.trim()),
     born_in_state: form.values.born_in_state.trim().toUpperCase(),
     profession: toUpperCamelWords(form.values.profession.trim()),
@@ -332,6 +366,8 @@ export default function PublicMemberFormPage() {
         ? toUpperCamelWords(form.values.church_entry_other.trim())
         : '',
     photo: form.values.photo ?? '',
+    photo_removed:
+      meta?.mode === 'completion' && !form.values.photo && !!meta.prefill?.photo,
     street: toUpperCamelWords(form.values.street.trim()),
     number: form.values.number.trim(),
     complement: toUpperCamelWords(form.values.complement.trim()),
@@ -441,9 +477,11 @@ export default function PublicMemberFormPage() {
             </Stack>
           </Group>
           <Text size="sm" mt="sm" c="dimmed">
-            {meta.type === 'member'
-              ? t.publicForm.memberNote.replace('{church}', meta.church_name)
-              : t.publicForm.candidateNote.replace('{church}', meta.church_name)}
+            {meta.mode === 'completion'
+              ? t.publicForm.completionNote.replace('{church}', meta.church_name)
+              : meta.type === 'member'
+                ? t.publicForm.memberNote.replace('{church}', meta.church_name)
+                : t.publicForm.candidateNote.replace('{church}', meta.church_name)}
           </Text>
           {meta.type === 'member' && meta.member_name && (
             <Text size="sm" mt="xs">
@@ -460,26 +498,34 @@ export default function PublicMemberFormPage() {
               <IconCheck size={28} />
             </ThemeIcon>
             <Title order={3} mt="md">
-              {t.publicForm.successTitle}
+              {meta.mode === 'completion'
+                ? t.publicForm.completionSuccessTitle
+                : t.publicForm.successTitle}
             </Title>
             <Text size="sm" c="dimmed" mt="xs">
-              {t.publicForm.successBody}
+              {meta.mode === 'completion'
+                ? t.publicForm.completionSuccessBody
+                : t.publicForm.successBody}
             </Text>
             <Text size="xs" c="dimmed" mt="xs">
-              {t.publicForm.privacyNote}
+              {meta.mode === 'completion'
+                ? t.publicForm.completionPrivacyNote
+                : t.publicForm.privacyNote}
             </Text>
-            <Button
-              variant="default"
-              mt="md"
-              onClick={() => {
-                setSubmitted(false);
-                form.setValues(EMPTY_FORM);
-                form.clearErrors();
-                setStep(0);
-              }}
-            >
-              {t.publicForm.submitAgain}
-            </Button>
+            {meta.mode !== 'completion' ? (
+              <Button
+                variant="default"
+                mt="md"
+                onClick={() => {
+                  setSubmitted(false);
+                  form.setValues(EMPTY_FORM);
+                  form.clearErrors();
+                  setStep(0);
+                }}
+              >
+                {t.publicForm.submitAgain}
+              </Button>
+            ) : null}
           </Paper>
         ) : (
           <Paper withBorder radius="md" p="md">
@@ -557,11 +603,6 @@ export default function PublicMemberFormPage() {
                                 )
                               }
                               error={form.errors.cpf}
-                            />
-                            <TextInput
-                              label={t.membersPage.rg}
-                              data-testid="pf-rg"
-                              {...form.getInputProps('rg')}
                             />
                           </SimpleGrid>
                           <SimpleGrid cols={{ base: 1, sm: 2 }}>
@@ -840,7 +881,11 @@ export default function PublicMemberFormPage() {
                   leftSection={<IconSend size={18} />}
                   data-testid="pf-submit"
                 >
-                  {submitting ? t.publicForm.submitting : t.publicForm.submit}
+                  {submitting
+                    ? t.publicForm.submitting
+                    : meta.mode === 'completion'
+                      ? t.publicForm.completionSubmit
+                      : t.publicForm.submit}
                 </Button>
               )}
             </Group>

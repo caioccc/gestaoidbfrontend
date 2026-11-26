@@ -82,15 +82,15 @@ export default function PublicMemberCardPage() {
     id: 0,
     church: 0,
     name: card.name,
-    phone: card.church_phone,
+    phone: card.phone || card.church_phone,
     email: '',
     birth_date: card.birth_date,
-    baptism_date: null,
-    cpf: '',
+    baptism_date: card.baptism_date,
+    cpf: card.cpf,
     rg: '',
     born_in_city: '',
     born_in_state: '',
-    profession: '',
+    profession: card.profession,
     education_level: '',
     education_level_display: '',
     marital_status: '',
@@ -108,15 +108,16 @@ export default function PublicMemberCardPage() {
     status: card.status,
     status_display: '',
     notes: '',
-    street: '',
-    number: '',
+    street: card.street,
+    number: card.number,
     complement: '',
-    neighborhood: '',
-    city: '',
-    state: '',
+    neighborhood: card.neighborhood,
+    city: card.city,
+    state: card.state,
     cep: '',
     relatives: [],
     public_hash: card.public_hash ?? null,
+    qr_hash: card.qr_hash ?? null,
     created_at: '',
     updated_at: '',
   } as Member;
@@ -124,9 +125,9 @@ export default function PublicMemberCardPage() {
   const churchContact: ChurchContact = {
     pastor_name: '',
     phone: card.church_phone,
-    street: '',
-    number: '',
-    neighborhood: '',
+    street: card.church_street,
+    number: card.church_number,
+    neighborhood: card.church_neighborhood,
     city: card.church_city,
     state: card.church_state,
   };
@@ -163,8 +164,8 @@ export default function PublicMemberCardPage() {
             churchName={card.church_name}
             config={config}
             churchContact={churchContact}
-            hideAddress
             publicHash={card.public_hash ?? null}
+            qrHash={card.qr_hash ?? null}
           />
 
           <Paper withBorder radius="md" p="sm" w="100%" maw={400}>
@@ -204,9 +205,6 @@ export default function PublicMemberCardPage() {
                 </Text>
               </Stack>
             </Group>
-            <Text size="xs" c="dimmed" ta="center" mt="xs">
-              {t.publicCard.withoutAddress}
-            </Text>
           </Paper>
         </Stack>
       </Container>

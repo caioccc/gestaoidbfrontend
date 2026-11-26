@@ -4,7 +4,7 @@ import { useLanguage } from '../i18n';
 import type { CardConfig, CardTheme, Member } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
 import { DEFAULT_CARD_CONFIG } from '../hooks/useChurchCardConfig';
-import { cardValidityDate, formatCardDate, memberPublicProfileUrl } from '../utils/memberCard';
+import { cardValidityDate, formatCardDate, memberQrValidationUrl } from '../utils/memberCard';
 
 const CARD_W = 400;
 const CARD_H = 250;
@@ -21,14 +21,76 @@ function resolveCardTheme(cardTheme?: CardTheme, config?: CardConfig): CardTheme
   return cardTheme ?? config?.card_theme ?? 'CLASSIC';
 }
 
+const CARD_EMPTY_VALUE = '---';
+
+function cleanCardValue(value?: string | null): string {
+  return String(value ?? '').trim();
+}
+
+function displayCardValue(value?: string | null, fallback = CARD_EMPTY_VALUE): string {
+  return cleanCardValue(value) || fallback;
+}
+
+function formatCardDateValue(value?: string | null): string {
+  const text = cleanCardValue(value);
+  if (!text) return CARD_EMPTY_VALUE;
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  return text;
+}
+
+function formatCardCpf(value?: string | null): string {
+  const text = cleanCardValue(value);
+  if (!text) return CARD_EMPTY_VALUE;
+  const digits = text.replace(/\D/g, '');
+  if (digits.length !== 11) return text;
+  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+}
+
+interface CardAddressSource {
+  street?: string | null;
+  number?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+}
+
+function formatCardAddress(source?: CardAddressSource | null): string {
+  if (!source) return '';
+  const streetLine = [cleanCardValue(source.street), cleanCardValue(source.number)]
+    .filter(Boolean)
+    .join(', ');
+  const city = cleanCardValue(source.city);
+  const state = cleanCardValue(source.state);
+  const cityLine = [city, state].filter(Boolean).join('/');
+  return [streetLine, cleanCardValue(source.neighborhood), cityLine]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function resolveCardAddress(member: Member, churchContact?: ChurchContact): string {
+  const memberAddress = formatCardAddress({
+    street: member.street,
+    number: member.number,
+    neighborhood: member.neighborhood,
+    city: member.city,
+    state: member.state,
+  });
+  return memberAddress || formatCardAddress(churchContact);
+}
+
 interface MemberCardFacesProps {
   member: Member;
   churchName: string;
   config?: CardConfig;
   churchContact?: ChurchContact;
-  hideAddress?: boolean;
   cardTheme?: CardTheme;
   publicHash?: string | null;
+  qrHash?: string | null;
+}
+
+function resolveCardQrCode(member: Member, qrHash?: string | null): string {
+  return cleanCardValue(qrHash || member.qr_hash);
 }
 
 export function MemberCardFront({ member, churchName, config, cardTheme }: MemberCardFacesProps) {
@@ -155,13 +217,13 @@ function ClassicCardFront({ member, churchName, config }: MemberCardFacesProps) 
           </div>
           <div
             style={{
-              marginTop: 8,
+              marginTop: 6,
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 4,
             }}
           >
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 20 }}>
               <div>
                 <div style={labelStyle}>{t.memberCard.registration}</div>
                 <div style={valueStyle}>
@@ -169,23 +231,23 @@ function ClassicCardFront({ member, churchName, config }: MemberCardFacesProps) 
                 </div>
               </div>
               <div>
-                <div style={labelStyle}>{t.memberCard.entry}</div>
-                <div style={valueStyle}>{member.church_entry_display || '—'}</div>
+                <div style={labelStyle}>{t.memberCard.birthDate}</div>
+                <div style={valueStyle}>{formatCardDateValue(member.birth_date)}</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 20 }}>
               <div>
-                <div style={labelStyle}>{t.memberCard.situation}</div>
-                <div style={valueStyle}>
-                  {member.status === 'ACTIVE'
-                    ? t.memberCard.situationActive
-                    : t.memberCard.situationInactive}
-                </div>
+                <div style={labelStyle}>{t.memberCard.role}</div>
+                <div style={valueStyle}>{displayCardValue(member.profession)}</div>
               </div>
               <div>
-                <div style={labelStyle}>{t.memberCard.validity}</div>
-                <div style={valueStyle}>{formatCardDate(validity)}</div>
+                <div style={labelStyle}>{t.memberCard.cpf}</div>
+                <div style={valueStyle}>{formatCardCpf(member.cpf)}</div>
               </div>
+            </div>
+            <div>
+              <div style={labelStyle}>{t.memberCard.validity}</div>
+              <div style={valueStyle}>{formatCardDate(validity)}</div>
             </div>
           </div>
         </div>
@@ -322,13 +384,13 @@ function BlackPremiumCardFront({ member, churchName, config }: MemberCardFacesPr
           </div>
           <div
             style={{
-              marginTop: 8,
+              marginTop: 6,
               display: 'flex',
               flexDirection: 'column',
-              gap: 6,
+              gap: 4,
             }}
           >
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 20 }}>
               <div>
                 <div style={labelStyle}>{t.memberCard.registration}</div>
                 <div style={goldValueStyle}>
@@ -336,23 +398,23 @@ function BlackPremiumCardFront({ member, churchName, config }: MemberCardFacesPr
                 </div>
               </div>
               <div>
-                <div style={labelStyle}>{t.memberCard.entry}</div>
-                <div style={valueStyle}>{member.church_entry_display || '—'}</div>
+                <div style={labelStyle}>{t.memberCard.birthDate}</div>
+                <div style={valueStyle}>{formatCardDateValue(member.birth_date)}</div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 20 }}>
               <div>
-                <div style={labelStyle}>{t.memberCard.situation}</div>
-                <div style={valueStyle}>
-                  {member.status === 'ACTIVE'
-                    ? t.memberCard.situationActive
-                    : t.memberCard.situationInactive}
-                </div>
+                <div style={labelStyle}>{t.memberCard.role}</div>
+                <div style={valueStyle}>{displayCardValue(member.profession)}</div>
               </div>
               <div>
-                <div style={labelStyle}>{t.memberCard.validity}</div>
-                <div style={valueStyle}>{formatCardDate(validity)}</div>
+                <div style={labelStyle}>{t.memberCard.cpf}</div>
+                <div style={valueStyle}>{formatCardCpf(member.cpf)}</div>
               </div>
+            </div>
+            <div>
+              <div style={labelStyle}>{t.memberCard.validity}</div>
+              <div style={valueStyle}>{formatCardDate(validity)}</div>
             </div>
           </div>
         </div>
@@ -388,41 +450,40 @@ function BlackPremiumCardFront({ member, churchName, config }: MemberCardFacesPr
   );
 }
 
-export function MemberCardBack({ churchName, config, churchContact, hideAddress, cardTheme, publicHash }: MemberCardFacesProps) {
+export function MemberCardBack({ member, churchName, config, churchContact, cardTheme, qrHash }: MemberCardFacesProps) {
   const theme = resolveCardTheme(cardTheme, config);
   if (theme === 'BLACK_PREMIUM') {
     return (
       <BlackPremiumCardBack
+        member={member}
         churchName={churchName}
         config={config}
-        publicHash={publicHash}
+        churchContact={churchContact}
+        qrHash={qrHash}
       />
     );
   }
   return (
     <ClassicCardBack
+      member={member}
       churchName={churchName}
       config={config}
       churchContact={churchContact}
-      hideAddress={hideAddress}
+      qrHash={qrHash}
     />
   );
 }
 
-function ClassicCardBack({ churchName, config, churchContact, hideAddress }: Omit<MemberCardFacesProps, 'member' | 'cardTheme' | 'publicHash'>) {
+function ClassicCardBack({ member, churchName, config, churchContact, qrHash }: Omit<MemberCardFacesProps, 'cardTheme' | 'publicHash'>) {
   const { t } = useLanguage();
   const cfg = config ?? DEFAULT_CARD_CONFIG;
   const primary = cfg.card_primary_color || DEFAULT_CARD_CONFIG.card_primary_color;
   const secondary = cfg.card_secondary_color || DEFAULT_CARD_CONFIG.card_secondary_color;
-  const contact = churchContact;
-
-  const addressParts = [
-    [contact?.street, contact?.number].filter(Boolean).join(', '),
-    contact?.neighborhood,
-    contact?.city && contact?.state
-      ? `${contact.city}/${contact.state}`
-      : contact?.city || undefined,
-  ].filter(Boolean);
+  const address = resolveCardAddress(member, churchContact);
+  const phone = displayCardValue(member.phone || churchContact?.phone, '');
+  const baptism = formatCardDateValue(member.baptism_date);
+  const qrCode = resolveCardQrCode(member, qrHash);
+  const validationUrl = qrCode ? memberQrValidationUrl(qrCode) : '';
 
   return (
     <div
@@ -453,111 +514,118 @@ function ClassicCardBack({ churchName, config, churchContact, hideAddress }: Omi
         <div style={{ fontSize: 10, opacity: 0.92 }}>{t.memberCard.backTitle}</div>
       </div>
 
-      <div style={{ padding: '12px 18px 8px' }}>
-        <div
-          style={{
-            minHeight: 66,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '4px 8px',
-            borderRadius: 10,
-            background: '#f8fafc',
-            border: `1px solid ${primary}22`,
-          }}
-        >
+      <div style={{ padding: '10px 18px 6px', display: 'flex', gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 13,
-              fontStyle: 'italic',
-              fontWeight: 600,
-              color: '#334155',
-              textAlign: 'center',
-              lineHeight: 1.45,
+              minHeight: 46,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px 8px',
+              borderRadius: 10,
+              background: '#f8fafc',
+              border: `1px solid ${primary}22`,
             }}
           >
-            {cfg.card_back_phrase || t.memberCard.backPhraseDefault}
+            <div
+              style={{
+                fontSize: 11,
+                fontStyle: 'italic',
+                fontWeight: 600,
+                color: '#334155',
+                textAlign: 'center',
+                lineHeight: 1.35,
+              }}
+            >
+              {cfg.card_back_phrase || t.memberCard.backPhraseDefault}
+            </div>
           </div>
-        </div>
 
-        <div
-          style={{
-            margin: '10px 0 8px',
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, #cbd5e1, transparent)',
-          }}
-        />
+          <div
+            style={{
+              margin: '6px 0',
+              height: 1,
+              background: 'linear-gradient(90deg, transparent, #cbd5e1, transparent)',
+            }}
+          />
 
-        <div style={{ display: 'flex', gap: 20 }}>
-          {hideAddress ? (
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                {t.memberCard.backAddress}
+              </div>
+              <div
+                style={{
+                  marginTop: 3,
+                  fontSize: 10,
+                  color: '#0f172a',
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  wordBreak: 'break-word',
+                }}
+              >
+                {address || t.memberCard.backNoAddress}
+              </div>
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
                 {t.memberCard.backContact}
               </div>
               <div
                 style={{
-                  marginTop: 4,
-                  fontSize: 11,
+                  marginTop: 3,
+                  fontSize: 10,
                   color: '#0f172a',
                   fontWeight: 600,
-                  lineHeight: 1.5,
+                  lineHeight: 1.4,
                   wordBreak: 'break-word',
                 }}
               >
-                {contact?.phone ? <div>{contact.phone}</div> : null}
-                {contact?.city && contact?.state ? (
-                  <div>{`${contact.city}/${contact.state}`}</div>
-                ) : null}
-                {!contact?.phone ? <div>{t.memberCard.backNoContact}</div> : null}
+                {phone || t.memberCard.backNoContact}
               </div>
             </div>
-          ) : (
-            <>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  {t.memberCard.backAddress}
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: '#0f172a',
-                    fontWeight: 600,
-                    lineHeight: 1.5,
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {addressParts.length ? addressParts.map((p) => (
-                    <div key={p}>{p}</div>
-                  )) : (
-                    t.memberCard.backNoAddress
-                  )}
-                </div>
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                  {t.memberCard.backContact}
-                </div>
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    color: '#0f172a',
-                    fontWeight: 600,
-                    lineHeight: 1.5,
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {contact?.phone ? <div>{contact.phone}</div> : null}
-                  {contact?.pastor_name ? <div>{contact.pastor_name}</div> : null}
-                  {!contact?.phone && !contact?.pastor_name ? (
-                    <div>{t.memberCard.backNoContact}</div>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          )}
+          </div>
+
+          <div style={{ marginTop: 6 }}>
+            <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              {t.memberCard.baptismDate}
+            </div>
+            <div style={{ marginTop: 3, fontSize: 10, color: '#0f172a', fontWeight: 600 }}>
+              {baptism}
+            </div>
+          </div>
         </div>
+
+        {validationUrl && (
+          <div
+            style={{
+              width: 78,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+            }}
+          >
+            <div
+              style={{
+                padding: 4,
+                borderRadius: 8,
+                background: '#ffffff',
+                border: '1px solid #e2e8f0',
+                display: 'inline-flex',
+              }}
+            >
+              <QRCodeSVG value={validationUrl} size={62} fgColor="#0f172a" bgColor="#ffffff" />
+            </div>
+            <div style={{ marginTop: 4, fontSize: 8, fontWeight: 700, color: '#475569', letterSpacing: 0.5 }}>
+              {qrCode}
+            </div>
+            <div style={{ marginTop: 2, fontSize: 7, color: '#64748b', textAlign: 'center', lineHeight: 1.2 }}>
+              {t.memberCard.scanHint}
+            </div>
+          </div>
+        )}
       </div>
 
       <div
@@ -576,22 +644,43 @@ function ClassicCardBack({ churchName, config, churchContact, hideAddress }: Omi
           color: '#64748b',
         }}
       >
-        {t.memberCard.backSignature} ______________________
+        {t.memberCard.nationalValidity}
       </div>
     </div>
   );
 }
 
 interface BlackPremiumCardBackProps {
+  member: Member;
   churchName: string;
   config?: CardConfig;
-  publicHash?: string | null;
+  churchContact?: ChurchContact;
+  qrHash?: string | null;
 }
 
-function BlackPremiumCardBack({ churchName, config, publicHash }: BlackPremiumCardBackProps) {
+function BlackPremiumCardBack({ member, churchName, config, churchContact, qrHash }: BlackPremiumCardBackProps) {
   const { t } = useLanguage();
   const cfg = config ?? DEFAULT_CARD_CONFIG;
-  const profileUrl = publicHash ? memberPublicProfileUrl(publicHash) : '';
+  const qrCode = resolveCardQrCode(member, qrHash);
+  const validationUrl = qrCode ? memberQrValidationUrl(qrCode) : '';
+  const address = resolveCardAddress(member, churchContact);
+  const phone = displayCardValue(member.phone || churchContact?.phone, '');
+  const baptism = formatCardDateValue(member.baptism_date);
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: 9,
+    color: BLACK_MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  };
+  const valueStyle: React.CSSProperties = {
+    marginTop: 3,
+    fontSize: 10,
+    fontWeight: 600,
+    color: BLACK_TEXT,
+    lineHeight: 1.35,
+    wordBreak: 'break-word',
+  };
 
   return (
     <div
@@ -630,83 +719,91 @@ function BlackPremiumCardBack({ churchName, config, publicHash }: BlackPremiumCa
         </div>
       </div>
 
-      <div
-        style={{
-          padding: '16px 18px 8px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {profileUrl ? (
-          <>
-            <div
-              style={{
-                padding: 10,
-                borderRadius: 12,
-                background: '#ffffff',
-                display: 'inline-flex',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.45)',
-              }}
-            >
-              <QRCodeSVG value={profileUrl} size={108} fgColor="#0f1115" bgColor="#ffffff" />
-            </div>
-            <div
-              style={{
-                marginTop: 12,
-                fontSize: 10,
-                color: BLACK_MUTED,
-                letterSpacing: 0.6,
-                textTransform: 'uppercase',
-                textAlign: 'center',
-              }}
-            >
-              {t.memberCard.scanHint}
-            </div>
-            {cfg.card_back_phrase ? (
+      <div style={{ padding: '10px 18px 6px', display: 'flex', gap: 12 }}>
+        <div
+          style={{
+            width: 86,
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {validationUrl ? (
+            <>
               <div
                 style={{
-                  marginTop: 8,
-                  fontSize: 10,
-                  fontStyle: 'italic',
-                  color: BLACK_GOLD,
-                  textAlign: 'center',
-                  lineHeight: 1.4,
+                  padding: 6,
+                  borderRadius: 8,
+                  background: '#ffffff',
+                  display: 'inline-flex',
                 }}
               >
-                {cfg.card_back_phrase}
+                <QRCodeSVG value={validationUrl} size={68} fgColor="#0f1115" bgColor="#ffffff" />
               </div>
-            ) : null}
-          </>
-        ) : (
-          <div
-            style={{
-              minHeight: 108,
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 10,
-              background: 'rgba(255,255,255,0.04)',
-              border: `1px solid ${BLACK_GOLD_SOFT}`,
-            }}
-          >
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 9,
+                  color: BLACK_GOLD,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                }}
+              >
+                {qrCode}
+              </div>
+              <div
+                style={{
+                  marginTop: 3,
+                  fontSize: 8,
+                  color: BLACK_MUTED,
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  lineHeight: 1.3,
+                }}
+              >
+                {t.memberCard.scanHint}
+              </div>
+            </>
+          ) : (
             <div
               style={{
-                fontSize: 13,
-                fontStyle: 'italic',
-                fontWeight: 600,
-                color: BLACK_MUTED,
+                width: '100%',
+                minHeight: 86,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)',
+                border: `1px solid ${BLACK_GOLD_SOFT}`,
+                padding: 8,
                 textAlign: 'center',
-                lineHeight: 1.45,
-                padding: '0 18px',
+                fontSize: 9,
+                fontStyle: 'italic',
+                color: BLACK_MUTED,
+                lineHeight: 1.4,
               }}
             >
               {cfg.card_back_phrase || t.memberCard.backPhraseDefault}
             </div>
+          )}
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div>
+            <div style={labelStyle}>{t.memberCard.backAddress}</div>
+            <div style={valueStyle}>{address || t.memberCard.backNoAddress}</div>
           </div>
-        )}
+          <div>
+            <div style={labelStyle}>{t.memberCard.backContact}</div>
+            <div style={valueStyle}>{phone || t.memberCard.backNoContact}</div>
+          </div>
+          <div>
+            <div style={labelStyle}>{t.memberCard.baptismDate}</div>
+            <div style={valueStyle}>{baptism}</div>
+          </div>
+        </div>
       </div>
 
       <div
@@ -724,7 +821,7 @@ function BlackPremiumCardBack({ churchName, config, publicHash }: BlackPremiumCa
           color: BLACK_GOLD,
         }}
       >
-        {t.memberCard.backSignature} ______________________
+        {t.memberCard.nationalValidity}
       </div>
     </div>
   );
@@ -735,7 +832,7 @@ interface MemberCardProps extends MemberCardFacesProps {
 }
 
 const MemberCard = forwardRef<HTMLDivElement, MemberCardProps>(
-  ({ member, churchName, config, churchContact, hideAddress, cardTheme, publicHash, interactive = true }, ref) => {
+  ({ member, churchName, config, churchContact, cardTheme, publicHash, qrHash, interactive = true }, ref) => {
     const { t } = useLanguage();
     const [flipped, setFlipped] = useState(false);
     const theme = resolveCardTheme(cardTheme, config);
@@ -791,9 +888,9 @@ const MemberCard = forwardRef<HTMLDivElement, MemberCardProps>(
               churchName={churchName}
               config={config}
               churchContact={churchContact}
-              hideAddress={hideAddress}
               cardTheme={cardTheme}
               publicHash={publicHash}
+              qrHash={qrHash}
             />
           </div>
         </div>
@@ -805,7 +902,7 @@ const MemberCard = forwardRef<HTMLDivElement, MemberCardProps>(
 MemberCard.displayName = 'MemberCard';
 
 export const MemberCardPair = forwardRef<HTMLDivElement, MemberCardFacesProps>(
-  ({ member, churchName, config, churchContact, hideAddress, cardTheme, publicHash }, ref) => {
+  ({ member, churchName, config, churchContact, cardTheme, publicHash, qrHash }, ref) => {
     return (
       <div
         ref={ref}
@@ -829,9 +926,9 @@ export const MemberCardPair = forwardRef<HTMLDivElement, MemberCardFacesProps>(
           churchName={churchName}
           config={config}
           churchContact={churchContact}
-          hideAddress={hideAddress}
           cardTheme={cardTheme}
           publicHash={publicHash}
+          qrHash={qrHash}
         />
       </div>
     );

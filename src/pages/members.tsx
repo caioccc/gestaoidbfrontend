@@ -45,6 +45,7 @@ import {
   IconShare2,
   IconDotsVertical,
   IconBrandWhatsapp,
+  IconLink,
   IconHierarchy2,
   IconSettings,
   IconArrowsExchange,
@@ -68,6 +69,7 @@ import {
 import MemberDocumentsModal from '../components/MemberDocumentsModal';
 import MemberImportTab from '../components/MemberImportTab';
 import CardConfigTab from '../components/CardConfigTab';
+import RegistrationAnalysisBadges from '../components/RegistrationAnalysisBadges';
 import TransfersTab from '../components/TransfersTab';
 import SubmissionsTab from '../components/SubmissionsTab';
 import ShareLinkModal from '../components/ShareLinkModal';
@@ -110,6 +112,8 @@ function MembersTab({
   const [cardMember, setCardMember] = useState<Member | null>(null);
   const [shareMember, setShareMember] = useState<Member | null>(null);
   const [waMember, setWaMember] = useState<Member | null>(null);
+  const [waMessage, setWaMessage] = useState<string | undefined>(undefined);
+  const [linkLoadingId, setLinkLoadingId] = useState<number | null>(null);
   const [docsMember, setDocsMember] = useState<Member | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -466,6 +470,24 @@ function MembersTab({
     }
   };
 
+  const handleRegistrationLink = async (m: Member) => {
+    setLinkLoadingId(m.id);
+    try {
+      const link = await accountsApi.formCompletionLink(m.id);
+      setWaMessage(
+        t.membersPage.registrationLinkMessage
+          .replace('{name}', m.name)
+          .replace('{church}', churchName)
+          .replace('{link}', link.url),
+      );
+      setWaMember(m);
+    } catch (err) {
+      fb.fromError(err, t.membersPage.registrationLinkError);
+    } finally {
+      setLinkLoadingId(null);
+    }
+  };
+
   const memberMenuItems = (m: Member) => (
     <>
       <Menu.Item
@@ -505,6 +527,17 @@ function MembersTab({
         data-testid={`member-wa-menu-${m.id}`}
       >
         {t.membersPage.sendWhatsApp}
+      </Menu.Item>
+      <Menu.Item
+        leftSection={<IconLink size={14} />}
+        color="teal"
+        disabled={!m.phone || linkLoadingId === m.id}
+        onClick={() => handleRegistrationLink(m)}
+        data-testid={`member-registration-link-${m.id}`}
+      >
+        {linkLoadingId === m.id
+          ? t.publicForm.submitting
+          : t.membersPage.sendRegistrationLink}
       </Menu.Item>
       <Menu.Item
         leftSection={<IconFileDescription size={14} />}
@@ -567,6 +600,7 @@ function MembersTab({
                 #{m.card_number}
               </Text>
             )}
+            <RegistrationAnalysisBadges analysis={m.analysis} />
           </Stack>
         </Group>
       </Table.Td>
@@ -1119,6 +1153,7 @@ function MembersTab({
                       <Text fw={600} size="sm" truncate>
                         {m.name}
                       </Text>
+                      <RegistrationAnalysisBadges analysis={m.analysis} />
                       <Group gap={6} wrap="nowrap" mt={2}>
                         <Badge
                           color={m.status === 'ACTIVE' ? 'teal' : 'gray'}
@@ -1267,10 +1302,14 @@ function MembersTab({
 
       <SendWhatsAppModal
         opened={!!waMember}
-        onClose={() => setWaMember(null)}
+        onClose={() => {
+          setWaMember(null);
+          setWaMessage(undefined);
+        }}
         member={waMember}
         churchName={churchName}
         churchCity={churchContact?.city || ''}
+        initialMessage={waMessage}
         onSent={(id) =>
           setMembers((prev) =>
             prev.map((m) =>

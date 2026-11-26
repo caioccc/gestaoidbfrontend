@@ -4,18 +4,22 @@ import {
   IconDownload,
   IconFileExport,
   IconPrinter,
+  IconQrcode,
   IconShare2,
   IconX,
 } from '@tabler/icons-react';
 import MemberCard, { MemberCardPair } from './MemberCard';
+import MemberQrBadge from './MemberQrBadge';
 import ShareLinkModal from './ShareLinkModal';
 import { useLanguage } from '../i18n';
 import { accountsApi } from '../api/accounts';
 import type { CardConfig, Member } from '../types';
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
 import {
+  downloadElementPng,
   downloadMemberCardPairPdf,
   downloadMemberCardPairPng,
+  memberQrFileName,
   printMemberCardPair,
 } from '../utils/memberCard';
 
@@ -38,6 +42,7 @@ export default function MemberCardModal({
 }: MemberCardModalProps) {
   const { t } = useLanguage();
   const ref = useRef<HTMLDivElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -49,6 +54,19 @@ export default function MemberCardModal({
     setBusy(true);
     try {
       await fn(el);
+    } catch {
+      // nenhuma ação extra: o usuário pode tentar novamente
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runQr = async () => {
+    const el = badgeRef.current;
+    if (!el || !member) return;
+    setBusy(true);
+    try {
+      await downloadElementPng(el, memberQrFileName(member.name));
     } catch {
       // nenhuma ação extra: o usuário pode tentar novamente
     } finally {
@@ -93,6 +111,9 @@ export default function MemberCardModal({
               config={config}
               churchContact={churchContact}
             />
+            <div ref={badgeRef}>
+              <MemberQrBadge member={member} churchName={churchName} />
+            </div>
           </div>
           <Group gap="xs">
             <Button
@@ -113,6 +134,17 @@ export default function MemberCardModal({
               data-testid="membercard-png"
             >
               {t.memberCard.downloadPng}
+            </Button>
+            <Button
+              size="xs"
+              variant="default"
+              leftSection={<IconQrcode size={14} />}
+              loading={busy}
+              disabled={!member.qr_hash}
+              onClick={runQr}
+              data-testid="membercard-qr"
+            >
+              {t.memberCard.downloadQr}
             </Button>
             <Button
               size="xs"

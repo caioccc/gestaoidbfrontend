@@ -10,11 +10,21 @@ export function memberCardFileName(name: string): string {
   return `carteirinha_${safe || 'membro'}`;
 }
 
+export function memberQrFileName(name: string): string {
+  const safe = name
+    .trim()
+    .replace(/[^a-zA-Z0-9_\- ]/g, '')
+    .replace(/\s+/g, '_');
+  return `qr_${safe || 'membro'}`;
+}
+
 export function cardValidityDate(config?: CardConfig): Date {
   const until = config?.card_valid_until;
   if (until) {
-    const [y, m, d] = until.split('-').map(Number);
-    if (y && m && d) return new Date(y, m - 1, d);
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(until);
+    if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    const br = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(until);
+    if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
   }
   return new Date(new Date().getFullYear(), 11, 31);
 }
@@ -28,6 +38,28 @@ export function formatCardDate(date: Date): string {
 export function memberPublicProfileUrl(publicHash: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   return `${origin}/perfil/${encodeURIComponent(publicHash)}`;
+}
+
+export function memberQrValidationUrl(code: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}/validar/${encodeURIComponent(code)}`;
+}
+
+export function parseQrCode(value: string): string {
+  const text = (value || '').trim();
+  if (!text) return '';
+  try {
+    const url = new URL(text);
+    const parts = url.pathname.split('/').filter(Boolean);
+    return decodeURIComponent(parts[parts.length - 1] || '')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+  } catch {
+    return text
+      .replace(/^.*\//, '')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+  }
 }
 
 export interface VcfMemberData {
@@ -96,6 +128,20 @@ export async function downloadVcf(member: VcfMemberData): Promise<void> {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+export async function downloadElementPng(
+  node: HTMLElement,
+  filename: string
+): Promise<void> {
+  await awaitCaptureReady();
+  const dataUrl = await toPng(node, { pixelRatio: 3, cacheBust: true });
+  const link = document.createElement('a');
+  link.href = dataUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 export async function downloadMemberCardPairPng(
