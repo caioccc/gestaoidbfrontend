@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { sanitizeHtml, hasHtmlTags } from '../../utils/sanitize';
+import { buildPixPayload } from '../../utils/pix';
 import type {
   FolderBlockKey,
   FolderCultoAniversarianteItem,
@@ -763,11 +764,12 @@ function BlockDizimos({ church, qrs, blocks, t }: BlockContext & { blocks: Folde
       : '';
   const pixUrl =
     church?.default_pix_key && church.default_pix_key.trim()
-      ? buildPixPayload(
-          church.default_pix_key,
-          church.name || 'Igreja',
-          (address.split(', ').pop() || 'BRASIL').slice(0, 15)
-        )
+      ? buildPixPayload({
+          key: church.default_pix_key,
+          pixType: church.default_pix_type,
+          name: church.name || 'Igreja',
+          city: church.city || 'Campina Grande',
+        })
       : '';
   const donationQrUrl = pixUrl || (blocks.links ? '' : linksUrl);
   if (!church?.default_pix_key && !donationQrUrl) return null;
@@ -1807,43 +1809,6 @@ export function absoluteUrl(url: string | null | undefined): string {
     '';
   if (!base) return value;
   return `${base.replace(/\/+$/, '')}/${value.replace(/^\/+/, '')}`;
-}
-
-function stripAccents(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function tlv(id: string, value: string): string {
-  return `${id}${value.length.toString().padStart(2, '0')}${value}`;
-}
-
-function crc16(payload: string): string {
-  let crc = 0xffff;
-  for (let i = 0; i < payload.length; i += 1) {
-    crc ^= payload.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j += 1) {
-      crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-      crc &= 0xffff;
-    }
-  }
-  return crc.toString(16).toUpperCase().padStart(4, '0');
-}
-
-function buildPixPayload(key: string, name: string, city: string): string {
-  const merchant = tlv('00', 'br.gov.bcb.pix') + tlv('01', key.trim());
-  const clean = (value: string, max: number) =>
-    stripAccents(value || '').replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, max) || 'NA';
-  const body =
-    tlv('00', '01') +
-    tlv('26', merchant) +
-    tlv('52', '0000') +
-    tlv('53', '986') +
-    tlv('58', 'BR') +
-    tlv('59', clean(name, 25)) +
-    tlv('60', clean(city, 15)) +
-    tlv('62', tlv('05', '***')) +
-    '6304';
-  return body + crc16(body);
 }
 
 function hexToRgb(hex: string): [number, number, number] | null {

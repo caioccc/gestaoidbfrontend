@@ -237,8 +237,8 @@ function ClassicCardFront({ member, churchName, config }: MemberCardFacesProps) 
             </div>
             <div style={{ display: 'flex', gap: 20 }}>
               <div>
-                <div style={labelStyle}>{t.memberCard.role}</div>
-                <div style={valueStyle}>{displayCardValue(member.profession)}</div>
+                <div style={labelStyle}>{t.memberCard.maritalStatus}</div>
+                <div style={valueStyle}>{displayCardValue(member.marital_status_display || member.marital_status)}</div>
               </div>
               <div>
                 <div style={labelStyle}>{t.memberCard.cpf}</div>
@@ -404,8 +404,8 @@ function BlackPremiumCardFront({ member, churchName, config }: MemberCardFacesPr
             </div>
             <div style={{ display: 'flex', gap: 20 }}>
               <div>
-                <div style={labelStyle}>{t.memberCard.role}</div>
-                <div style={valueStyle}>{displayCardValue(member.profession)}</div>
+                <div style={labelStyle}>{t.memberCard.maritalStatus}</div>
+                <div style={valueStyle}>{displayCardValue(member.marital_status_display || member.marital_status)}</div>
               </div>
               <div>
                 <div style={labelStyle}>{t.memberCard.cpf}</div>

@@ -804,6 +804,8 @@ export interface PublicCardPayload {
   baptism_date: string | null;
   cpf: string;
   profession: string;
+  marital_status: string;
+  marital_status_display: string;
   phone: string;
   street: string;
   number: string;

@@ -1,10 +1,19 @@
-const PIX_KEY_CODES: Record<string, string> = {
-  CNPJ: '02',
-  CPF: '01',
-  Telefone: '03',
-  'E-mail': '04',
-  'Chave Aleatória': '05',
-};
+export const PIX_TYPES = [
+  'CNPJ',
+  'CPF',
+  'Telefone',
+  'E-mail',
+  'Chave Aleatória',
+] as const;
+
+export type PixType = (typeof PIX_TYPES)[number];
+
+export type PixKeyValidationError =
+  | 'required'
+  | 'type'
+  | 'invalid'
+  | 'tooLong'
+  | null;
 
 export interface BuildPixPayloadArgs {
   key: string;
@@ -15,15 +24,27 @@ export interface BuildPixPayloadArgs {
   txid?: string;
 }
 
+const PIX_GUI = 'br.gov.bcb.pix';
+const PIX_KEY_MAX_LENGTH = 77;
+
+function utf8Length(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
 function emv(id: string, value: string): string {
-  return `${id}${String(value.length).padStart(2, '0')}${value}`;
+  const length = utf8Length(value);
+  if (length > 99) {
+    throw new Error(`Campo EMV ${id} excede 99 bytes.`);
+  }
+  return `${id}${String(length).padStart(2, '0')}${value}`;
 }
 
 function crc16(payload: string): string {
+  const bytes = new TextEncoder().encode(payload);
   let crc = 0xffff;
-  for (let i = 0; i < payload.length; i++) {
-    crc ^= payload.charCodeAt(i) << 8;
-    for (let j = 0; j < 8; j++) {
+  for (const byte of bytes) {
+    crc ^= byte << 8;
+    for (let j = 0; j < 8; j += 1) {
       crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) & 0xffff : (crc << 1) & 0xffff;
     }
   }
@@ -32,15 +53,74 @@ function crc16(payload: string): string {
 
 export function normalizePixKey(key: string, pixType?: string | null): string {
   const trimmed = (key || '').trim();
-  if (pixType === 'CPF' || pixType === 'CNPJ') {
+  if (pixType === 'CPF') {
     return trimmed.replace(/\D/g, '');
+  }
+  if (pixType === 'CNPJ') {
+    return trimmed.replace(/[^0-9A-Z]/gi, '').toUpperCase();
   }
   if (pixType === 'Telefone') {
     const digits = trimmed.replace(/\D/g, '');
-    if (digits.length >= 10 && digits.length <= 12) return `+55${digits}`;
+    if (digits.length === 12 && digits.startsWith('55')) {
+      return `+55${digits.slice(2)}`;
+    }
+    if (digits.length === 10 || digits.length === 11) {
+      return `+55${digits}`;
+    }
     return `+${digits}`;
   }
   return trimmed;
+}
+
+export function validatePixKey(
+  key: string,
+  pixType?: string | null
+): PixKeyValidationError {
+  const trimmed = (key || '').trim();
+  if (!trimmed) return 'required';
+  if (!PIX_TYPES.includes(pixType as PixType)) return 'type';
+
+  let valid = false;
+  if (pixType === 'CPF') {
+    valid = trimmed.replace(/\D/g, '').length === 11;
+  } else if (pixType === 'CNPJ') {
+    valid = /^[0-9A-Z]{14}$/i.test(trimmed.replace(/[^0-9A-Z]/gi, ''));
+  } else if (pixType === 'Telefone') {
+    const digits = trimmed.replace(/\D/g, '');
+    valid = digits.length === 10 || digits.length === 11 ||
+      (digits.length === 12 && digits.startsWith('55')) ||
+      (digits.length === 13 && digits.startsWith('55'));
+  } else if (pixType === 'E-mail') {
+    valid = trimmed.length <= 77 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  } else if (pixType === 'Chave Aleatória') {
+    valid = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$/i.test(trimmed);
+  }
+
+  if (!valid) return 'invalid';
+  if (utf8Length(normalizePixKey(trimmed, pixType)) > PIX_KEY_MAX_LENGTH) {
+    return 'tooLong';
+  }
+  return null;
+}
+
+export function sanitizePixText(value: string, maxLength: number): string {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLength) || 'NA';
+}
+
+function normalizeTxid(txid: string | undefined): string {
+  if (!txid || txid === '***') return '***';
+  return (txid || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]/g, '')
+    .toUpperCase()
+    .slice(0, 25) || '***';
 }
 
 export function buildPixPayload({
@@ -49,27 +129,30 @@ export function buildPixPayload({
   name,
   city,
   amount,
-  txid = '***',
+  txid,
 }: BuildPixPayloadArgs): string {
-  const accountCode = PIX_KEY_CODES[pixType || ''] || '05';
-  const accountInfo =
-    emv('00', 'BR.GOV.BR.PIX') + emv(accountCode, normalizePixKey(key, pixType));
+  if (validatePixKey(key, pixType)) return '';
 
+  const accountInfo =
+    emv('00', PIX_GUI) + emv('01', normalizePixKey(key, pixType));
+  const numericAmount = Number(amount);
   const amountTlv =
-    amount !== undefined && amount !== null && amount !== '' && Number(amount) > 0
-      ? emv('54', Number(amount).toFixed(2))
+    amount !== undefined && amount !== null && amount !== '' &&
+    Number.isFinite(numericAmount) && numericAmount > 0
+      ? emv('54', numericAmount.toFixed(2))
       : '';
 
-  const withoutCrc =
+  const body =
     emv('00', '01') +
     emv('26', accountInfo) +
     emv('52', '0000') +
     emv('53', '986') +
     amountTlv +
     emv('58', 'BR') +
-    emv('59', (name || '').trim().slice(0, 25)) +
-    emv('60', (city || '').trim().slice(0, 15)) +
-    emv('62', emv('05', txid));
+    emv('59', sanitizePixText(name, 25)) +
+    emv('60', sanitizePixText(city, 15)) +
+    emv('62', emv('05', normalizeTxid(txid))) +
+    '6304';
 
-  return withoutCrc + emv('63', crc16(withoutCrc));
+  return body + crc16(body);
 }
