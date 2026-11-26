@@ -19,11 +19,16 @@ import {
 import { useForm } from '@mantine/form';
 import { IconAlertTriangle, IconKey } from '@tabler/icons-react';
 import MaskedTextInput from './MaskedTextInput';
+import ChurchMap from './ChurchMap';
 import { SkeletonFormFields } from './LoadingSkeleton';
 import ImageUpload from './ImageUpload';
 import { useLanguage } from '../i18n';
 import { useFeedback } from '../hooks/useFeedback';
 import { toUpperCamelWords } from '../utils/format';
+import {
+  buildMemberGeocodeQuery,
+  geocodeMemberAddress,
+} from '../utils/memberGeocode';
 
 const UF_LIST = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -103,16 +108,7 @@ export default function ChurchProfileForm({
     },
   });
 
-  const addressQuery = [
-    form.values.street,
-    form.values.number,
-    form.values.neighborhood,
-    form.values.city,
-    form.values.state,
-  ]
-    .map((v) => v?.trim())
-    .filter(Boolean)
-    .join(', ');
+  const geocodeQuery = buildMemberGeocodeQuery(form.values);
 
   useEffect(() => {
     if (initialValues) {
@@ -231,36 +227,21 @@ export default function ChurchProfileForm({
     }
   };
 
-  const getCepGeo = async () => {
-    const clean = form.values.cep.replace(/\D/g, '');
-    if (clean.length !== 8) {
-      fb.warning(t.settingsPage.cepInvalid);
+  const handleGeocode = async () => {
+    if (!geocodeQuery) {
+      fb.warning(t.memberMap.reasonNoAddress);
       return;
     }
     setCepLoading(true);
     try {
-      const viacepCache = await fetch(`https://viacep.com.br/ws/${clean}/json/`).then((r) => r.json());
-      const uf = viacepCache.uf;
-      const city = viacepCache.localidade;
-      if (!uf || !city) {
-        fb.warning(t.settingsPage.cepNotFound);
+      const result = await geocodeMemberAddress(form.values);
+      if (result.status !== 'found' || !result.coordinates) {
+        fb.warning(t.settingsPage.geoNotFound);
         return;
       }
-      const geocode = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(`${city}, ${uf}, Brazil`)}&limit=1`
-      ).then((r) => r.json());
-      if (geocode?.[0]) {
-        form.setValues((prev) => ({
-          ...prev,
-          latitude: parseFloat(geocode[0].lat),
-          longitude: parseFloat(geocode[0].lon),
-        }));
-      } else {
-        fb.warning(t.settingsPage.geoNotFound);
-      }
+      const { latitude, longitude } = result.coordinates;
+      form.setValues((prev) => ({ ...prev, latitude, longitude }));
     } catch (err) {
-      // Busca em API externa (ViaCEP/Nominatim): o fallback proprio da tela
-      // e mais util que a mensagem generica de rede.
       fb.fromError(err, t.settingsPage.geoLookupFailed);
     } finally {
       setCepLoading(false);
@@ -422,24 +403,70 @@ export default function ChurchProfileForm({
               />
             </Group>
 
-            {addressQuery ? (
-              <Box style={{ height: 220, borderRadius: 8, overflow: 'hidden' }}>
-                <iframe
-                  title="mapa-endereco"
-                  data-testid="settings-address-map"
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(addressQuery)}&z=16&output=embed`}
-                  style={{ border: 0, width: '100%', height: '100%' }}
-                  loading="lazy"
-                />
-              </Box>
-            ) : (
-              <Text size="xs" c="dimmed">
-                Preencha o endereço (logradouro, número, bairro, cidade e UF) para exibir o mapa.
-              </Text>
-            )}
+            <Box data-testid="settings-address-map" style={{ borderRadius: 8, overflow: 'hidden' }}>
+              <ChurchMap
+                latitude={form.values.latitude}
+                longitude={form.values.longitude}
+                draggable={!readOnly}
+                onMove={
+                  readOnly
+                    ? undefined
+                    : (latitude, longitude) =>
+                        form.setValues((prev) => ({ ...prev, latitude, longitude }))
+                }
+                onPick={
+                  readOnly
+                    ? undefined
+                    : (latitude, longitude) =>
+                        form.setValues((prev) => ({ ...prev, latitude, longitude }))
+                }
+                hint={
+                  readOnly ? t.settingsPage.readOnlyHint : t.memberMap.formMapHint
+                }
+              />
+            </Box>
 
-            <Button data-testid="settings-locate" variant="light" onClick={getCepGeo} loading={cepLoading} mt="xs">
-              Localizar no mapa
+            <Group justify="space-between" wrap="wrap" gap="xs">
+              <Text
+                size="xs"
+                c={
+                  form.values.latitude == null || form.values.longitude == null
+                    ? 'dimmed'
+                    : 'blue'
+                }
+              >
+                {form.values.latitude == null || form.values.longitude == null
+                  ? t.memberMap.coordsNone
+                  : `${t.memberMap.coordsLabel}: ${form.values.latitude.toFixed(5)}, ${form.values.longitude.toFixed(5)}`}
+              </Text>
+              {!readOnly &&
+                form.values.latitude != null &&
+                form.values.longitude != null && (
+                  <Button
+                    data-testid="settings-clear-point"
+                    variant="subtle"
+                    size="xs"
+                    onClick={() =>
+                      form.setValues((prev) => ({
+                        ...prev,
+                        latitude: null,
+                        longitude: null,
+                      }))
+                    }
+                  >
+                    {t.memberMap.clearPoint}
+                  </Button>
+                )}
+            </Group>
+
+            <Button
+              data-testid="settings-locate"
+              variant="light"
+              onClick={handleGeocode}
+              loading={cepLoading}
+              mt="xs"
+            >
+              {t.memberMap.geocodeChurch}
             </Button>
           </Stack>
 
