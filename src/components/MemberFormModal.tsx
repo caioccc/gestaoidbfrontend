@@ -19,7 +19,8 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { DateInput } from '@mantine/dates';
-import { IconPencil } from '@tabler/icons-react';
+import { IconPencil, IconX } from '@tabler/icons-react';
+import ChurchMap from './ChurchMap';
 import ImageUpload from './ImageUpload';
 import MaskedTextInput from './MaskedTextInput';
 import MemberCard from './MemberCard';
@@ -87,6 +88,8 @@ export interface MemberFormValues {
   city: string;
   state: string;
   cep: string;
+  latitude: number | null;
+  longitude: number | null;
   relatives: RelativeForm[];
 }
 
@@ -119,6 +122,8 @@ const EMPTY_FORM: MemberFormValues = {
   city: '',
   state: '',
   cep: '',
+  latitude: null,
+  longitude: null,
   relatives: [],
 };
 
@@ -199,6 +204,8 @@ export default function MemberFormModal({
     city: m.city || '',
     state: m.state || '',
     cep: m.cep || '',
+    latitude: typeof m.latitude === 'number' ? m.latitude : null,
+    longitude: typeof m.longitude === 'number' ? m.longitude : null,
     relatives: (m.relatives || []).map((r) => ({
       id: r.id,
       name: r.name,
@@ -390,6 +397,8 @@ export default function MemberFormModal({
     city: toUpperCamelWords(form.values.city.trim()),
     state: form.values.state.trim().toUpperCase(),
     cep: form.values.cep.replace(/\D/g, ''),
+    latitude: form.values.latitude,
+    longitude: form.values.longitude,
     relatives: form.values.relatives.map((r) => {
       const out: Record<string, unknown> = {
         name: toUpperCamelWords(r.name),
@@ -736,9 +745,57 @@ export default function MemberFormModal({
                     />
                   </Grid.Col>
                 </Grid>
+                <Stack gap="xs" mt="md">
+                  <Group justify="space-between" align="center" wrap="wrap">
+                    <Text fw={600} size="sm">
+                      {t.memberMap.formTitle}
+                    </Text>
+                    {!viewOnly &&
+                      form.values.latitude !== null &&
+                      form.values.longitude !== null && (
+                        <Button
+                          size="xs"
+                          variant="subtle"
+                          color="gray"
+                          leftSection={<IconX size={13} />}
+                          onClick={() => {
+                            form.setFieldValue('latitude', null);
+                            form.setFieldValue('longitude', null);
+                          }}
+                        >
+                          {t.memberMap.clearPoint}
+                        </Button>
+                      )}
+                  </Group>
+                  <Text size="xs" c="dimmed">
+                    {t.memberMap.formHint}
+                  </Text>
+                  <Text size="xs" c={form.values.latitude === null ? 'dimmed' : 'blue'}>
+                    {form.values.latitude === null ||
+                    form.values.longitude === null
+                      ? t.memberMap.coordsNone
+                      : `${t.memberMap.coordsLabel}: ${form.values.latitude.toFixed(5)}, ${form.values.longitude.toFixed(5)}`}
+                  </Text>
+                  {!viewOnly && (
+                    <ChurchMap
+                      latitude={form.values.latitude}
+                      longitude={form.values.longitude}
+                      draggable
+                      onMove={(lat, lng) => {
+                        form.setFieldValue('latitude', lat);
+                        form.setFieldValue('longitude', lng);
+                      }}
+                      onPick={(lat, lng) => {
+                        form.setFieldValue('latitude', lat);
+                        form.setFieldValue('longitude', lng);
+                      }}
+                      hint={t.memberMap.formMapHint}
+                    />
+                  )}
+                </Stack>
               </Stack>
-            </ScrollArea.Autosize>
-          </Stepper.Step>
+              </ScrollArea.Autosize>
+            </Stepper.Step>
 
           <Stepper.Step label={t.membersPage.stepMinistry}>
             <ScrollArea.Autosize mah={440} type="auto">

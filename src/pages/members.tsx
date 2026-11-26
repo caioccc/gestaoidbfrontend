@@ -53,6 +53,7 @@ import {
   IconFileSpreadsheet,
   IconAdjustmentsHorizontal,
   IconEye,
+  IconMapPin,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
@@ -66,8 +67,8 @@ import {
   SkeletonMobileCards,
   SkeletonTableCells,
 } from '../components/LoadingSkeleton';
-import MemberDocumentsModal from '../components/MemberDocumentsModal';
 import MemberImportTab from '../components/MemberImportTab';
+import MemberLocationsTab from '../components/MemberLocationsTab';
 import CardConfigTab from '../components/CardConfigTab';
 import RegistrationAnalysisBadges from '../components/RegistrationAnalysisBadges';
 import TransfersTab from '../components/TransfersTab';
@@ -114,7 +115,6 @@ function MembersTab({
   const [waMember, setWaMember] = useState<Member | null>(null);
   const [waMessage, setWaMessage] = useState<string | undefined>(undefined);
   const [linkLoadingId, setLinkLoadingId] = useState<number | null>(null);
-  const [docsMember, setDocsMember] = useState<Member | null>(null);
   const [toDelete, setToDelete] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -538,13 +538,6 @@ function MembersTab({
         {linkLoadingId === m.id
           ? t.publicForm.submitting
           : t.membersPage.sendRegistrationLink}
-      </Menu.Item>
-      <Menu.Item
-        leftSection={<IconFileDescription size={14} />}
-        onClick={() => setDocsMember(m)}
-        data-testid={`member-docs-${m.id}`}
-      >
-        {t.documents.title}
       </Menu.Item>
       <Menu.Divider />
       <Menu.Item
@@ -1294,12 +1287,6 @@ function MembersTab({
         churchContact={churchContact}
       />
 
-      <MemberDocumentsModal
-        member={docsMember}
-        opened={!!docsMember}
-        onClose={() => setDocsMember(null)}
-      />
-
       <SendWhatsAppModal
         opened={!!waMember}
         onClose={() => {
@@ -1607,6 +1594,7 @@ const VALID_MEMBERS_TABS = [
   'config',
   'transfers',
   'submissions',
+  'locations',
   'import',
 ];
 
@@ -1701,6 +1689,13 @@ export default function MembersPage() {
                 {t.memberSubmissions.tabTitle}
               </Tabs.Tab>
               <Tabs.Tab
+                value="locations"
+                data-testid="tab-locations"
+                leftSection={<IconMapPin size={16} />}
+              >
+                {t.memberMap.tabTitle}
+              </Tabs.Tab>
+              <Tabs.Tab
                 value="import"
                 data-testid="tab-import"
                 leftSection={<IconFileSpreadsheet size={16} />}
@@ -1729,6 +1724,8 @@ export default function MembersPage() {
           <TransfersTab />
         ) : tab === 'submissions' ? (
           <SubmissionsTab />
+        ) : tab === 'locations' ? (
+          <MemberLocationsTab />
         ) : (
           <MemberImportTab onImported={() => setImportVersion((v) => v + 1)} />
         )}

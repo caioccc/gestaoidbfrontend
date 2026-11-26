@@ -87,30 +87,34 @@ export default function ChurchMap({
   }, []);
 
   useEffect(() => {
-    if (
-      mapRef.current &&
-      typeof latitude === 'number' &&
-      typeof longitude === 'number'
-    ) {
-      mapRef.current.setView([latitude, longitude]);
-      const map = mapRef.current;
-      const L = leafletRef.current;
-      let marker = markerRef.current;
-      if (!marker) {
-        marker = L.marker([latitude, longitude], {
-          icon: iconRef.current,
-          draggable,
-        }).addTo(map);
-        markerRef.current = marker;
-        if (draggable && onMove) {
-          marker.on('dragend', () => {
-            const pos = marker.getLatLng();
-            onMove(pos.lat, pos.lng);
-          });
-        }
-      } else {
-        marker.setLatLng([latitude, longitude]);
+    const map = mapRef.current;
+    const L = leafletRef.current;
+    if (!map || !L) return;
+    const hasCoords =
+      typeof latitude === 'number' && typeof longitude === 'number';
+    if (!hasCoords) {
+      if (markerRef.current) {
+        map.removeLayer(markerRef.current);
+        markerRef.current = null;
       }
+      return;
+    }
+    map.setView([latitude, longitude]);
+    let marker = markerRef.current;
+    if (!marker) {
+      marker = L.marker([latitude, longitude], {
+        icon: iconRef.current,
+        draggable,
+      }).addTo(map);
+      markerRef.current = marker;
+      if (draggable && onMove) {
+        marker.on('dragend', () => {
+          const pos = marker.getLatLng();
+          onMove(pos.lat, pos.lng);
+        });
+      }
+    } else {
+      marker.setLatLng([latitude, longitude]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latitude, longitude]);

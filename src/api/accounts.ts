@@ -20,6 +20,7 @@ import {
   Member,
   MemberDocument,
   MemberInvite,
+  MemberLocationsPayload,
   MemberQrRegenerateResponse,
   MemberImportInspection,
   MemberImportResult,
@@ -856,6 +857,9 @@ export const accountsApi = {
         params: { month, ...(status ? { status } : {}) },
       })
       .then((r) => r.data),
+
+  memberLocations: (): Promise<MemberLocationsPayload> =>
+    apiClient.get('/api/accounts/members/locations/').then((r) => r.data),
 
   calendarPublicLink: (): Promise<CalendarPublicLink> =>
     apiClient.get('/api/accounts/calendar/public-link/').then((r) => r.data),

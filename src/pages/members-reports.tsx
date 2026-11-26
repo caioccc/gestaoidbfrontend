@@ -29,6 +29,7 @@ import {
   IconCalendar,
   IconChartPie,
   IconDownload,
+  IconPhone,
   IconUsersGroup,
 } from '@tabler/icons-react';
 import PageHeader from '../components/PageHeader';
@@ -594,6 +595,10 @@ function exactAge(birthDate: string | null): number | null {
   return age;
 }
 
+function formatAgeLabel(age: number | null, suffix: string): string {
+  return age === null ? '—' : `${age} ${suffix}`;
+}
+
 function BirthdaysTab({
   members,
   t,
@@ -652,7 +657,9 @@ function BirthdaysTab({
         [
           String(new Date(`${m.birth_date}T00:00:00`).getDate()),
           m.name,
-          exactAge(m.birth_date) ?? '',
+          exactAge(m.birth_date) !== null
+            ? `${exactAge(m.birth_date)} ${t.birthdays.yearsOld}`
+            : '',
           m.phone,
           m.email,
           m.status_display,
@@ -758,10 +765,29 @@ function BirthdaysTab({
                               )}
                             </Group>
                           </Table.Td>
+                          <Table.Td>{formatAgeLabel(age, t.birthdays.yearsOld)}</Table.Td>
                           <Table.Td>
-                            {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
+                            <Group gap={4} wrap="nowrap">
+                              <Text size="sm">{m.phone || '—'}</Text>
+                              {m.phone && (
+                                <Tooltip label={t.membersPage.callMember}>
+                                  <ActionIcon
+                                    component="a"
+                                    href={`tel:${m.phone.replace(/\D/g, '')}`}
+                                    variant="light"
+                                    color="blue"
+                                    size="sm"
+                                    radius="md"
+                                    aria-label={t.membersPage.callMember}
+                                    onClick={(e) => e.stopPropagation()}
+                                    data-testid={`birthday-call-${m.id}`}
+                                  >
+                                    <IconPhone size={14} />
+                                  </ActionIcon>
+                                </Tooltip>
+                              )}
+                            </Group>
                           </Table.Td>
-                          <Table.Td>{m.phone || '—'}</Table.Td>
                           <Table.Td>{m.email || '—'}</Table.Td>
                           <Table.Td>
                             <Badge
@@ -832,11 +858,30 @@ function BirthdaysTab({
                       </Text>
                     )}
                     <Text size="sm" c="dimmed" truncate>
-                      {age !== null ? `${age} ${t.birthdays.makingYears}` : '—'}
+                      {formatAgeLabel(age, t.birthdays.yearsOld)}
                     </Text>
-                    <Text size="sm" c="dimmed" truncate>
-                      {m.phone || '—'}
-                    </Text>
+                    <Group gap={6} wrap="nowrap">
+                      <Text size="sm" c="dimmed" truncate>
+                        {m.phone || '—'}
+                      </Text>
+                      {m.phone && (
+                        <Tooltip label={t.membersPage.callMember}>
+                          <ActionIcon
+                            component="a"
+                            href={`tel:${m.phone.replace(/\D/g, '')}`}
+                            variant="light"
+                            color="blue"
+                            size="sm"
+                            radius="md"
+                            aria-label={t.membersPage.callMember}
+                            onClick={(e) => e.stopPropagation()}
+                            data-testid={`birthday-call-mobile-${m.id}`}
+                          >
+                            <IconPhone size={14} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </Group>
                     <Text size="xs" c="dimmed" truncate>
                       {m.email || '—'}
                     </Text>

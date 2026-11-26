@@ -707,6 +707,8 @@ export interface Member {
   city: string;
   state: string;
   cep: string;
+  latitude?: number | null;
+  longitude?: number | null;
   relatives: MemberRelative[];
   how_known?: string;
   wants_visit?: boolean;
@@ -727,6 +729,45 @@ export interface Member {
   analysis?: RegistrationAnalysis;
   created_at: string;
   updated_at: string;
+}
+
+export interface MemberLocationMember {
+  id: number;
+  name: string;
+  phone?: string;
+  card_number?: string | null;
+  status: MemberStatus;
+  status_display: string;
+  address: string;
+  location_source?: 'manual' | 'geocoded';
+  reason?: 'no_address' | 'not_found' | 'quota';
+}
+
+export interface MemberLocationPoint {
+  key: string;
+  latitude: number;
+  longitude: number;
+  address: string;
+  source?: 'manual' | 'geocoded' | 'mixed';
+  members: MemberLocationMember[];
+}
+
+export interface MemberLocationsPayload {
+  church: {
+    id: number;
+    name: string;
+    latitude?: number | null;
+    longitude?: number | null;
+    address: string;
+  };
+  points: MemberLocationPoint[];
+  missing: MemberLocationMember[];
+  counts: {
+    members: number;
+    points: number;
+    missing: number;
+    geocoded: number;
+  };
 }
 
 export interface PublicVisitorMeta {

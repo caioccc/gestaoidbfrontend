@@ -1,0 +1,14 @@
+.memberRouteLine {
+  stroke-dasharray: 12 8;
+  animation: memberRouteFlow 1s linear infinite;
+}
+
+.fallback {
+  animation-duration: 0.7s;
+}
+
+@keyframes memberRouteFlow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
