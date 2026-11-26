@@ -51,6 +51,7 @@ import { churchLinksApi } from '../api/accounts';
 import { useLanguage } from '../i18n';
 import { buildLinksUrl, buildVisitanteUrl, copyToClipboard } from '../utils/share';
 import { useFeedback } from '../hooks/useFeedback';
+import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import QrShareCard, { downloadQrPng } from '../components/QrShareCard';
 import type { ChurchLinksConfig, ChurchPublicLink } from '../types';
 
@@ -59,6 +60,7 @@ const PIX_TYPES = ['CNPJ', 'CPF', 'Telefone', 'E-mail', 'Chave Aleatória'];
 export default function LinksPage() {
   const { t } = useLanguage();
   const fb = useFeedback();
+  const { church } = useCurrentChurch();
   const [links, setLinks] = useState<ChurchPublicLink[]>([]);
   const [config, setConfig] = useState<ChurchLinksConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -394,6 +396,8 @@ export default function LinksPage() {
           opened={modalOpened}
           initial={editing}
           defaultPix={defaultPix}
+          churchName={church?.name}
+          churchCity={church?.city}
           onClose={() => setModalOpened(false)}
           onSaved={handleSaved}
         />

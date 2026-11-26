@@ -18,7 +18,7 @@ import { IconCopy, IconSearch, IconQrcode } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import { toSentenceCase, toUpperCamelWords } from '../utils/format';
 import { copyToClipboard } from '../utils/share';
-import { buildPixPayload } from '../utils/pix';
+import { buildPixPayload, validatePixKey } from '../utils/pix';
 import MaskedTextInput from './MaskedTextInput';
 import QrShareCard from './QrShareCard';
 import type { ChurchLinkType, ChurchPixAmountMode, ChurchPublicLink } from '../types';
@@ -93,6 +93,8 @@ interface LinkModalProps {
   opened: boolean;
   initial?: ChurchPublicLink | null;
   defaultPix?: { key?: string | null; type?: string | null } | null;
+  churchName?: string | null;
+  churchCity?: string | null;
   onClose: () => void;
   onSaved: (payload: Partial<ChurchPublicLink>) => void;
 }
@@ -101,6 +103,8 @@ export default function LinkModal({
   opened,
   initial,
   defaultPix,
+  churchName,
+  churchCity,
   onClose,
   onSaved,
 }: LinkModalProps) {
@@ -108,6 +112,12 @@ export default function LinkModal({
   const fb = useFeedback();
   const [gridPreview, setGridPreview] = useState<number | null>(null);
   const [openAmount, setOpenAmount] = useState<string>('');
+  const pixKeyErrors = {
+    required: t.linksPage.requiredPix,
+    type: t.linksPage.pixKeyTypeRequired,
+    invalid: t.linksPage.pixKeyInvalid,
+    tooLong: t.linksPage.pixKeyTooLong,
+  };
 
   const form = useForm<LinkFormValues>({
     initialValues: { ...EMPTY_VALUES },
@@ -133,9 +143,14 @@ export default function LinkModal({
         if (!/^https?:\/\/\S+$/i.test(trimmed)) return t.linksPage.invalidUrl;
         return null;
       },
-      pix_key: (v, values) =>
-        values.link_type === 'PIX' && !v.trim()
-          ? t.linksPage.requiredPix
+      pix_key: (v, values) => {
+        if (values.link_type !== 'PIX') return null;
+        const error = validatePixKey(v, values.pix_type);
+        return error ? pixKeyErrors[error] : null;
+      },
+      pix_type: (v, values) =>
+        values.link_type === 'PIX' && !v
+          ? t.linksPage.pixKeyTypeRequired
           : null,
       pix_fixed_amount: (v, values) =>
         values.link_type === 'PIX' &&
@@ -247,8 +262,8 @@ export default function LinkModal({
     ? buildPixPayload({
         key: form.values.pix_key,
         pixType: form.values.pix_type,
-        name: form.values.title.trim(),
-        city: 'N/A',
+        name: churchName || form.values.title.trim(),
+        city: churchCity || '',
         amount: previewAmount,
       })
     : '';
