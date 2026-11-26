@@ -20,6 +20,8 @@ import {
   Member,
   MemberDocument,
   MemberInvite,
+  MemberGeocodeBatchPayload,
+  MemberGeocodeResult,
   MemberLocationsPayload,
   MemberQrRegenerateResponse,
   MemberImportInspection,
@@ -860,6 +862,25 @@ export const accountsApi = {
 
   memberLocations: (): Promise<MemberLocationsPayload> =>
     apiClient.get('/api/accounts/members/locations/').then((r) => r.data),
+
+  geocodeMember: (
+    id: number,
+    force = false
+  ): Promise<MemberGeocodeResult> =>
+    apiClient
+      .post(`/api/accounts/members/${id}/geocode/`, { force })
+      .then((r) => r.data),
+
+  geocodeMembers: (
+    memberIds: number[],
+    force = false
+  ): Promise<MemberGeocodeBatchPayload> =>
+    apiClient
+      .post('/api/accounts/members/locations/geocode/', {
+        member_ids: memberIds,
+        force,
+      })
+      .then((r) => r.data),
 
   calendarPublicLink: (): Promise<CalendarPublicLink> =>
     apiClient.get('/api/accounts/calendar/public-link/').then((r) => r.data),

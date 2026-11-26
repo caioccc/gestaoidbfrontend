@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActionIcon,
   Button,
@@ -46,6 +46,10 @@ import {
 } from '../../utils/format';
 import type { Kinship, PublicFormMeta, PublicFormPrefill } from '../../types';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import {
+  buildMemberGeocodeQuery,
+  geocodeMemberAddress,
+} from '../../utils/memberGeocode';
 
 interface RelativeForm {
   name: string;
@@ -78,6 +82,9 @@ interface FormValues {
   city: string;
   state: string;
   cep: string;
+  latitude: number | null;
+  longitude: number | null;
+  location_source: 'UNKNOWN' | 'MANUAL' | 'GEOCODED';
   notes: string;
   relatives: RelativeForm[];
 }
@@ -106,6 +113,9 @@ const EMPTY_FORM: FormValues = {
   city: '',
   state: '',
   cep: '',
+  latitude: null,
+  longitude: null,
+  location_source: 'UNKNOWN',
   notes: '',
   relatives: [],
 };
@@ -149,6 +159,9 @@ const buildCompletionValues = (prefill: PublicFormPrefill): FormValues => ({
   city: prefill.city || '',
   state: prefill.state || '',
   cep: maskCep(prefill.cep || ''),
+  latitude: typeof prefill.latitude === 'number' ? prefill.latitude : null,
+  longitude: typeof prefill.longitude === 'number' ? prefill.longitude : null,
+  location_source: prefill.location_source || 'UNKNOWN',
   notes: prefill.notes || '',
   relatives: (prefill.relatives || []).map((relative) => ({
     name: relative.name || '',
@@ -172,6 +185,8 @@ export default function PublicMemberFormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [step, setStep] = useState(0);
   const [cepLoading, setCepLoading] = useState(false);
+  const geoSeqRef = useRef(0);
+  const geoAddressRef = useRef('');
 
   const form = useForm<FormValues>({
     initialValues: EMPTY_FORM,
@@ -195,7 +210,10 @@ export default function PublicMemberFormPage() {
         if (!active) return;
         setMeta(data);
         if (data.mode === 'completion' && data.prefill) {
-          form.setValues(buildCompletionValues(data.prefill));
+          const initial = buildCompletionValues(data.prefill);
+          form.setValues(initial);
+          geoSeqRef.current += 1;
+          geoAddressRef.current = buildMemberGeocodeQuery(initial);
         } else if (data.type === 'member' && data.member_name) {
           form.setFieldValue('name', data.member_name);
         }
@@ -289,6 +307,33 @@ export default function PublicMemberFormPage() {
     }
   };
 
+  const maybeGeocodeAddressStep = () => {
+    const key = buildMemberGeocodeQuery(form.values);
+    if (!key) return;
+    if (
+      geoAddressRef.current === key &&
+      form.values.latitude !== null &&
+      form.values.longitude !== null
+    ) {
+      return;
+    }
+    if (
+      form.values.location_source === 'MANUAL' &&
+      form.values.latitude !== null &&
+      form.values.longitude !== null
+    ) {
+      return;
+    }
+    geoAddressRef.current = key;
+    const seq = ++geoSeqRef.current;
+    void geocodeMemberAddress(form.values).then((coords) => {
+      if (!coords || seq !== geoSeqRef.current) return;
+      form.setFieldValue('latitude', coords.latitude);
+      form.setFieldValue('longitude', coords.longitude);
+      form.setFieldValue('location_source', 'GEOCODED');
+    });
+  };
+
   const next = () => {
     let valid = true;
     const res = form.validate();
@@ -340,7 +385,10 @@ export default function PublicMemberFormPage() {
       }
     }
 
-    if (valid) setStep((s) => Math.min(s + 1, 3));
+    if (valid) {
+      if (step === 2) maybeGeocodeAddressStep();
+      setStep((s) => Math.min(s + 1, 3));
+    }
   };
 
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -375,6 +423,9 @@ export default function PublicMemberFormPage() {
     city: toUpperCamelWords(form.values.city.trim()),
     state: form.values.state.trim().toUpperCase(),
     cep: form.values.cep.replace(/\D/g, ''),
+    latitude: form.values.latitude,
+    longitude: form.values.longitude,
+    location_source: form.values.location_source,
     notes: toSentenceCase(form.values.notes),
     relatives: form.values.relatives
       .filter(
@@ -519,6 +570,8 @@ export default function PublicMemberFormPage() {
                 onClick={() => {
                   setSubmitted(false);
                   form.setValues(EMPTY_FORM);
+                  geoSeqRef.current += 1;
+                  geoAddressRef.current = '';
                   form.clearErrors();
                   setStep(0);
                 }}

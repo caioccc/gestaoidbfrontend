@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActionIcon,
   Button,
@@ -50,6 +50,10 @@ import type {
 import type { ChurchContact } from '../hooks/useChurchCardConfig';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useFeedback } from '../hooks/useFeedback';
+import {
+  buildMemberGeocodeQuery,
+  geocodeMemberAddress,
+} from '../utils/memberGeocode';
 
 interface RelativeForm {
   id?: number;
@@ -90,6 +94,7 @@ export interface MemberFormValues {
   cep: string;
   latitude: number | null;
   longitude: number | null;
+  location_source: 'UNKNOWN' | 'MANUAL' | 'GEOCODED';
   relatives: RelativeForm[];
 }
 
@@ -124,6 +129,7 @@ const EMPTY_FORM: MemberFormValues = {
   cep: '',
   latitude: null,
   longitude: null,
+  location_source: 'UNKNOWN',
   relatives: [],
 };
 
@@ -161,6 +167,8 @@ export default function MemberFormModal({
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [cepLoading, setCepLoading] = useState(false);
+  const geoSeqRef = useRef(0);
+  const geoAddressRef = useRef('');
 
   const isoToDate = (iso: string): Date | null => {
     const [y, m, d] = iso.split('-').map(Number);
@@ -206,6 +214,7 @@ export default function MemberFormModal({
     cep: m.cep || '',
     latitude: typeof m.latitude === 'number' ? m.latitude : null,
     longitude: typeof m.longitude === 'number' ? m.longitude : null,
+    location_source: m.location_source || 'UNKNOWN',
     relatives: (m.relatives || []).map((r) => ({
       id: r.id,
       name: r.name,
@@ -263,11 +272,10 @@ export default function MemberFormModal({
   useEffect(() => {
     if (!opened) return;
     setStep(0);
-    if (member) {
-      form.setValues(fromMember(member));
-    } else {
-      form.setValues(EMPTY_FORM);
-    }
+    geoSeqRef.current += 1;
+    const initial = member ? fromMember(member) : EMPTY_FORM;
+    form.setValues(initial);
+    geoAddressRef.current = buildMemberGeocodeQuery(initial);
     form.resetDirty();
     form.clearErrors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -327,6 +335,33 @@ export default function MemberFormModal({
     );
   };
 
+  const maybeGeocodeAddressStep = () => {
+    const key = buildMemberGeocodeQuery(form.values);
+    if (!key) return;
+    if (
+      geoAddressRef.current === key &&
+      form.values.latitude !== null &&
+      form.values.longitude !== null
+    ) {
+      return;
+    }
+    if (
+      form.values.location_source === 'MANUAL' &&
+      form.values.latitude !== null &&
+      form.values.longitude !== null
+    ) {
+      return;
+    }
+    geoAddressRef.current = key;
+    const seq = ++geoSeqRef.current;
+    void geocodeMemberAddress(form.values).then((coords) => {
+      if (!coords || seq !== geoSeqRef.current) return;
+      form.setFieldValue('latitude', coords.latitude);
+      form.setFieldValue('longitude', coords.longitude);
+      form.setFieldValue('location_source', 'GEOCODED');
+    });
+  };
+
   const next = () => {
     let valid = true;
     if (step === 0) {
@@ -361,7 +396,10 @@ export default function MemberFormModal({
         }
       });
     }
-    if (valid) setStep((s) => Math.min(s + 1, 3));
+    if (valid) {
+      if (step === 0) maybeGeocodeAddressStep();
+      setStep((s) => Math.min(s + 1, 3));
+    }
   };
 
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -399,6 +437,7 @@ export default function MemberFormModal({
     cep: form.values.cep.replace(/\D/g, ''),
     latitude: form.values.latitude,
     longitude: form.values.longitude,
+    location_source: form.values.location_source,
     relatives: form.values.relatives.map((r) => {
       const out: Record<string, unknown> = {
         name: toUpperCamelWords(r.name),
@@ -761,6 +800,8 @@ export default function MemberFormModal({
                           onClick={() => {
                             form.setFieldValue('latitude', null);
                             form.setFieldValue('longitude', null);
+                            form.setFieldValue('location_source', 'UNKNOWN');
+                            geoAddressRef.current = '';
                           }}
                         >
                           {t.memberMap.clearPoint}
@@ -784,10 +825,12 @@ export default function MemberFormModal({
                       onMove={(lat, lng) => {
                         form.setFieldValue('latitude', lat);
                         form.setFieldValue('longitude', lng);
+                        form.setFieldValue('location_source', 'MANUAL');
                       }}
                       onPick={(lat, lng) => {
                         form.setFieldValue('latitude', lat);
                         form.setFieldValue('longitude', lng);
+                        form.setFieldValue('location_source', 'MANUAL');
                       }}
                       hint={t.memberMap.formMapHint}
                     />

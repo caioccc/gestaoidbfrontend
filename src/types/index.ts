@@ -709,6 +709,9 @@ export interface Member {
   cep: string;
   latitude?: number | null;
   longitude?: number | null;
+  location_source?: 'UNKNOWN' | 'MANUAL' | 'GEOCODED';
+  geocode_status?: 'PENDING' | 'FOUND' | 'NOT_FOUND' | 'ERROR';
+  geocoded_at?: string | null;
   relatives: MemberRelative[];
   how_known?: string;
   wants_visit?: boolean;
@@ -740,7 +743,8 @@ export interface MemberLocationMember {
   status_display: string;
   address: string;
   location_source?: 'manual' | 'geocoded';
-  reason?: 'no_address' | 'not_found' | 'quota';
+  geocode_status?: 'PENDING' | 'FOUND' | 'NOT_FOUND' | 'ERROR';
+  reason?: 'no_address' | 'not_found' | 'pending' | 'error' | 'quota';
 }
 
 export interface MemberLocationPoint {
@@ -767,7 +771,29 @@ export interface MemberLocationsPayload {
     points: number;
     missing: number;
     geocoded: number;
+    withAddress: number;
+    pending: number;
+    ready: boolean;
   };
+}
+
+export type MemberGeocodeStatus =
+  | 'located'
+  | 'already_located'
+  | 'not_found'
+  | 'no_address'
+  | 'error';
+
+export interface MemberGeocodeResult {
+  id: number;
+  status: MemberGeocodeStatus;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface MemberGeocodeBatchPayload {
+  results: MemberGeocodeResult[];
+  counts: Record<MemberGeocodeStatus, number>;
 }
 
 export interface PublicVisitorMeta {
@@ -916,6 +942,9 @@ export interface PublicFormPrefill {
   city: string;
   state: string;
   cep: string;
+  latitude: number | null;
+  longitude: number | null;
+  location_source: 'UNKNOWN' | 'MANUAL' | 'GEOCODED';
   notes: string;
   photo: string | null;
   relatives: PublicFormPrefillRelative[];

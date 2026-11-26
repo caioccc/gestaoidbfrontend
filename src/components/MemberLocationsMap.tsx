@@ -47,6 +47,7 @@ export default function MemberLocationsMap({
   const overlayRef = useRef<any>(null);
   const geocoderMarkerRef = useRef<any>(null);
   const routeControlRef = useRef<any>(null);
+  const routingRef = useRef<any>(null);
   const fallbackLineRef = useRef<any>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const onEditRef = useRef(onEdit);
@@ -77,14 +78,19 @@ export default function MemberLocationsMap({
     let disposed = false;
     const init = async () => {
       if (disposed || !containerRef.current) return;
-      const L = await import('leaflet');
+      const LeafletModule = await import('leaflet');
+      const L = (LeafletModule as any).default ?? LeafletModule;
       if (disposed || !containerRef.current) return;
+      if (typeof window !== 'undefined') (window as any).L = L;
       await import('leaflet/dist/leaflet.css');
       await import('leaflet-control-geocoder/dist/Control.Geocoder.css');
       await import('leaflet-routing-machine/dist/leaflet-routing-machine.css');
       await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
       await import('leaflet.markercluster');
-      await import('leaflet-routing-machine');
+      const RoutingModule: any = await import('leaflet-routing-machine');
+      const Routing = RoutingModule.default ?? RoutingModule;
+      if (!L.Routing && Routing?.control) L.Routing = Routing;
+      routingRef.current = L.Routing ?? Routing;
       const GeocoderModule = await import('leaflet-control-geocoder');
       if (disposed || !containerRef.current) return;
 
@@ -153,6 +159,7 @@ export default function MemberLocationsMap({
         overlayRef.current = null;
         geocoderMarkerRef.current = null;
         routeControlRef.current = null;
+        routingRef.current = null;
         fallbackLineRef.current = null;
       }
     };
@@ -227,6 +234,14 @@ export default function MemberLocationsMap({
           onEditRef.current
         )
       );
+      marker.on('click', () => {
+        if (!canRoute) return;
+        setRouteTarget({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          label: point.address || point.members[0]?.name || '',
+        });
+      });
       marker.addTo(cluster);
     });
 
@@ -241,7 +256,8 @@ export default function MemberLocationsMap({
   useEffect(() => {
     const map = mapRef.current;
     const L = leafletRef.current;
-    if (!ready || !map || !L) return;
+    const Routing = routingRef.current;
+    if (!ready || !map || !L || !Routing) return;
 
     if (routeControlRef.current) {
       map.removeControl(routeControlRef.current);
@@ -261,11 +277,11 @@ export default function MemberLocationsMap({
       return;
     }
 
-    const router = L.Routing.osrmv1({
+    const router = Routing.osrmv1({
       serviceUrl: 'https://router.project-osrm.org/route/v1',
       suppressDemoServerWarning: true,
     });
-    const control = L.Routing.control({
+    const control = Routing.control({
       waypoints: [
         L.latLng(churchLat, churchLng),
         L.latLng(routeTarget.latitude, routeTarget.longitude),

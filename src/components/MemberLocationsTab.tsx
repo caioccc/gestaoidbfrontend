@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionIcon,
   Anchor,
@@ -52,29 +52,87 @@ export default function MemberLocationsTab() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [editing, setEditing] = useState<Member | null>(null);
+  const [geocodingIds, setGeocodingIds] = useState<number[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const loadSeqRef = useRef(0);
+  const batchStartedRef = useRef(false);
 
   const load = useCallback(async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     setError('');
     try {
-      const [locations, memberList, areaList] = await Promise.all([
+      const [locations, areaList] = await Promise.all([
         accountsApi.memberLocations(),
-        church ? accountsApi.churchMembers(church.id) : Promise.resolve([]),
         accountsApi.ministryAreas(),
       ]);
+      if (seq !== loadSeqRef.current) return;
       setData(locations);
-      setMembers(memberList);
       setAreas(areaList);
     } catch {
-      setError(t.memberMap.loadError);
+      if (seq === loadSeqRef.current) setError(t.memberMap.loadError);
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
-  }, [church, t.memberMap.loadError]);
+  }, [t.memberMap.loadError]);
+
+  const refreshMembers = useCallback(async () => {
+    if (!church?.id) return;
+    try {
+      setMembers(await accountsApi.churchMembers(church.id));
+    } catch {
+      return;
+    }
+  }, [church?.id]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  useEffect(() => {
+    batchStartedRef.current = false;
+    setData(null);
+    if (!church?.id) return;
+    let active = true;
+    accountsApi
+      .churchMembers(church.id)
+      .then((list) => {
+        if (active) setMembers(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [church?.id]);
+
+  useEffect(() => {
+    if (!data || batchStartedRef.current) return;
+    batchStartedRef.current = true;
+    const ids = data.missing
+      .filter(
+        (member) =>
+          member.reason !== 'no_address' && member.reason !== 'not_found'
+      )
+      .map((member) => member.id)
+      .slice(0, 12);
+    if (!ids.length) return;
+    let active = true;
+    setBatchRunning(true);
+    void accountsApi
+      .geocodeMembers(ids)
+      .then(async () => {
+        if (!active) return;
+        await load();
+        await refreshMembers();
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setBatchRunning(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [data, load, refreshMembers]);
 
   const filtered = useMemo(() => {
     if (!data) return null;
@@ -118,7 +176,43 @@ export default function MemberLocationsTab() {
     }
     const saved = await accountsApi.updateMember(editing.id, payload);
     await load();
+    await refreshMembers();
     return saved;
+  };
+
+  const pendingIds = (data?.missing || [])
+    .filter(
+      (member) =>
+        member.reason !== 'no_address' && member.reason !== 'not_found'
+    )
+    .map((member) => member.id);
+
+  const geocodeOne = async (id: number) => {
+    if (geocodingIds.includes(id)) return;
+    setGeocodingIds((ids) => [...ids, id]);
+    try {
+      await accountsApi.geocodeMember(id, true);
+      await load();
+      await refreshMembers();
+    } catch {
+      return;
+    } finally {
+      setGeocodingIds((ids) => ids.filter((item) => item !== id));
+    }
+  };
+
+  const geocodePendingBatch = async () => {
+    if (batchRunning || !pendingIds.length) return;
+    setBatchRunning(true);
+    try {
+      await accountsApi.geocodeMembers(pendingIds);
+      await load();
+      await refreshMembers();
+    } catch {
+      return;
+    } finally {
+      setBatchRunning(false);
+    }
   };
 
   const statusOptions = [
@@ -237,6 +331,38 @@ export default function MemberLocationsTab() {
 
       {data && filtered && (
         <>
+          {!data.counts.ready && (
+            <Paper
+              withBorder
+              radius="md"
+              p="lg"
+              ta="center"
+              data-testid="member-locations-pending"
+            >
+              <Text fw={700}>{t.memberMap.pendingGeocodeTitle}</Text>
+              <Text size="sm" c="dimmed" mt={4}>
+                {t.memberMap.pendingGeocodeBody.replace(
+                  '{count}',
+                  String(data.counts.pending)
+                )}
+              </Text>
+              <Button
+                mt="sm"
+                size="xs"
+                variant="light"
+                leftSection={<IconRefresh size={14} />}
+                loading={batchRunning}
+                disabled={!pendingIds.length}
+                onClick={geocodePendingBatch}
+              >
+                {t.memberMap.geocodePending.replace(
+                  '{count}',
+                  String(pendingIds.length)
+                )}
+              </Button>
+            </Paper>
+          )}
+
           <Paper withBorder radius="md" p="sm">
             <MemberLocationsMap
               data={filtered}
@@ -293,9 +419,13 @@ export default function MemberLocationsTab() {
                         <Text size="xs" c="orange">
                           {member.reason === 'no_address'
                             ? t.memberMap.reasonNoAddress
-                            : member.reason === 'quota'
-                              ? t.memberMap.reasonQuota
-                              : t.memberMap.reasonNotFound}
+                            : member.reason === 'not_found'
+                              ? t.memberMap.reasonNotFound
+                              : member.reason === 'pending'
+                                ? t.memberMap.reasonPending
+                                : member.reason === 'error'
+                                  ? t.memberMap.reasonError
+                                  : t.memberMap.reasonQuota}
                         </Text>
                       )}
                     </div>
@@ -303,12 +433,22 @@ export default function MemberLocationsTab() {
                       <Badge
                         size="sm"
                         variant="light"
-                        color={
-                          member.status === 'ACTIVE' ? 'teal' : 'gray'
-                        }
+                        color={member.status === 'ACTIVE' ? 'teal' : 'gray'}
                       >
                         {member.status_display}
                       </Badge>
+                      <Tooltip label={t.memberMap.geocodeMember}>
+                        <ActionIcon
+                          variant="subtle"
+                          color="grape"
+                          aria-label={`${t.memberMap.geocodeMember}: ${member.name}`}
+                          data-testid={`member-location-geocode-${member.id}`}
+                          loading={geocodingIds.includes(member.id)}
+                          onClick={() => geocodeOne(member.id)}
+                        >
+                          <IconRefresh size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                       <Tooltip label={t.memberMap.editPoint}>
                         <ActionIcon
                           variant="subtle"
