@@ -13,6 +13,13 @@ export interface MemberGeocodeCoordinates {
   longitude: number;
 }
 
+export type MemberGeocodeStatus = 'found' | 'not_found';
+
+export interface MemberGeocodeResult {
+  status: MemberGeocodeStatus;
+  coordinates?: MemberGeocodeCoordinates;
+}
+
 export function buildMemberGeocodeQuery(values: MemberGeocodeAddress): string {
   const streetNumber = [
     String(values.street || '').trim(),
@@ -29,7 +36,6 @@ export function buildMemberGeocodeQuery(values: MemberGeocodeAddress): string {
     .join('/');
   const parts = [
     streetNumber,
-    String(values.complement || '').trim(),
     String(values.neighborhood || '').trim(),
     cityState,
     String(values.cep || '').trim(),
@@ -41,9 +47,9 @@ export function buildMemberGeocodeQuery(values: MemberGeocodeAddress): string {
 
 export async function geocodeMemberAddress(
   values: MemberGeocodeAddress
-): Promise<MemberGeocodeCoordinates | null> {
+): Promise<MemberGeocodeResult> {
   const query = buildMemberGeocodeQuery(values);
-  if (!query) return null;
+  if (!query) return { status: 'not_found' };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
@@ -58,17 +64,22 @@ export async function geocodeMemberAddress(
       `https://nominatim.openstreetmap.org/search?${params.toString()}`,
       { signal: controller.signal }
     );
-    if (!response.ok) return null;
+    if (!response.ok) return { status: 'not_found' };
     const results: Array<{ lat: string; lon: string }> = await response.json();
-    if (!results.length) return null;
+    if (!results.length) return { status: 'not_found' };
     const latitude = Number(results[0].lat);
     const longitude = Number(results[0].lon);
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
-    if (latitude < -90 || latitude > 90) return null;
-    if (longitude < -180 || longitude > 180) return null;
-    return { latitude, longitude };
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return { status: 'not_found' };
+    }
+    if (latitude < -90 || latitude > 90) return { status: 'not_found' };
+    if (longitude < -180 || longitude > 180) return { status: 'not_found' };
+    return {
+      status: 'found',
+      coordinates: { latitude, longitude },
+    };
   } catch {
-    return null;
+    return { status: 'not_found' };
   } finally {
     clearTimeout(timeout);
   }

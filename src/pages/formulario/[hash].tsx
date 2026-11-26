@@ -58,6 +58,8 @@ interface RelativeForm {
   phone: string;
 }
 
+type GeocodeUiStatus = 'idle' | 'searching' | 'found' | 'not_found' | 'manual';
+
 interface FormValues {
   photo: string | null;
   name: string;
@@ -187,6 +189,8 @@ export default function PublicMemberFormPage() {
   const [cepLoading, setCepLoading] = useState(false);
   const geoSeqRef = useRef(0);
   const geoAddressRef = useRef('');
+  const [geocodeUiStatus, setGeocodeUiStatus] =
+    useState<GeocodeUiStatus>('idle');
 
   const form = useForm<FormValues>({
     initialValues: EMPTY_FORM,
@@ -214,6 +218,17 @@ export default function PublicMemberFormPage() {
           form.setValues(initial);
           geoSeqRef.current += 1;
           geoAddressRef.current = buildMemberGeocodeQuery(initial);
+          setGeocodeUiStatus(
+            initial.latitude !== null && initial.longitude !== null
+              ? initial.location_source === 'MANUAL'
+                ? 'manual'
+                : 'found'
+              : data.prefill.geocode_status === 'NOT_FOUND' ||
+                  data.prefill.geocode_status === 'ERROR' ||
+                  !geoAddressRef.current
+                ? 'not_found'
+                : 'idle'
+          );
         } else if (data.type === 'member' && data.member_name) {
           form.setFieldValue('name', data.member_name);
         }
@@ -309,7 +324,10 @@ export default function PublicMemberFormPage() {
 
   const maybeGeocodeAddressStep = () => {
     const key = buildMemberGeocodeQuery(form.values);
-    if (!key) return;
+    if (!key) {
+      setGeocodeUiStatus('not_found');
+      return;
+    }
     if (
       geoAddressRef.current === key &&
       form.values.latitude !== null &&
@@ -322,15 +340,22 @@ export default function PublicMemberFormPage() {
       form.values.latitude !== null &&
       form.values.longitude !== null
     ) {
+      setGeocodeUiStatus('manual');
       return;
     }
     geoAddressRef.current = key;
     const seq = ++geoSeqRef.current;
-    void geocodeMemberAddress(form.values).then((coords) => {
-      if (!coords || seq !== geoSeqRef.current) return;
-      form.setFieldValue('latitude', coords.latitude);
-      form.setFieldValue('longitude', coords.longitude);
+    setGeocodeUiStatus('searching');
+    void geocodeMemberAddress(form.values).then((result) => {
+      if (seq !== geoSeqRef.current) return;
+      if (result.status !== 'found' || !result.coordinates) {
+        setGeocodeUiStatus('not_found');
+        return;
+      }
+      form.setFieldValue('latitude', result.coordinates.latitude);
+      form.setFieldValue('longitude', result.coordinates.longitude);
       form.setFieldValue('location_source', 'GEOCODED');
+      setGeocodeUiStatus('found');
     });
   };
 
@@ -467,6 +492,28 @@ export default function PublicMemberFormPage() {
     t.membersPage.addressTitle,
     t.membersPage.stepFamily,
   ];
+
+  const hasGeocodeAddress = Boolean(buildMemberGeocodeQuery(form.values));
+  const geocodeStatusText =
+    geocodeUiStatus === 'searching'
+      ? t.memberMap.geocoding
+      : geocodeUiStatus === 'found'
+        ? t.memberMap.geocodeFound
+        : geocodeUiStatus === 'manual'
+          ? t.memberMap.sourceManual
+          : geocodeUiStatus === 'not_found'
+            ? hasGeocodeAddress
+              ? t.memberMap.reasonNotFound
+              : t.memberMap.reasonNoAddress
+            : hasGeocodeAddress
+              ? t.memberMap.coordsNone
+              : t.memberMap.reasonNoAddress;
+  const geocodeStatusColor =
+    geocodeUiStatus === 'not_found'
+      ? 'orange'
+      : geocodeUiStatus === 'found'
+        ? 'teal'
+        : 'dimmed';
 
     if (loading) {
       return (
@@ -815,6 +862,9 @@ export default function PublicMemberFormPage() {
               <Stepper.Step label={t.membersPage.stepFamily}>
                 <ScrollArea.Autosize mah={520} type="auto">
                   <Stack gap="md" pt="xs">
+                    <Text size="xs" c={geocodeStatusColor} ta="right">
+                      {geocodeStatusText}
+                    </Text>
                     <SimpleGrid cols={{ base: 1, sm: 2 }}>
                       <Select
                         label={t.membersPage.maritalStatus}

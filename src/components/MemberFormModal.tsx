@@ -63,6 +63,8 @@ interface RelativeForm {
   phone: string;
 }
 
+type GeocodeUiStatus = 'idle' | 'searching' | 'found' | 'not_found' | 'manual';
+
 export interface MemberFormValues {
   name: string;
   phone: string;
@@ -169,6 +171,8 @@ export default function MemberFormModal({
   const [cepLoading, setCepLoading] = useState(false);
   const geoSeqRef = useRef(0);
   const geoAddressRef = useRef('');
+  const [geocodeUiStatus, setGeocodeUiStatus] =
+    useState<GeocodeUiStatus>('idle');
 
   const isoToDate = (iso: string): Date | null => {
     const [y, m, d] = iso.split('-').map(Number);
@@ -242,6 +246,8 @@ export default function MemberFormModal({
   // campo fica oculto para os demais papéis em vez de falhar em silêncio.
   const canLinkAccount =
     !viewOnly && (isAdmin || role === 'PASTOR' || role === 'SECRETARIA');
+  const canEditCoordinates =
+    !viewOnly && (isAdmin || role === 'PASTOR' || role === 'TESOUREIRO');
   const [accountOptions, setAccountOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -276,6 +282,17 @@ export default function MemberFormModal({
     const initial = member ? fromMember(member) : EMPTY_FORM;
     form.setValues(initial);
     geoAddressRef.current = buildMemberGeocodeQuery(initial);
+    setGeocodeUiStatus(
+      initial.latitude !== null && initial.longitude !== null
+        ? initial.location_source === 'MANUAL'
+          ? 'manual'
+          : 'found'
+        : member?.geocode_status === 'NOT_FOUND' ||
+            member?.geocode_status === 'ERROR' ||
+            !geoAddressRef.current
+          ? 'not_found'
+          : 'idle'
+    );
     form.resetDirty();
     form.clearErrors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -337,7 +354,10 @@ export default function MemberFormModal({
 
   const maybeGeocodeAddressStep = () => {
     const key = buildMemberGeocodeQuery(form.values);
-    if (!key) return;
+    if (!key) {
+      setGeocodeUiStatus('not_found');
+      return;
+    }
     if (
       geoAddressRef.current === key &&
       form.values.latitude !== null &&
@@ -350,15 +370,22 @@ export default function MemberFormModal({
       form.values.latitude !== null &&
       form.values.longitude !== null
     ) {
+      setGeocodeUiStatus('manual');
       return;
     }
     geoAddressRef.current = key;
     const seq = ++geoSeqRef.current;
-    void geocodeMemberAddress(form.values).then((coords) => {
-      if (!coords || seq !== geoSeqRef.current) return;
-      form.setFieldValue('latitude', coords.latitude);
-      form.setFieldValue('longitude', coords.longitude);
+    setGeocodeUiStatus('searching');
+    void geocodeMemberAddress(form.values).then((result) => {
+      if (seq !== geoSeqRef.current) return;
+      if (result.status !== 'found' || !result.coordinates) {
+        setGeocodeUiStatus('not_found');
+        return;
+      }
+      form.setFieldValue('latitude', result.coordinates.latitude);
+      form.setFieldValue('longitude', result.coordinates.longitude);
       form.setFieldValue('location_source', 'GEOCODED');
+      setGeocodeUiStatus('found');
     });
   };
 
@@ -571,6 +598,28 @@ export default function MemberFormModal({
     t.membersPage.stepCard,
     ...(viewOnly ? [t.analysis.title] : []),
   ];
+
+  const hasGeocodeAddress = Boolean(buildMemberGeocodeQuery(form.values));
+  const geocodeStatusText =
+    geocodeUiStatus === 'searching'
+      ? t.memberMap.geocoding
+      : geocodeUiStatus === 'found'
+        ? t.memberMap.geocodeFound
+        : geocodeUiStatus === 'manual'
+          ? t.memberMap.sourceManual
+          : geocodeUiStatus === 'not_found'
+            ? hasGeocodeAddress
+              ? t.memberMap.reasonNotFound
+              : t.memberMap.reasonNoAddress
+            : hasGeocodeAddress
+              ? t.memberMap.coordsNone
+              : t.memberMap.reasonNoAddress;
+  const geocodeStatusColor =
+    geocodeUiStatus === 'not_found'
+      ? 'orange'
+      : geocodeUiStatus === 'found'
+        ? 'teal'
+        : 'dimmed';
 
   return (
     <Modal
@@ -789,7 +838,7 @@ export default function MemberFormModal({
                     <Text fw={600} size="sm">
                       {t.memberMap.formTitle}
                     </Text>
-                    {!viewOnly &&
+                    {canEditCoordinates &&
                       form.values.latitude !== null &&
                       form.values.longitude !== null && (
                         <Button
@@ -802,6 +851,7 @@ export default function MemberFormModal({
                             form.setFieldValue('longitude', null);
                             form.setFieldValue('location_source', 'UNKNOWN');
                             geoAddressRef.current = '';
+                            setGeocodeUiStatus('idle');
                           }}
                         >
                           {t.memberMap.clearPoint}
@@ -809,7 +859,9 @@ export default function MemberFormModal({
                       )}
                   </Group>
                   <Text size="xs" c="dimmed">
-                    {t.memberMap.formHint}
+                    {canEditCoordinates
+                      ? t.memberMap.formHint
+                      : t.memberMap.formHintReadOnly}
                   </Text>
                   <Text size="xs" c={form.values.latitude === null ? 'dimmed' : 'blue'}>
                     {form.values.latitude === null ||
@@ -817,7 +869,7 @@ export default function MemberFormModal({
                       ? t.memberMap.coordsNone
                       : `${t.memberMap.coordsLabel}: ${form.values.latitude.toFixed(5)}, ${form.values.longitude.toFixed(5)}`}
                   </Text>
-                  {!viewOnly && (
+                  {canEditCoordinates && (
                     <ChurchMap
                       latitude={form.values.latitude}
                       longitude={form.values.longitude}
@@ -826,11 +878,13 @@ export default function MemberFormModal({
                         form.setFieldValue('latitude', lat);
                         form.setFieldValue('longitude', lng);
                         form.setFieldValue('location_source', 'MANUAL');
+                        setGeocodeUiStatus('manual');
                       }}
                       onPick={(lat, lng) => {
                         form.setFieldValue('latitude', lat);
                         form.setFieldValue('longitude', lng);
                         form.setFieldValue('location_source', 'MANUAL');
+                        setGeocodeUiStatus('manual');
                       }}
                       hint={t.memberMap.formMapHint}
                     />
@@ -843,6 +897,9 @@ export default function MemberFormModal({
           <Stepper.Step label={t.membersPage.stepMinistry}>
             <ScrollArea.Autosize mah={440} type="auto">
               <Stack gap="md" pt="xs">
+                <Text size="xs" c={geocodeStatusColor} ta="right">
+                  {geocodeStatusText}
+                </Text>
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                   <Select
                     label={t.membersPage.churchEntry}

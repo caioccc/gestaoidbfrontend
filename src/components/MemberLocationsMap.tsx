@@ -184,8 +184,12 @@ export default function MemberLocationsMap({
         }),
         zIndexOffset: 500,
       });
+      const churchAddress = String(data.church.address || '').trim();
+      const churchAddressText = churchAddress
+        ? churchAddress
+        : tRef.current.memberMap.addressNotInformed;
       churchMarker.bindPopup(
-        `<b>${escapeHtml(data.church.name)}</b><br/>${escapeHtml(data.church.address)}`
+        `<b>${escapeHtml(data.church.name)}</b><br/>${escapeHtml(churchAddressText)}`
       );
       churchMarker.addTo(overlay);
     }
@@ -525,8 +529,8 @@ function buildPointPopup(
   return root;
 }
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

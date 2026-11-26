@@ -945,6 +945,7 @@ export interface PublicFormPrefill {
   latitude: number | null;
   longitude: number | null;
   location_source: 'UNKNOWN' | 'MANUAL' | 'GEOCODED';
+  geocode_status?: 'PENDING' | 'FOUND' | 'NOT_FOUND' | 'ERROR';
   notes: string;
   photo: string | null;
   relatives: PublicFormPrefillRelative[];
