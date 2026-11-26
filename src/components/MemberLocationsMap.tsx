@@ -1,14 +1,23 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Anchor, Box, Group, Text } from '@mantine/core';
+import { Anchor, Box, Button, Group, Switch, Text } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
+import { IconArrowsExchange } from '@tabler/icons-react';
 import { useLanguage } from '../i18n';
 import type {
+  GrowthGroupMapLayer,
+  GrowthGroupMapPoint,
   MemberLocationPoint,
   MemberLocationsPayload,
 } from '../types';
-import { haversineMeters } from '../utils/geo';
+import {
+  buildGoogleMapsRouteUrl,
+  haversineMeters,
+  orderRouteEndpoints,
+  type RouteDirection,
+} from '../utils/geo';
+import { buildMemberHeatPoints } from '../utils/memberHeatmap';
 import styles from '../styles/member-map.module.css';
 
 interface RouteInfo {
@@ -23,21 +32,33 @@ interface RouteTarget {
   label: string;
 }
 
+interface RouteSelection {
+  target: RouteTarget;
+  direction: RouteDirection;
+}
+
 interface MemberLocationsMapProps {
   data: MemberLocationsPayload;
   points: MemberLocationPoint[];
   onEdit?: (memberId: number) => void;
+  showGcPoints?: boolean;
+  showGcRadius?: boolean;
+  growthGroupLayer?: GrowthGroupMapLayer | null;
 }
 
 const ACTIVE_COLOR = '#228be6';
 const GEOCODED_COLOR = '#7950f2';
 const INACTIVE_COLOR = '#868e96';
 const CHURCH_COLOR = '#2f9e44';
+const GC_COLOR = '#fd7e14';
 
 export default function MemberLocationsMap({
   data,
   points,
   onEdit,
+  showGcPoints = false,
+  showGcRadius = false,
+  growthGroupLayer = null,
 }: MemberLocationsMapProps) {
   const { t } = useLanguage();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -45,6 +66,10 @@ export default function MemberLocationsMap({
   const mapRef = useRef<any>(null);
   const leafletRef = useRef<any>(null);
   const overlayRef = useRef<any>(null);
+  const heatLayerRef = useRef<any>(null);
+  const heatLayerConstructorRef = useRef<any>(null);
+  const gcLayerRef = useRef<any>(null);
+  const gcVisibleRef = useRef(false);
   const geocoderMarkerRef = useRef<any>(null);
   const routeControlRef = useRef<any>(null);
   const routingRef = useRef<any>(null);
@@ -53,7 +78,8 @@ export default function MemberLocationsMap({
   const onEditRef = useRef(onEdit);
   const tRef = useRef(t);
   const [ready, setReady] = useState(false);
-  const [routeTarget, setRouteTarget] = useState<RouteTarget | null>(null);
+  const [heatmapEnabled, setHeatmapEnabled] = useState(false);
+  const [route, setRoute] = useState<RouteSelection | null>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
   const [geocodeError, setGeocodeError] = useState('');
 
@@ -64,6 +90,24 @@ export default function MemberLocationsMap({
   const churchLng = data.church.longitude;
   const canRoute =
     typeof churchLat === 'number' && typeof churchLng === 'number';
+
+  const selectRoute = (target: RouteTarget) => {
+    setRoute({ target, direction: 'church-to-point' });
+  };
+
+  const reverseRoute = () => {
+    setRoute((current) =>
+      current
+        ? {
+            ...current,
+            direction:
+              current.direction === 'church-to-point'
+                ? 'point-to-church'
+                : 'church-to-point',
+          }
+        : current
+    );
+  };
 
   const bounds = useMemo(() => {
     const coords: [number, number][] = [];
@@ -87,6 +131,9 @@ export default function MemberLocationsMap({
       await import('leaflet-routing-machine/dist/leaflet-routing-machine.css');
       await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
       await import('leaflet.markercluster');
+      const HeatModule = await import('leaflet.heat');
+      if (disposed) return;
+      heatLayerConstructorRef.current = HeatModule.HeatLayer;
       const RoutingModule: any = await import('leaflet-routing-machine');
       const Routing = RoutingModule.default ?? RoutingModule;
       if (!L.Routing && Routing?.control) L.Routing = Routing;
@@ -109,6 +156,13 @@ export default function MemberLocationsMap({
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
       }).addTo(map);
+
+      map.createPane('memberHeatPane');
+      const heatPane = map.getPane('memberHeatPane');
+      if (heatPane) {
+        heatPane.style.zIndex = '350';
+        heatPane.style.pointerEvents = 'none';
+      }
 
       const geocoder = new GeocoderModule.default({
         collapsed: true,
@@ -157,6 +211,10 @@ export default function MemberLocationsMap({
         mapRef.current = null;
         leafletRef.current = null;
         overlayRef.current = null;
+        heatLayerRef.current = null;
+        heatLayerConstructorRef.current = null;
+        gcLayerRef.current = null;
+        gcVisibleRef.current = false;
         geocoderMarkerRef.current = null;
         routeControlRef.current = null;
         routingRef.current = null;
@@ -233,14 +291,14 @@ export default function MemberLocationsMap({
         buildPointPopup(
           point,
           tRef.current,
-          setRouteTarget,
+          selectRoute,
           canRoute,
           onEditRef.current
         )
       );
       marker.on('click', () => {
         if (!canRoute) return;
-        setRouteTarget({
+        selectRoute({
           latitude: point.latitude,
           longitude: point.longitude,
           label: point.address || point.members[0]?.name || '',
@@ -259,6 +317,27 @@ export default function MemberLocationsMap({
 
   useEffect(() => {
     const map = mapRef.current;
+    const HeatLayer = heatLayerConstructorRef.current;
+    if (!ready || !map || !HeatLayer) return;
+
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
+    }
+    if (!heatmapEnabled || points.length === 0) return;
+
+    heatLayerRef.current = new HeatLayer(buildMemberHeatPoints(points), {
+      pane: 'memberHeatPane',
+      radius: isMobile ? 22 : 30,
+      blur: isMobile ? 14 : 20,
+      maxZoom: 15,
+      minOpacity: 0.08,
+      max: 1,
+    }).addTo(map);
+  }, [ready, points, heatmapEnabled, isMobile]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     const L = leafletRef.current;
     const Routing = routingRef.current;
     if (!ready || !map || !L || !Routing) return;
@@ -274,12 +353,21 @@ export default function MemberLocationsMap({
     setRouteInfo(null);
 
     if (
-      !routeTarget ||
+      !route ||
       typeof churchLat !== 'number' ||
       typeof churchLng !== 'number'
     ) {
       return;
     }
+
+    const [start, end] = orderRouteEndpoints(
+      { lat: churchLat, lng: churchLng },
+      {
+        lat: route.target.latitude,
+        lng: route.target.longitude,
+      },
+      route.direction
+    );
 
     const router = Routing.osrmv1({
       serviceUrl: 'https://router.project-osrm.org/route/v1',
@@ -287,8 +375,8 @@ export default function MemberLocationsMap({
     });
     const control = Routing.control({
       waypoints: [
-        L.latLng(churchLat, churchLng),
-        L.latLng(routeTarget.latitude, routeTarget.longitude),
+        L.latLng(start.lat, start.lng),
+        L.latLng(end.lat, end.lng),
       ],
       router,
       show: false,
@@ -321,19 +409,14 @@ export default function MemberLocationsMap({
     });
     control.on('routingerror', () => {
       setRouteInfo({
-        distance: haversineMeters(
-          churchLat,
-          churchLng,
-          routeTarget.latitude,
-          routeTarget.longitude
-        ),
+        distance: haversineMeters(start.lat, start.lng, end.lat, end.lng),
         duration: null,
         fallback: true,
       });
       fallbackLineRef.current = L.polyline(
         [
-          [churchLat, churchLng],
-          [routeTarget.latitude, routeTarget.longitude],
+          [start.lat, start.lng],
+          [end.lat, end.lng],
         ],
         {
           color: ACTIVE_COLOR,
@@ -344,10 +427,81 @@ export default function MemberLocationsMap({
       ).addTo(map);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, routeTarget, churchLat, churchLng]);
+  }, [ready, route, churchLat, churchLng]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const L = leafletRef.current;
+    if (!ready || !map || !L) return;
+
+    if (gcLayerRef.current) {
+      map.removeLayer(gcLayerRef.current);
+      gcLayerRef.current = null;
+    }
+
+    const visible = Boolean(
+      growthGroupLayer && (showGcPoints || showGcRadius)
+    );
+    const wasVisible = gcVisibleRef.current;
+    gcVisibleRef.current = visible;
+
+    if (!visible || !growthGroupLayer) return;
+
+    const layer = L.layerGroup().addTo(map);
+    gcLayerRef.current = layer;
+
+    growthGroupLayer.points.forEach((group, index) => {
+      const latLng: [number, number] = [group.latitude, group.longitude];
+      if (showGcRadius) {
+        L.circle(latLng, {
+          radius: group.radius_meters,
+          color: GC_COLOR,
+          fillColor: GC_COLOR,
+          fillOpacity: 0.18,
+          weight: 2,
+        }).addTo(layer);
+      }
+      if (showGcPoints) {
+        const marker = L.marker(latLng, {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="width:26px;height:26px;border-radius:50%;background:${GC_COLOR};border:2px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;box-shadow:0 1px 5px rgba(0,0,0,.35)">${index + 1}</div>`,
+            iconSize: [26, 26],
+            iconAnchor: [13, 13],
+          }),
+          zIndexOffset: 400,
+        });
+        marker.bindPopup(buildGcPopup(group, tRef.current));
+        marker.addTo(layer);
+      }
+    });
+
+    if (!wasVisible) {
+      const coords: [number, number][] = [
+        ...bounds,
+        ...growthGroupLayer.points.map(
+          (group) => [group.latitude, group.longitude] as [number, number]
+        ),
+      ];
+      if (coords.length > 0) {
+        map.fitBounds(L.latLngBounds(coords).pad(0.2), { maxZoom: 15 });
+      }
+    }
+  }, [ready, growthGroupLayer, showGcPoints, showGcRadius, bounds]);
 
   return (
     <Box>
+      <Group justify="flex-end" gap="xs" mb="xs" wrap="wrap">
+        <Text size="xs" c="dimmed">
+          {t.memberMap.heatmapHint}
+        </Text>
+        <Switch
+          checked={heatmapEnabled}
+          onChange={(event) => setHeatmapEnabled(event.currentTarget.checked)}
+          label={t.memberMap.heatmapSwitch}
+          data-testid="member-map-heatmap-switch"
+        />
+      </Group>
       <Box
         ref={containerRef}
         style={{
@@ -378,6 +532,26 @@ export default function MemberLocationsMap({
           <Text size="xs" c={CHURCH_COLOR}>
             {t.memberMap.churchPoint}
           </Text>
+          {heatmapEnabled && (
+            <Group gap={4} wrap="nowrap">
+              <Box
+                w={24}
+                h={8}
+                style={{
+                  borderRadius: 4,
+                  background: 'linear-gradient(90deg, #3bc9db, #40c057, #ffd43b, #fa5252)',
+                }}
+              />
+              <Text size="xs" c="dimmed">
+                {t.memberMap.legendHeatmap}
+              </Text>
+            </Group>
+          )}
+          {showGcPoints && (
+            <Text size="xs" c={GC_COLOR}>
+              {t.memberMap.legendGc}
+            </Text>
+          )}
         </Group>
       </Group>
       {geocodeError && (
@@ -385,10 +559,25 @@ export default function MemberLocationsMap({
           {geocodeError}
         </Text>
       )}
-      {routeTarget && (
+      {route && (
         <Box mt="xs" p="sm" style={{ borderRadius: 8, background: '#f3f6ff' }}>
-          <Text size="sm" fw={600}>
-            {t.memberMap.routeTitle}: {routeTarget.label}
+          <Group justify="space-between" align="center" gap="xs" wrap="wrap">
+            <Text size="sm" fw={600}>
+              {t.memberMap.routeTitle}: {route.target.label}
+            </Text>
+            <Button
+              variant="subtle"
+              size="xs"
+              leftSection={<IconArrowsExchange size={14} />}
+              onClick={reverseRoute}
+            >
+              {t.memberMap.routeReverse}
+            </Button>
+          </Group>
+          <Text size="xs" c="dimmed" mt={2}>
+            {route.direction === 'point-to-church'
+              ? t.memberMap.routeReturn
+              : t.memberMap.routeOutbound}
           </Text>
           {routeInfo ? (
             <>
@@ -420,7 +609,14 @@ export default function MemberLocationsMap({
           {typeof churchLat === 'number' &&
             typeof churchLng === 'number' && (
               <Anchor
-                href={`https://www.google.com/maps/dir/?api=1&origin=${churchLat},${churchLng}&destination=${routeTarget.latitude},${routeTarget.longitude}`}
+                href={buildGoogleMapsRouteUrl(
+                  { lat: churchLat, lng: churchLng },
+                  {
+                    lat: route.target.latitude,
+                    lng: route.target.longitude,
+                  },
+                  route.direction
+                )}
                 target="_blank"
                 rel="noreferrer"
                 size="xs"
@@ -437,7 +633,7 @@ export default function MemberLocationsMap({
 function buildPointPopup(
   point: MemberLocationPoint,
   translation: ReturnType<typeof useLanguage>['t'],
-  setRouteTarget: (target: RouteTarget) => void,
+  onRouteSelect: (target: RouteTarget) => void,
   canRoute: boolean,
   onEdit?: (memberId: number) => void
 ): HTMLElement {
@@ -506,7 +702,7 @@ function buildPointPopup(
     route.style.fontSize = '12px';
     route.style.cursor = 'pointer';
     route.addEventListener('click', () => {
-      setRouteTarget({
+      onRouteSelect({
         latitude: point.latitude,
         longitude: point.longitude,
         label: point.address || point.members[0]?.name || '',
@@ -530,6 +726,24 @@ function buildPointPopup(
 
   root.appendChild(actions);
   return root;
+}
+
+function buildGcPopup(
+  group: GrowthGroupMapPoint,
+  translation: ReturnType<typeof useLanguage>['t']
+): string {
+  const time = (group.time || '').slice(0, 5) || '-';
+  return [
+    `<b>${escapeHtml(group.name)}</b>`,
+    `${translation.memberMap.gcLeader}: ${escapeHtml(group.leader_name)}`,
+    `${translation.memberMap.gcSchedule}: ${escapeHtml(group.weekday_display)} ${escapeHtml(time)}`,
+    `${translation.memberMap.gcCategory}: ${escapeHtml(group.category_display)}`,
+    `${translation.memberMap.gcAddress}: ${escapeHtml(group.address || '-')}`,
+    translation.memberMap.gcRadiusMeters.replace(
+      '{meters}',
+      String(group.radius_meters)
+    ),
+  ].join('<br/>');
 }
 
 function escapeHtml(value: string | null | undefined): string {

@@ -1,6 +1,8 @@
 import apiClient from './client';
 import {
   CalendarEvent,
+  CalendarEventOccurrenceRow,
+  CalendarEventTableParams,
   Category,
   DashboardSummary,
   DreSummary,
@@ -90,6 +92,9 @@ export interface AdminFinanceApi {
   ) => Promise<Blob>;
   caixaDownload: (year: number, month: number) => Promise<Blob>;
   listCalendarEvents: () => Promise<CalendarEvent[]>;
+  listCalendarEventsTable: (
+    params?: CalendarEventTableParams
+  ) => Promise<Paginated<CalendarEventOccurrenceRow>>;
   createCalendarEvent: (payload: Partial<CalendarEvent>) => Promise<CalendarEvent>;
   updateCalendarEvent: (id: number, payload: Partial<CalendarEvent>) => Promise<CalendarEvent>;
   deleteCalendarEvent: (id: number) => Promise<void>;
@@ -270,6 +275,9 @@ export function createAdminFinance(churchId: number): AdminFinanceApi {
         .then((r) => r.data),
     listCalendarEvents: () =>
       apiClient.get(`${base}/calendar/events/`).then((r) => r.data),
+
+    listCalendarEventsTable: (params) =>
+      apiClient.get(`${base}/calendar/events/table/`, { params }).then((r) => r.data),
 
     createCalendarEvent: (payload) =>
       apiClient.post(`${base}/calendar/events/`, payload).then((r) => r.data),

@@ -14,6 +14,7 @@ import {
   Select,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   TextInput,
   Title,
@@ -25,13 +26,14 @@ import {
   IconRefresh,
   IconSearch,
 } from '@tabler/icons-react';
-import { accountsApi } from '../api/accounts';
+import { accountsApi, growthGroupsApi } from '../api/accounts';
 import MemberFormModal from '../components/MemberFormModal';
 import MemberLocationsMap from '../components/MemberLocationsMap';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { useCurrentChurch } from '../hooks/useCurrentChurch';
 import { useLanguage } from '../i18n';
 import type {
+  GrowthGroup,
   Member,
   MemberLocationMember,
   MemberLocationMissingItem,
@@ -39,6 +41,7 @@ import type {
   MemberStatus,
   MinistryArea,
 } from '../types';
+import { buildGrowthGroupMapLayer } from '../utils/growthGroupLayer';
 
 type StatusFilter = 'ALL' | MemberStatus;
 
@@ -62,8 +65,14 @@ export default function MemberLocationsTab() {
   const [geocodingIds, setGeocodingIds] = useState<number[]>([]);
   const [churchGeocoding, setChurchGeocoding] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
+  const [showGcPoints, setShowGcPoints] = useState(false);
+  const [showGcRadius, setShowGcRadius] = useState(false);
+  const [growthGroups, setGrowthGroups] = useState<GrowthGroup[] | null>(null);
+  const [gcLoading, setGcLoading] = useState(false);
+  const [gcError, setGcError] = useState('');
   const loadSeqRef = useRef(0);
   const batchStartedRef = useRef(false);
+  const gcLoadStartedRef = useRef(false);
 
   const load = useCallback(async () => {
     const seq = ++loadSeqRef.current;
@@ -93,13 +102,35 @@ export default function MemberLocationsTab() {
     }
   }, [church?.id]);
 
+  const ensureGrowthGroups = useCallback(async () => {
+    if (gcLoadStartedRef.current) return;
+    gcLoadStartedRef.current = true;
+    setGcLoading(true);
+    setGcError('');
+    try {
+      setGrowthGroups(await growthGroupsApi.list());
+    } catch {
+      gcLoadStartedRef.current = false;
+      setGcError(t.memberMap.gcLoadError);
+    } finally {
+      setGcLoading(false);
+    }
+  }, [t.memberMap.gcLoadError]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
   useEffect(() => {
+    if (showGcPoints || showGcRadius) void ensureGrowthGroups();
+  }, [showGcPoints, showGcRadius, ensureGrowthGroups]);
+
+  useEffect(() => {
     batchStartedRef.current = false;
+    gcLoadStartedRef.current = false;
     setData(null);
+    setGrowthGroups(null);
+    setGcError('');
     if (!church?.id) return;
     let active = true;
     accountsApi
@@ -170,6 +201,11 @@ export default function MemberLocationsTab() {
     );
     return { ...data, points, missing };
   }, [data, search, status]);
+
+  const growthGroupLayer = useMemo(
+    () => (growthGroups ? buildGrowthGroupMapLayer(growthGroups) : null),
+    [growthGroups]
+  );
 
   const openEdit = (memberId: number) => {
     const member = members.find((item) => item.id === memberId);
@@ -387,11 +423,52 @@ export default function MemberLocationsTab() {
             </Paper>
           )}
 
+          <Group gap="lg" wrap="wrap">
+            <Switch
+              checked={showGcPoints}
+              onChange={(event) => setShowGcPoints(event.currentTarget.checked)}
+              label={t.memberMap.gcPointsSwitch}
+              data-testid="member-map-gc-points-switch"
+            />
+            <Switch
+              checked={showGcRadius}
+              onChange={(event) => setShowGcRadius(event.currentTarget.checked)}
+              label={t.memberMap.gcRadiusSwitch}
+              data-testid="member-map-gc-radius-switch"
+            />
+            {gcLoading && (
+              <Text size="xs" c="dimmed">
+                {t.memberMap.gcLoading}
+              </Text>
+            )}
+            {gcError && (
+              <Group gap="xs" wrap="nowrap">
+                <Text size="xs" c="red">
+                  {gcError}
+                </Text>
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => {
+                    gcLoadStartedRef.current = false;
+                    void ensureGrowthGroups();
+                  }}
+                >
+                  {t.memberMap.retry}
+                </Button>
+              </Group>
+            )}
+          </Group>
+
           <Paper withBorder radius="md" p="sm">
             <MemberLocationsMap
               data={filtered}
               points={filtered.points}
               onEdit={openEdit}
+              showGcPoints={showGcPoints}
+              showGcRadius={showGcRadius}
+              growthGroupLayer={growthGroupLayer}
             />
             {filtered.points.length === 0 && (
               <Text size="sm" c="dimmed" ta="center" py="md">
@@ -399,6 +476,44 @@ export default function MemberLocationsTab() {
               </Text>
             )}
           </Paper>
+
+          {growthGroupLayer && (
+            <Paper withBorder radius="md" p="md" data-testid="member-map-gc-missing">
+              <Text fw={600}>
+                {t.memberMap.gcWithoutCoords} ({growthGroupLayer.missing.length})
+              </Text>
+              {growthGroupLayer.missing.length === 0 ? (
+                <Text size="sm" c="dimmed" mt={4}>
+                  {t.memberMap.gcNoMissing}
+                </Text>
+              ) : (
+                <Stack gap="xs" mt="xs">
+                  {growthGroupLayer.missing.map((item) => (
+                    <Group
+                      key={item.id}
+                      justify="space-between"
+                      gap="xs"
+                      wrap="wrap"
+                    >
+                      <div>
+                        <Text size="sm" fw={500}>
+                          {item.name}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          {item.address || '-'}
+                        </Text>
+                      </div>
+                      <Badge size="sm" variant="light" color="orange">
+                        {item.reason === 'no_coordinates'
+                          ? t.memberMap.gcReasonNoCoordinates
+                          : t.memberMap.gcReasonNoRadius}
+                      </Badge>
+                    </Group>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          )}
 
           <Paper withBorder radius="md" p="md">
             <Group justify="space-between" align="center" mb="sm">

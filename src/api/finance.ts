@@ -1,6 +1,8 @@
 import apiClient from './client';
 import {
   CalendarEvent,
+  CalendarEventOccurrenceRow,
+  CalendarEventTableParams,
   Category,
   DashboardSummary,
   DepartmentCategory,
@@ -262,6 +264,11 @@ export const financeApi = {
 export const calendarEventsApi = {
   list: (): Promise<CalendarEvent[]> =>
     apiClient.get('/api/finance/calendar/events/').then((r) => r.data),
+
+  listTable: (params?: CalendarEventTableParams): Promise<Paginated<CalendarEventOccurrenceRow>> =>
+    apiClient
+      .get('/api/finance/calendar/events/table/', { params })
+      .then((r) => r.data),
 
   create: (payload: Partial<CalendarEvent>): Promise<CalendarEvent> =>
     apiClient.post('/api/finance/calendar/events/', payload).then((r) => r.data),

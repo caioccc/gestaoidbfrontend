@@ -76,6 +76,7 @@ export default function CalendarPage() {
 
   const gateway: CalendarEventsGateway = {
     list: () => calendarEventsApi.list(),
+    listTable: (p) => calendarEventsApi.listTable(p),
     create: (p) => calendarEventsApi.create(p),
     update: (id, p) => calendarEventsApi.update(id, p),
     delete: (id) => calendarEventsApi.delete(id),

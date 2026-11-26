@@ -208,6 +208,35 @@ export interface CalendarEvent {
   created_at: string;
 }
 
+export interface CalendarEventTableParams {
+  year?: number;
+  month?: number;
+  all?: boolean;
+  category?: CalendarEventCategory | '';
+  search?: string;
+  ordering?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface CalendarEventOccurrenceRow {
+  row_key: string;
+  occurrence_date: string;
+  event_id: number;
+  title: string;
+  category: CalendarEventCategory;
+  category_display: string;
+  audience: CalendarEventAudience;
+  audience_display: string;
+  color: string;
+  description: string;
+  start_time: string | null;
+  end_time: string | null;
+  created_by_name: string;
+  members_names: { id: number; name: string }[];
+  recurrence_display: string;
+}
+
 export interface PublicCalendarEvent {
   id: number;
   title: string;
@@ -1551,6 +1580,31 @@ export interface GrowthGroup {
   created_by: number | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface GrowthGroupMapPoint {
+  id: number;
+  name: string;
+  leader_name: string;
+  weekday_display: string;
+  time: string | null;
+  category_display: string;
+  address: string;
+  radius_meters: number;
+  latitude: number;
+  longitude: number;
+}
+
+export interface GrowthGroupMapMissing {
+  id: number;
+  name: string;
+  address: string;
+  reason: 'no_coordinates' | 'no_radius';
+}
+
+export interface GrowthGroupMapLayer {
+  points: GrowthGroupMapPoint[];
+  missing: GrowthGroupMapMissing[];
 }
 
 export interface GrowthGroupPayload {

@@ -9,6 +9,7 @@ export default function CalendarSection({ api, churchLabel }: { api: AdminFinanc
 
   const gateway: CalendarEventsGateway = {
     list: () => api.listCalendarEvents(),
+    listTable: (p) => api.listCalendarEventsTable(p),
     create: (p) => api.createCalendarEvent(p),
     update: (id, p) => api.updateCalendarEvent(id, p),
     delete: (id) => api.deleteCalendarEvent(id),

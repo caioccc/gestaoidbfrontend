@@ -57,3 +57,22 @@ export function nearestGroup<T extends { latitude: number | null; longitude: num
   }
   return best;
 }
+
+export type RouteDirection = 'church-to-point' | 'point-to-church';
+
+export function orderRouteEndpoints<T>(
+  church: T,
+  point: T,
+  direction: RouteDirection
+): [T, T] {
+  return direction === 'point-to-church' ? [point, church] : [church, point];
+}
+
+export function buildGoogleMapsRouteUrl(
+  church: LatLng,
+  point: LatLng,
+  direction: RouteDirection
+): string {
+  const [origin, destination] = orderRouteEndpoints(church, point, direction);
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}`;
+}

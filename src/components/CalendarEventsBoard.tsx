@@ -34,7 +34,6 @@ import {
   IconLink,
   IconClock,
   IconAdjustmentsHorizontal,
-  IconCalendarOff,
 } from '@tabler/icons-react';
 import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
@@ -49,16 +48,23 @@ import {
 } from '../utils/calendarRecurrence';
 import ShareLinkModal from './ShareLinkModal';
 import { SkeletonCalendarBoard } from './LoadingSkeleton';
+import CalendarEventsTable from './CalendarEventsTable';
 import {
   CalendarEvent,
   CalendarEventAudience,
   CalendarEventCategory,
+  CalendarEventOccurrenceRow,
+  CalendarEventTableParams,
   CalendarPublicLink,
   Member,
+  Paginated,
 } from '../types';
 
 export interface CalendarEventsGateway {
   list: () => Promise<CalendarEvent[]>;
+  listTable?: (
+    params?: CalendarEventTableParams
+  ) => Promise<Paginated<CalendarEventOccurrenceRow>>;
   create: (payload: Partial<CalendarEvent>) => Promise<CalendarEvent>;
   update: (id: number, payload: Partial<CalendarEvent>) => Promise<CalendarEvent>;
   delete: (id: number) => Promise<void>;
@@ -192,6 +198,7 @@ export default function CalendarEventsBoard({
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [view, setView] = useState<CalendarView>('month');
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [tableReloadKey, setTableReloadKey] = useState(0);
   const [membersOptions, setMembersOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -253,7 +260,10 @@ export default function CalendarEventsBoard({
       .list()
       .catch(() => [] as CalendarEvent[])
       .then((list) => setEvents(list))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setTableReloadKey((value) => value + 1);
+      });
   };
 
   useEffect(load, []);
@@ -780,11 +790,6 @@ export default function CalendarEventsBoard({
 
   const onOpenDetail = (ev: CalendarEvent) => setDetail(ev);
 
-  const visibleEvents = useMemo(
-    () => events.filter((ev) => isCategoryVisible(ev.category)),
-    [events, isCategoryVisible]
-  );
-
   const canSharePublic = !readOnly && !!gateway.publicLink && gateway.canManageGeneral;
 
   const filterGroups = CATEGORY_FILTER_GROUPS.filter(
@@ -1188,66 +1193,15 @@ export default function CalendarEventsBoard({
       {belowGrid ? <Box mt="md">{belowGrid}</Box> : null}
 
 
-      <Paper withBorder radius="md" p={isMobile ? 'xs' : 'md'} mt="md">
-        <Group justify="space-between" mb="xs" gap="xs" wrap="wrap">
-          <Text size="sm" fw={700}>
-            {t.calendarEvents.allEvents}
-          </Text>
-          <Text size="xs" c="dimmed">
-            {t.calendarEvents.visibleCount
-              .replace('{shown}', String(visibleEvents.length))
-              .replace('{total}', String(events.length))}
-          </Text>
-        </Group>
-        {visibleEvents.length === 0 ? (
-          <EmptyState
-            variant="compact"
-            icon={<IconCalendarOff size={24} />}
-            title={readOnly ? t.publicCalendar.empty : t.calendarEvents.noEvents}
-          />
-        ) : (
-          <ScrollArea.Autosize mah={400} scrollbars="y">
-            <Stack gap={6}>
-              {visibleEvents.map((ev) => (
-                <Group key={ev.id} gap="sm" justify="space-between" wrap="nowrap">
-                  <Box style={{ flex: 1, cursor: 'pointer' }} onClick={() => onOpenDetail(ev)}>
-                    <Group gap="sm" wrap="nowrap">
-                      <Badge size="sm" variant="light" color={eventColor(ev)}>
-                        {categoryLabel(ev.category)}
-                      </Badge>
-                      <Text size="sm" fw={500} truncate>
-                        {ev.title}
-                      </Text>
-                    </Group>
-                    <Text size="xs" c="dimmed" ml={70}>
-                      {formatDateLine(ev)}
-                    </Text>
-                    {ev.description && (
-                      <Text size="xs" c="dimmed" ml={70} lineClamp={2}>
-                        {ev.description}
-                      </Text>
-                    )}
-                  </Box>
-                  {canEditEvent(ev) && (
-                    <Group gap={4} wrap="nowrap">
-                      <Tooltip label={t.calendarEvents.edit}>
-                        <ActionIcon size="sm" variant="subtle" onClick={() => openEdit(ev)}>
-                          <IconEdit size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                      <Tooltip label={t.calendarEvents.deleteTitle}>
-                        <ActionIcon size="sm" color="red" variant="subtle" onClick={() => setDeleting(ev)}>
-                          <IconTrash size={15} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                  )}
-                </Group>
-              ))}
-            </Stack>
-          </ScrollArea.Autosize>
-        )}
-      </Paper>
+      <CalendarEventsTable
+        gateway={gateway}
+        events={events}
+        refreshKey={tableReloadKey}
+        onOpenDetail={onOpenDetail}
+        onEdit={openEdit}
+        onDelete={setDeleting}
+        canEditEvent={canEditEvent}
+      />
 
       <Modal
         opened={modalOpen}
