@@ -28,6 +28,7 @@ import PageHeader from '../../../components/PageHeader';
 import MobileItemCard from '../../../components/MobileItemCard';
 import { SkeletonMobileCards, SkeletonTableCells } from '../../LoadingSkeleton';
 import MemberFormModal from '../../../components/MemberFormModal';
+import MemberCardDeliveryBadges from '../../../components/MemberCardDeliveryBadges';
 import MemberCardModal from '../../../components/MemberCardModal';
 import { useLanguage } from '../../../i18n';
 import { useChurchCardConfig } from '../../../hooks/useChurchCardConfig';
@@ -196,7 +197,13 @@ export default function MembersSection({
       </Table.Td>
       <Table.Td>{m.phone || '—'}</Table.Td>
       <Table.Td>{m.email || '—'}</Table.Td>
-      <Table.Td>{m.church_entry_display || '—'}</Table.Td>
+      <Table.Td>
+        <MemberCardDeliveryBadges
+          physicalReceived={m.card_physical_received}
+          digitalReceived={m.card_digital_received}
+          testIdPrefix={`member-listing-delivery-${m.id}`}
+        />
+      </Table.Td>
       <Table.Td>
         <Badge color={m.status === 'ACTIVE' ? 'green' : 'gray'} variant="light">
           {m.status === 'ACTIVE' ? t.membersPage.active : t.membersPage.inactive}
@@ -273,7 +280,7 @@ export default function MembersSection({
                     <Table.Th>{t.membersPage.name}</Table.Th>
                     <Table.Th>{t.membersPage.phone}</Table.Th>
                     <Table.Th>{t.membersPage.email}</Table.Th>
-                    <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                    <Table.Th>{t.membersPage.cardDelivery}</Table.Th>
                     <Table.Th>{t.membersPage.status}</Table.Th>
                     <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
                   </Table.Tr>
@@ -321,9 +328,11 @@ export default function MembersSection({
                         <Text size="sm" c="dimmed" truncate>
                           {m.email || '—'}
                         </Text>
-                        <Text size="xs" c="dimmed" truncate>
-                          {m.church_entry_display || '—'}
-                        </Text>
+                        <MemberCardDeliveryBadges
+                          physicalReceived={m.card_physical_received}
+                          digitalReceived={m.card_digital_received}
+                          testIdPrefix={`member-listing-mobile-delivery-${m.id}`}
+                        />
                         <Badge
                           color={m.status === 'ACTIVE' ? 'green' : 'gray'}
                           variant="light"

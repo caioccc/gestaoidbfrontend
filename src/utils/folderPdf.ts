@@ -4,6 +4,8 @@ import { jsPDF } from 'jspdf';
 const FOLDER_WIDTH_PX = 794;
 const A4_W_MM = 210;
 const A4_H_MM = 297;
+const A4_LANDSCAPE_W_MM = 297;
+const A4_LANDSCAPE_H_MM = 210;
 
 // Trifold: duas folhas A4 paisagem (297 x 210 mm @ 96 dpi).
 const TRIFOLD_W_PX = 1123;
@@ -147,14 +149,21 @@ export async function generateTrifoldPdf(node: HTMLElement, title: string): Prom
 
     const pdf = new jsPDF({
       orientation: 'landscape',
-      unit: 'px',
-      format: [TRIFOLD_W_PX, TRIFOLD_H_PX],
+      unit: 'mm',
+      format: [A4_LANDSCAPE_W_MM, A4_LANDSCAPE_H_MM],
     });
     images.forEach((dataUrl, index) => {
       if (index > 0) pdf.addPage();
       pdf.setFillColor('#ffffff');
-      pdf.rect(0, 0, TRIFOLD_W_PX, TRIFOLD_H_PX, 'F');
-      pdf.addImage(dataUrl, 'PNG', 0, 0, TRIFOLD_W_PX, TRIFOLD_H_PX);
+      pdf.rect(0, 0, A4_LANDSCAPE_W_MM, A4_LANDSCAPE_H_MM, 'F');
+      pdf.addImage(
+        dataUrl,
+        'PNG',
+        0,
+        0,
+        A4_LANDSCAPE_W_MM,
+        A4_LANDSCAPE_H_MM,
+      );
     });
 
     pdf.save(fileName(title));

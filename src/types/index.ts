@@ -945,6 +945,8 @@ export interface Member {
   father_name: string;
   mother_name: string;
   card_number: string | null;
+  card_physical_received: boolean;
+  card_digital_received: boolean;
   church_entry: ChurchEntry | '';
   church_entry_display: string;
   church_entry_other: string;

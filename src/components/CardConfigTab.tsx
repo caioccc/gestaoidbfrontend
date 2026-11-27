@@ -261,6 +261,8 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
               father_name: '',
               mother_name: '',
               card_number: '0001',
+              card_physical_received: false,
+              card_digital_received: false,
               church_entry: '',
               church_entry_display: '',
               church_entry_other: '',

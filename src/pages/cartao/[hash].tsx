@@ -99,6 +99,8 @@ export default function PublicMemberCardPage() {
     father_name: '',
     mother_name: '',
     card_number: card.card_number || null,
+    card_physical_received: false,
+    card_digital_received: false,
     church_entry: '',
     church_entry_display: '',
     church_entry_other: '',

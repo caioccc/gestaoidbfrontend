@@ -60,6 +60,7 @@ import EmptyState from '../components/EmptyState';
 import AuthGuard from '../components/AuthGuard';
 import Layout from '../components/Layout';
 import MemberFormModal from '../components/MemberFormModal';
+import MemberCardDeliveryBadges from '../components/MemberCardDeliveryBadges';
 import MemberCardModal from '../components/MemberCardModal';
 import MemberCardBatchModal from '../components/MemberCardBatchModal';
 import {
@@ -626,9 +627,11 @@ function MembersTab({
         </Table.Td>
       )}
       <Table.Td>
-        <Text truncate maw={140}>
-          {m.church_entry_display || '—'}
-        </Text>
+        <MemberCardDeliveryBadges
+          physicalReceived={m.card_physical_received}
+          digitalReceived={m.card_digital_received}
+          testIdPrefix={`member-delivery-${m.id}`}
+        />
       </Table.Td>
       <Table.Td hiddenFrom="sm" />
       <Table.Td>
@@ -1114,7 +1117,7 @@ function MembersTab({
                   <Table.Th>{t.membersPage.name}</Table.Th>
                   <Table.Th>{t.membersPage.phone}</Table.Th>
                   {isWide && <Table.Th>{t.membersPage.email}</Table.Th>}
-                  <Table.Th>{t.membersPage.churchEntry}</Table.Th>
+                  <Table.Th>{t.membersPage.cardDelivery}</Table.Th>
                   <Table.Th>{t.membersPage.status}</Table.Th>
                   <Table.Th style={{ textAlign: 'right' }}>{t.common.actions}</Table.Th>
                 </Table.Tr>
@@ -1169,6 +1172,11 @@ function MembersTab({
                           </Text>
                         ) : null}
                       </Group>
+                      <MemberCardDeliveryBadges
+                        physicalReceived={m.card_physical_received}
+                        digitalReceived={m.card_digital_received}
+                        testIdPrefix={`member-mobile-delivery-${m.id}`}
+                      />
                     </Box>
 
                     {m.phone ? (

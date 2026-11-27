@@ -13,6 +13,7 @@ import {
   SimpleGrid,
   Stack,
   Stepper,
+  Switch,
   Text,
   TextInput,
   Textarea,
@@ -80,6 +81,8 @@ export interface MemberFormValues {
   marriage_date: Date | null;
   father_name: string;
   mother_name: string;
+  card_physical_received: boolean;
+  card_digital_received: boolean;
   church_entry: ChurchEntry | '';
   church_entry_other: string;
   ministry_areas: (number | string)[];
@@ -115,6 +118,8 @@ const EMPTY_FORM: MemberFormValues = {
   marriage_date: null,
   father_name: '',
   mother_name: '',
+  card_physical_received: false,
+  card_digital_received: false,
   church_entry: '',
   church_entry_other: '',
   ministry_areas: [],
@@ -202,6 +207,8 @@ export default function MemberFormModal({
     marriage_date: isoToDate(m.marriage_date || ''),
     father_name: m.father_name || '',
     mother_name: m.mother_name || '',
+    card_physical_received: m.card_physical_received ?? false,
+    card_digital_received: m.card_digital_received ?? false,
     church_entry: m.church_entry || '',
     church_entry_other: m.church_entry_other || '',
     ministry_areas: (m.ministry_areas || []).map(String),
@@ -241,13 +248,15 @@ export default function MemberFormModal({
   });
 
   const { user: sessionUser } = useAuth();
-  const { isAdmin, role } = useRoleHelpers(sessionUser);
+  const { isAdmin, role, hasRole } = useRoleHelpers(sessionUser);
   // A lista de contas (church/users) só responde a PASTOR e SECRETARIA, então o
   // campo fica oculto para os demais papéis em vez de falhar em silêncio.
   const canLinkAccount =
     !viewOnly && (isAdmin || role === 'PASTOR' || role === 'SECRETARIA');
   const canEditCoordinates =
     !viewOnly && (isAdmin || role === 'PASTOR' || role === 'TESOUREIRO');
+  const canEditCardDelivery =
+    !viewOnly && (isAdmin || hasRole('PASTOR', 'SECRETARIA', 'TESOUREIRO'));
   const [accountOptions, setAccountOptions] = useState<
     { value: string; label: string }[]
   >([]);
@@ -446,6 +455,8 @@ export default function MemberFormModal({
     marriage_date: toISO(form.values.marriage_date) ?? null,
     father_name: toUpperCamelWords(form.values.father_name.trim()),
     mother_name: toUpperCamelWords(form.values.mother_name.trim()),
+    card_physical_received: form.values.card_physical_received,
+    card_digital_received: form.values.card_digital_received,
     church_entry: form.values.church_entry || '',
     church_entry_other:
       form.values.church_entry === 'OUTRO'
@@ -566,6 +577,8 @@ export default function MemberFormModal({
       father_name: form.values.father_name,
       mother_name: form.values.mother_name,
       card_number: member?.card_number ?? null,
+      card_physical_received: form.values.card_physical_received,
+      card_digital_received: form.values.card_digital_received,
       church_entry: form.values.church_entry || '',
       church_entry_display: entryDisplay,
       church_entry_other: form.values.church_entry_other,
@@ -1051,6 +1064,30 @@ export default function MemberFormModal({
               <Text size="sm" c="dimmed">
                 {t.membersPage.cardPreview}
               </Text>
+              <Stack gap="sm" w="100%" maw={420}>
+                <Switch
+                  label={t.membersPage.cardPhysicalReceived}
+                  checked={form.values.card_physical_received}
+                  disabled={!canEditCardDelivery}
+                  onChange={(event) =>
+                    form.setFieldValue(
+                      'card_physical_received',
+                      event.currentTarget.checked
+                    )
+                  }
+                />
+                <Switch
+                  label={t.membersPage.cardDigitalReceived}
+                  checked={form.values.card_digital_received}
+                  disabled={!canEditCardDelivery}
+                  onChange={(event) =>
+                    form.setFieldValue(
+                      'card_digital_received',
+                      event.currentTarget.checked
+                    )
+                  }
+                />
+              </Stack>
               <MemberCard
                 member={buildDraft()}
                 churchName={churchName}
