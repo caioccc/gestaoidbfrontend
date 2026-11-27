@@ -94,11 +94,20 @@ npm run build
 - Testes backend: `PER_DAY`, `ONCE`, janela aberta/fechada, QR inválido, membro inativo, igreja errada, duplo check-in, regenerate token, permissões, throttle, ausência de PII no payload público, `noindex`.
 
 ## Checklist
-- [ ] Modelos e migration.
-- [ ] Geração de sessões por recorrência.
-- [ ] Endpoint público com throttle.
-- [ ] Serializer sem PII.
-- [ ] Configuração no painel.
-- [ ] Página com scanner + código manual.
-- [ ] `PUBLIC_ROUTES`, `robots`, `noindex`.
-- [ ] i18n pt/en/es.
+- [x] Modelos e migration.
+- [x] Geração de sessões por recorrência.
+- [x] Endpoint público com throttle.
+- [x] Serializer sem PII.
+- [x] Configuração no painel.
+- [x] Página com scanner + código manual.
+- [x] `PUBLIC_ROUTES`, `robots`, `noindex`.
+- [x] i18n pt/en/es.
+
+## Implementação
+- Backend: app Django `events`, modelos `EventCheckinConfig`, `EventSession`, `EventCheckinTeamMember`, `EventCheckin` e `EventCheckinAttempt`.
+- API autenticada: `checkin-configs`, `checkin-sessions`, `checkin-team`, `checkins`, com actions de geração, ativação, regenerate, scan, manual, cancel, summary e export.
+- API pública: `GET/POST /api/events/public/checkin/<token>/`, com throttle `public_event_checkin`.
+- Painel administrativo: `/admin/events/[eventId]/check-in` com abas Visão geral, Equipe, Sessões, Presenças e Relatório.
+- Scanner público: `/check-in/[token]`, operador da equipe persistido no navegador, scanner QR e código manual.
+- Equipe: membros da igreja, não usuários; participantes fora da lista são aceitos com aviso.
+- Relatório: totais esperados/check-ins/fora da lista, taxa, por origem, operador e data; exportação CSV mínima.

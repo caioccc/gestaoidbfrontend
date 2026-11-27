@@ -11,7 +11,8 @@
     "test:geo": "node --experimental-strip-types --test src/utils/geo.test.mts",
     "test:gc": "node --experimental-strip-types --test src/utils/growthGroupLayer.test.mts",
     "test:heatmap": "node --experimental-strip-types --test src/utils/memberHeatmap.test.mts",
-    "test": "npm run test:pix && npm run test:geocode && npm run test:geo && npm run test:gc && npm run test:heatmap"
+    "test:checkin": "node --experimental-strip-types --test src/utils/eventCheckin.test.mts",
+    "test": "npm run test:pix && npm run test:geocode && npm run test:geo && npm run test:gc && npm run test:heatmap && npm run test:checkin"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   Paper,
   Group,
@@ -34,10 +35,12 @@ import {
   IconLink,
   IconClock,
   IconAdjustmentsHorizontal,
+  IconQrcode,
 } from '@tabler/icons-react';
 import EmptyState from './EmptyState';
 import { useLanguage } from '../i18n';
 import { useFeedback } from '../hooks/useFeedback';
+import { eventCheckinApi } from '../api/checkin';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { maskTime, toSentenceCase, toUpperCamelWords } from '../utils/format';
 import {
@@ -194,6 +197,22 @@ export default function CalendarEventsBoard({
 }) {
   const { t } = useLanguage();
   const fb = useFeedback();
+  const router = useRouter();
+
+  const openCheckin = async (calendarEventId: number) => {
+    try {
+      const result = await eventCheckinApi.listEvents({ calendarEvent: calendarEventId });
+      router.push(
+        result.results[0]
+          ? `/admin/events/${result.results[0].id}/check-in`
+          : `/events?calendar=${calendarEventId}`
+      );
+    } catch (err) {
+      fb.fromError(err, t.common.toast.loadFailed);
+      router.push(`/events?calendar=${calendarEventId}`);
+    }
+  };
+
   const today = new Date();
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [view, setView] = useState<CalendarView>('month');
@@ -1463,6 +1482,17 @@ export default function CalendarEventsBoard({
             )}
             {canEditEvent(detail) && (
               <Group justify="flex-end">
+                <Button
+                  variant="default"
+                  leftSection={<IconQrcode size={14} />}
+                  onClick={() => {
+                    const id = detail.id;
+                    setDetail(null);
+                    openCheckin(id);
+                  }}
+                >
+                  {t.eventCheckin.title}
+                </Button>
                 <Button
                   variant="subtle"
                   leftSection={<IconEdit size={14} />}

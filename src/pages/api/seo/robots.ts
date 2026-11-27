@@ -19,6 +19,8 @@ const DISALLOWED_PATHS = [
   '/statement',
   '/validation',
   '/calendar',
+  '/events',
+  '/inscricao/',
   '/cultos',
   '/atas',
   '/songs',
@@ -29,6 +31,7 @@ const DISALLOWED_PATHS = [
   '/formulario/',
   '/ata/',
   '/folder/',
+  '/check-in/',
 ];
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

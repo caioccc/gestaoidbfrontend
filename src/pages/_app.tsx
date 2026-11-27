@@ -61,6 +61,7 @@ const APP_ROUTES = [
   '/dre',
   '/statement',
   '/calendar',
+  '/events',
   '/visitation',
   '/prayer-requests',
   '/settings',
@@ -93,6 +94,8 @@ const PUBLIC_ROUTES = [
   '/formulario/[hash]',
   '/ata/[hash]',
   '/folder/[hash]',
+  '/check-in/[token]',
+  '/inscricao/[token]',
 ];
 
 // Registro central de papéis por rota (item "Gestão de Acessos"/PROFESSOR_EBD).
@@ -115,6 +118,7 @@ const ROUTE_ROLES: Record<string, string[]> = {
   '/cultos': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
   '/atas': ALL_ROLES.filter((r) => r !== 'PROFESSOR_EBD'),
   '/folders': ['PASTOR', 'SECRETARIA', 'TESOUREIRO'],
+  '/admin/events/[eventId]/check-in': ['PASTOR', 'SECRETARIA', 'TESOUREIRO', 'ADMIN'],
 };
 
 const PUBLIC_ROOT_ID = 'public-root';

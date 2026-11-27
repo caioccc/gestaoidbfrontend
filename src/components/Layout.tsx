@@ -238,6 +238,13 @@ function SidebarContent({
           icon: <IconCalendarEvent size={18} />,
           href: "/calendar",
         },
+        {
+          label: t.nav.events,
+          icon: <IconListCheck size={18} />,
+          href: "/events",
+          fixed: true,
+          roles: ["PASTOR", "SECRETARIA", "TESOUREIRO", "ADMIN"],
+        } as NavItem,
       ],
     },
     ...(showChurchSections &&

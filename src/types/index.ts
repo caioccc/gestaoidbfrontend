@@ -288,6 +288,234 @@ export interface CalendarPublicLink {
   url: string;
 }
 
+export type EventSource = 'CALENDAR' | 'STANDALONE';
+export type EventRegistrationKind = 'MEMBER' | 'EXTERNAL';
+export type EventRegistrationSource =
+  | 'SEED'
+  | 'MANUAL'
+  | 'PUBLIC_FORM'
+  | 'WALK_IN'
+  | 'LEGACY';
+export type EventRegistrationStatus = 'ACTIVE' | 'CANCELLED';
+
+export interface Event {
+  id: number;
+  church: number;
+  source: EventSource;
+  source_display: string;
+  calendar_event: number | null;
+  calendar_event_title: string;
+  title: string;
+  date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  location: string;
+  description: string;
+  registration_token: string;
+  registration_token_is_active: boolean;
+  registration_url: string;
+  is_active: boolean;
+  registration_count: number;
+  checked_count: number;
+  checkin_config_id: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventRegistration {
+  id: number;
+  church: number;
+  event: number;
+  kind: EventRegistrationKind;
+  kind_display: string;
+  member: number | null;
+  member_name: string;
+  name: string;
+  display_name: string;
+  phone: string;
+  email: string;
+  code: string;
+  card_number: string;
+  qr_url: string;
+  status: EventRegistrationStatus;
+  status_display: string;
+  source: EventRegistrationSource;
+  source_display: string;
+  registered_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventShareLink {
+  url: string;
+  token: string;
+  is_active: boolean;
+  event_title: string;
+}
+
+export interface PublicEventRegistrationMeta {
+  token: string;
+  event_id: number;
+  event_title: string;
+  church_name: string;
+  date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  location: string;
+  description: string;
+  is_open: boolean;
+}
+
+export interface PublicEventRegistrationResult {
+  created: boolean;
+  already: boolean;
+  code: string;
+  qr_url: string;
+  name: string;
+  event_title: string;
+}
+
+export type EventCheckinMode = 'PER_DAY' | 'ONCE';
+
+export interface EventCheckinConfig {
+  id: number;
+  church: number;
+  event: number | null;
+  checkin_event: number | null;
+  event_title: string;
+  category_display: string;
+  mode: EventCheckinMode;
+  checkin_opens_at: string | null;
+  checkin_closes_at: string | null;
+  generation_start_date: string | null;
+  generation_end_date: string | null;
+  is_active: boolean;
+  session_count: number;
+  team_count: number;
+  registration_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventCheckinSession {
+  id: number;
+  config: number;
+  event: number | null;
+  checkin_event: number | null;
+  event_title: string;
+  church: number;
+  occurrence_date: string;
+  token: string;
+  token_is_active: boolean;
+  opens_at: string | null;
+  closes_at: string | null;
+  effective_opens_at: string | null;
+  effective_closes_at: string | null;
+  is_open: boolean;
+  checkin_count: number;
+  created_at: string;
+}
+
+export interface EventCheckinTeamMember {
+  id: number;
+  config: number;
+  church: number;
+  member: number;
+  member_name: string;
+  card_number: string;
+  photo: string;
+  role: 'LEAD' | 'OPERATOR';
+  role_display: string;
+  created_at: string;
+}
+
+export interface EventCheckinPerson {
+  id: number;
+  name: string;
+  card_number: string;
+  photo: string;
+  church_name: string;
+  status: string;
+  kind?: EventRegistrationKind;
+  code?: string;
+}
+
+export interface EventCheckinRow {
+  id: number;
+  session: number;
+  occurrence_date: string;
+  event_id: number;
+  event_title: string;
+  member: EventCheckinPerson | null;
+  person: EventCheckinPerson | null;
+  registration: number | null;
+  registration_kind: string | null;
+  registration_source: string | null;
+  code: string | null;
+  in_roster: boolean;
+  source: 'SCAN' | 'MANUAL';
+  source_display: string;
+  status: 'CHECKED_IN' | 'CANCELLED';
+  status_display: string;
+  operator: number | null;
+  operator_name: string;
+  role_name: string;
+  checked_at: string;
+  updated_at: string;
+}
+
+export interface EventCheckinListParams {
+  session?: number;
+  date_from?: string;
+  date_to?: string;
+  status?: 'CHECKED_IN' | 'CANCELLED' | '';
+  source?: 'SCAN' | 'MANUAL' | '';
+  team_member?: number;
+  in_roster?: boolean;
+  search?: string;
+  ordering?: string;
+  page?: number;
+  page_size?: number;
+}
+
+export interface EventCheckinSummary {
+  expected_count: number;
+  checked_count: number;
+  outside_roster_count: number;
+  rate: number;
+  by_source: Record<string, number>;
+  by_kind?: Record<string, number>;
+  by_team: { id: number; name: string; total: number }[];
+  by_date: { date: string; total: number }[];
+}
+
+export interface PublicEventCheckinSession {
+  token: string;
+  event_id: number;
+  event_title: string;
+  church_name: string;
+  occurrence_date: string;
+  start_time: string | null;
+  end_time: string | null;
+  mode: EventCheckinMode;
+  is_open: boolean;
+  team: {
+    id: number;
+    name: string;
+    role: 'LEAD' | 'OPERATOR';
+    role_display: string;
+  }[];
+}
+
+export interface PublicEventCheckinResult {
+  valid: boolean;
+  result: 'REGISTERED' | 'ALREADY';
+  already: boolean;
+  in_roster: boolean;
+  person: EventCheckinPerson;
+  checked_at: string;
+}
+
 export interface Tither {
   id: number;
   church: number;

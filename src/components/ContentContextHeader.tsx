@@ -26,6 +26,7 @@ const SEGMENT_KEYS: Record<string, string> = {
   statement: 'statement',
   validation: 'validation',
   calendar: 'calendar',
+  events: 'events',
   cultos: 'cultos',
   atas: 'minutes',
   inventory: 'inventory',
@@ -59,6 +60,7 @@ function flatSectionFromPathname(pathname: string): string | null {
 const GLOBAL_PAGES = [
   '/admin/churches',
   '/churches',
+  '/events',
   '/approvals',
   '/login',
   '/register',

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import {
   ActionIcon,
   Badge,
@@ -14,8 +15,9 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { DataTable, DataTableColumn } from 'mantine-datatable';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconEdit, IconQrcode, IconTrash } from '@tabler/icons-react';
 import MobileItemCard from './MobileItemCard';
+import { eventCheckinApi } from '../api/checkin';
 import { ListPagination, useServerPagination } from './ListPagination';
 import { useLanguage } from '../i18n';
 import { formatDate } from '../utils/format';
@@ -165,6 +167,7 @@ export default function CalendarEventsTable({
   canEditEvent,
 }: CalendarEventsTableProps) {
   const { t } = useLanguage();
+  const router = useRouter();
   const today = new Date();
   const [period, setPeriod] = useState<PeriodMode>('month');
   const [year, setYear] = useState<number>(today.getFullYear());
@@ -231,11 +234,37 @@ export default function CalendarEventsTable({
 
   const categoryLabel = (c: CalendarEventCategory) => t.calendarEvents.categories[c] || c;
 
+  const openCheckin = async (ev: CalendarEvent) => {
+    try {
+      const result = await eventCheckinApi.listEvents({ calendarEvent: ev.id });
+      router.push(
+        result.results[0]
+          ? `/admin/events/${result.results[0].id}/check-in`
+          : `/events?calendar=${ev.id}`
+      );
+    } catch {
+      router.push(`/events?calendar=${ev.id}`);
+    }
+  };
+
   const actionsFor = (row: CalendarEventOccurrenceRow) => {
     const ev = eventById.get(row.event_id);
     if (!ev || !canEditEvent(ev)) return null;
     return (
       <Group gap={4} wrap="nowrap">
+        <Tooltip label={t.eventCheckin.title}>
+          <ActionIcon
+            size="sm"
+            variant="subtle"
+            aria-label={t.eventCheckin.title}
+            onClick={(event) => {
+              event.stopPropagation();
+              openCheckin(ev);
+            }}
+          >
+            <IconQrcode size={15} />
+          </ActionIcon>
+        </Tooltip>
         <Tooltip label={t.calendarEvents.edit}>
           <ActionIcon
             size="sm"
