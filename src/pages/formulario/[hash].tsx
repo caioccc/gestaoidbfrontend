@@ -66,6 +66,7 @@ interface FormValues {
   phone: string;
   email: string;
   birth_date: Date | null;
+  baptism_date: Date | null;
   cpf: string;
   born_in_city: string;
   born_in_state: string;
@@ -97,6 +98,7 @@ const EMPTY_FORM: FormValues = {
   phone: '',
   email: '',
   birth_date: null,
+  baptism_date: null,
   cpf: '',
   born_in_city: '',
   born_in_state: '',
@@ -143,6 +145,7 @@ const buildCompletionValues = (prefill: PublicFormPrefill): FormValues => ({
   phone: maskPhone(prefill.phone || ''),
   email: prefill.email || '',
   birth_date: toDateValue(prefill.birth_date),
+  baptism_date: toDateValue(prefill.baptism_date),
   cpf: maskCpf(prefill.cpf || ''),
   born_in_city: prefill.born_in_city || '',
   born_in_state: prefill.born_in_state || '',
@@ -423,6 +426,7 @@ export default function PublicMemberFormPage() {
     phone: form.values.phone.replace(/\D/g, ''),
     email: form.values.email.trim(),
     birth_date: toISO(form.values.birth_date) ?? null,
+    baptism_date: toISO(form.values.baptism_date) ?? null,
     cpf: form.values.cpf.trim(),
     rg: meta?.mode === 'completion' ? (meta.prefill?.rg || '') : '',
     born_in_city: toUpperCamelWords(form.values.born_in_city.trim()),
@@ -759,14 +763,31 @@ export default function PublicMemberFormPage() {
               <Stepper.Step label={t.membersPage.stepMinistry}>
                 <ScrollArea.Autosize mah={520} type="auto">
                   <Stack gap="md" pt="xs">
-                    <Select
-                      label={t.membersPage.churchEntry}
-                      placeholder={t.membersPage.churchEntryPlaceholder}
-                      data={churchEntryOptions}
-                      clearable
-                      data-testid="pf-church_entry"
-                      {...form.getInputProps('church_entry')}
-                    />
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                      <Select
+                        label={t.membersPage.churchEntry}
+                        placeholder={t.membersPage.churchEntryPlaceholder}
+                        data={churchEntryOptions}
+                        clearable
+                        data-testid="pf-church_entry"
+                        {...form.getInputProps('church_entry')}
+                      />
+                      <DateInput
+                        label={t.membersPage.baptismDate}
+                        data-testid="pf-baptism_date"
+                        locale={locale}
+                        valueFormat="DD/MM/YYYY"
+                        clearable
+                        value={form.values.baptism_date}
+                        onChange={(value) =>
+                          form.setFieldValue(
+                            'baptism_date',
+                            toDateValue(value),
+                          )
+                        }
+                        error={form.errors.baptism_date}
+                      />
+                    </SimpleGrid>
                     {form.values.church_entry === 'OUTRO' && (
                       <TextInput
                         label={t.membersPage.churchEntryOther}

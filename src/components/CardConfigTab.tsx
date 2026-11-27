@@ -20,7 +20,6 @@ import MemberCard from './MemberCard';
 import { useLanguage } from '../i18n';
 import { useChurchCardConfig } from '../hooks/useChurchCardConfig';
 import { accountsApi } from '../api/accounts';
-import { toSentenceCase } from '../utils/format';
 import { firstFieldError } from '../utils/apiError';
 import type { CardConfig, CardTheme } from '../types';
 import { useFeedback } from '../hooks/useFeedback';
@@ -113,8 +112,8 @@ export default function CardConfigTab({ churchName, data }: CardConfigTabProps) 
         card_primary_color: form.values.card_primary_color.trim().toUpperCase(),
         card_secondary_color: form.values.card_secondary_color.trim().toUpperCase(),
         card_valid_until: toISO(form.values.card_valid_until),
-        card_front_phrase: toSentenceCase(form.values.card_front_phrase),
-        card_back_phrase: toSentenceCase(form.values.card_back_phrase),
+        card_front_phrase: form.values.card_front_phrase,
+        card_back_phrase: form.values.card_back_phrase,
         card_theme: form.values.card_theme,
       };
       await accountsApi.patchProfile(payload);

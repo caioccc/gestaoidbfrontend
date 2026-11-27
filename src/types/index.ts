@@ -1194,6 +1194,7 @@ export interface PublicFormPrefill {
   phone: string;
   email: string;
   birth_date: string | null;
+  baptism_date: string | null;
   cpf: string;
   rg: string;
   born_in_city: string;
@@ -1252,6 +1253,7 @@ export interface MemberSubmissionData {
   phone: string;
   email: string;
   birth_date: string | null;
+  baptism_date: string | null;
   cpf: string;
   rg: string;
   born_in_city: string;
