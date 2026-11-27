@@ -568,31 +568,32 @@ function ClassicCardBack({ member, churchName, config, churchContact, qrHash }: 
                 {address || t.memberCard.backNoAddress}
               </div>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-                {t.memberCard.backContact}
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div>
+                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  {t.memberCard.backContact}
+                </div>
+                <div
+                  style={{
+                    marginTop: 3,
+                    fontSize: 10,
+                    color: '#0f172a',
+                    fontWeight: 600,
+                    lineHeight: 1.4,
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {phone || t.memberCard.backNoContact}
+                </div>
               </div>
-              <div
-                style={{
-                  marginTop: 3,
-                  fontSize: 10,
-                  color: '#0f172a',
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                  wordBreak: 'break-word',
-                }}
-              >
-                {phone || t.memberCard.backNoContact}
+              <div>
+                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                  {t.memberCard.baptismDate}
+                </div>
+                <div style={{ marginTop: 3, fontSize: 10, color: '#0f172a', fontWeight: 600 }}>
+                  {baptism}
+                </div>
               </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 6 }}>
-            <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              {t.memberCard.baptismDate}
-            </div>
-            <div style={{ marginTop: 3, fontSize: 10, color: '#0f172a', fontWeight: 600 }}>
-              {baptism}
             </div>
           </div>
         </div>
@@ -790,18 +791,20 @@ function BlackPremiumCardBack({ member, churchName, config, churchContact, qrHas
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={labelStyle}>{t.memberCard.backAddress}</div>
             <div style={valueStyle}>{address || t.memberCard.backNoAddress}</div>
           </div>
-          <div>
-            <div style={labelStyle}>{t.memberCard.backContact}</div>
-            <div style={valueStyle}>{phone || t.memberCard.backNoContact}</div>
-          </div>
-          <div>
-            <div style={labelStyle}>{t.memberCard.baptismDate}</div>
-            <div style={valueStyle}>{baptism}</div>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div>
+              <div style={labelStyle}>{t.memberCard.backContact}</div>
+              <div style={valueStyle}>{phone || t.memberCard.backNoContact}</div>
+            </div>
+            <div>
+              <div style={labelStyle}>{t.memberCard.baptismDate}</div>
+              <div style={valueStyle}>{baptism}</div>
+            </div>
           </div>
         </div>
       </div>
